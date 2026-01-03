@@ -6357,3 +6357,822 @@ model WhatsAppMessage {
   @@index([createdAt])
   @@map("whatsapp_messages")
 }
+
+// ============================================
+// PHASE 3: FREIGHT EXCHANGE PLATFORM
+// ============================================
+
+// Freight request for bidding
+model FreightRequest {
+  id                    String    @id @default(cuid())
+  requestNumber         String    @unique @map("request_number")
+  clientId              String    @map("client_id")
+
+  // Origin and destination
+  originPincode         String    @map("origin_pincode")
+  originCity            String    @map("origin_city")
+  originState           String    @map("origin_state")
+  destinationPincode    String    @map("destination_pincode")
+  destinationCity       String    @map("destination_city")
+  destinationState      String    @map("destination_state")
+
+  // Shipment details
+  shipmentType          String    @map("shipment_type") // FTL, PTL, EXPRESS, SAME_DAY
+  vehicleType           String?   @map("vehicle_type") // TATA_ACE, TATA_407, EICHER_14FT, etc.
+  totalWeightKg         Float     @map("total_weight_kg")
+  totalVolumeCBM        Float?    @map("total_volume_cbm")
+  packageCount          Int       @map("package_count")
+  contentDescription    String?   @map("content_description")
+  specialInstructions   String?   @map("special_instructions")
+
+  // Requirements
+  requiresColdChain     Boolean   @default(false) @map("requires_cold_chain")
+  requiresODA           Boolean   @default(false) @map("requires_oda") // Out of delivery area
+  requiresFragile       Boolean   @default(false) @map("requires_fragile")
+  requiresHazmat        Boolean   @default(false) @map("requires_hazmat")
+  requiresInsurance     Boolean   @default(false) @map("requires_insurance")
+  insuranceValue        Float?    @map("insurance_value")
+
+  // Timing
+  pickupDate            DateTime  @map("pickup_date")
+  pickupTimeSlot        String?   @map("pickup_time_slot") // 09:00-12:00, 12:00-15:00, etc.
+  expectedDeliveryDate  DateTime  @map("expected_delivery_date")
+
+  // Pricing
+  baseBudget            Float?    @map("base_budget") // Client's max budget
+  reservePrice          Float?    @map("reserve_price") // Minimum acceptable price
+  pricingModel          String    @default("PER_KG") @map("pricing_model") // PER_KG, PER_SHIPMENT, FLAT_RATE
+
+  // Bidding settings
+  biddingStartTime      DateTime  @map("bidding_start_time")
+  biddingEndTime        DateTime  @map("bidding_end_time")
+  autoAward             Boolean   @default(false) @map("auto_award") // Auto-award to lowest bid
+  minBids               Int       @default(1) @map("min_bids") // Minimum bids required
+  visibleToAll          Boolean   @default(true) @map("visible_to_all") // Or invite-only
+
+  // Status
+  status                String    @default("DRAFT") // DRAFT, OPEN, BIDDING, AWARDED, COMPLETED, CANCELLED, EXPIRED
+  awardedBidId          String?   @map("awarded_bid_id")
+  awardedAt             DateTime? @map("awarded_at")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  bids                  FreightBid[]
+  invitedCarriers       FreightRequestInvite[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([originPincode, destinationPincode])
+  @@index([biddingEndTime])
+  @@map("freight_requests")
+}
+
+// Carrier bid on a freight request
+model FreightBid {
+  id                    String    @id @default(cuid())
+  requestId             String    @map("request_id")
+  carrierId             String    @map("carrier_id") // Partner ID
+  carrierName           String    @map("carrier_name")
+
+  // Pricing
+  bidAmount             Float     @map("bid_amount")
+  bidPerKg              Float?    @map("bid_per_kg")
+  fuelSurcharge         Float?    @map("fuel_surcharge")
+  odaCharges            Float?    @map("oda_charges")
+  handlingCharges       Float?    @map("handling_charges")
+  insuranceCharges      Float?    @map("insurance_charges")
+  totalAmount           Float     @map("total_amount")
+
+  // Commitment
+  estimatedPickupTime   DateTime  @map("estimated_pickup_time")
+  estimatedDeliveryTime DateTime  @map("estimated_delivery_time")
+  vehicleType           String?   @map("vehicle_type")
+  vehicleRegNo          String?   @map("vehicle_reg_no")
+  driverName            String?   @map("driver_name")
+  driverPhone           String?   @map("driver_phone")
+
+  // Terms
+  paymentTerms          String?   @map("payment_terms") // PREPAID, COD, CREDIT_30, CREDIT_45
+  validUntil            DateTime  @map("valid_until")
+  remarks               String?
+
+  // Status
+  status                String    @default("SUBMITTED") // SUBMITTED, SHORTLISTED, ACCEPTED, REJECTED, WITHDRAWN
+  isLowestBid           Boolean   @default(false) @map("is_lowest_bid")
+  rankPosition          Int?      @map("rank_position")
+
+  // Rejection
+  rejectionReason       String?   @map("rejection_reason")
+  rejectedAt            DateTime? @map("rejected_at")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  request               FreightRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([carrierId])
+  @@index([status])
+  @@map("freight_bids")
+}
+
+// Invited carriers for a request
+model FreightRequestInvite {
+  id                    String    @id @default(cuid())
+  requestId             String    @map("request_id")
+  carrierId             String    @map("carrier_id")
+  carrierName           String    @map("carrier_name")
+  carrierEmail          String?   @map("carrier_email")
+  carrierPhone          String?   @map("carrier_phone")
+
+  invitedAt             DateTime  @default(now()) @map("invited_at")
+  viewedAt              DateTime? @map("viewed_at")
+  respondedAt           DateTime? @map("responded_at")
+  response              String?   // INTERESTED, NOT_INTERESTED, BID_SUBMITTED
+
+  request               FreightRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, carrierId])
+  @@map("freight_request_invites")
+}
+
+// Carrier performance profile
+model CarrierProfile {
+  id                    String    @id @default(cuid())
+  partnerId             String    @unique @map("partner_id")
+
+  // Rating scores
+  overallRating         Float     @default(0) @map("overall_rating") // 0-5
+  deliveryRating        Float     @default(0) @map("delivery_rating")
+  pricingRating         Float     @default(0) @map("pricing_rating")
+  communicationRating   Float     @default(0) @map("communication_rating")
+
+  // Performance metrics
+  totalBidsSubmitted    Int       @default(0) @map("total_bids_submitted")
+  totalBidsWon          Int       @default(0) @map("total_bids_won")
+  winRate               Float     @default(0) @map("win_rate")
+  totalShipmentsCompleted Int     @default(0) @map("total_shipments_completed")
+  onTimeDeliveryRate    Float     @default(0) @map("on_time_delivery_rate")
+  damageRate            Float     @default(0) @map("damage_rate")
+
+  // Capabilities
+  serviceablePincodes   String?   @map("serviceable_pincodes") // JSON array
+  vehicleTypes          String?   @map("vehicle_types") // JSON array
+  specializations       String?   // COLD_CHAIN, HAZMAT, FRAGILE, EXPRESS
+  maxWeightCapacity     Float?    @map("max_weight_capacity")
+
+  // Verification
+  isVerified            Boolean   @default(false) @map("is_verified")
+  verifiedAt            DateTime? @map("verified_at")
+  documentsVerified     Boolean   @default(false) @map("documents_verified")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("carrier_profiles")
+}
+
+// ============================================
+// PHASE 3: IOT & COLD CHAIN MONITORING
+// ============================================
+
+// IoT device registry
+model IoTDevice {
+  id                    String    @id @default(cuid())
+  deviceId              String    @unique @map("device_id")
+  deviceType            String    @map("device_type") // TEMPERATURE_SENSOR, GPS_TRACKER, HUMIDITY_SENSOR, DOOR_SENSOR
+  manufacturer          String?
+  model                 String?
+  serialNumber          String?   @map("serial_number")
+  firmwareVersion       String?   @map("firmware_version")
+
+  // Assignment
+  assignmentType        String?   @map("assignment_type") // VEHICLE, CONTAINER, SHIPMENT, WAREHOUSE
+  vehicleId             String?   @map("vehicle_id")
+  containerId           String?   @map("container_id")
+  warehouseId           String?   @map("warehouse_id")
+  zoneId                String?   @map("zone_id")
+
+  // Configuration
+  reportingIntervalSec  Int       @default(300) @map("reporting_interval_sec") // 5 minutes default
+  tempMinThreshold      Float?    @map("temp_min_threshold")
+  tempMaxThreshold      Float?    @map("temp_max_threshold")
+  humidityMinThreshold  Float?    @map("humidity_min_threshold")
+  humidityMaxThreshold  Float?    @map("humidity_max_threshold")
+
+  // Status
+  status                String    @default("ACTIVE") // ACTIVE, INACTIVE, MAINTENANCE, LOST
+  batteryLevel          Float?    @map("battery_level") // 0-100
+  signalStrength        Float?    @map("signal_strength")
+  lastSeenAt            DateTime? @map("last_seen_at")
+  lastLatitude          Float?    @map("last_latitude")
+  lastLongitude         Float?    @map("last_longitude")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  readings              IoTReading[]
+  alerts                ColdChainAlert[]
+
+  @@index([deviceType])
+  @@index([status])
+  @@index([vehicleId])
+  @@map("iot_devices")
+}
+
+// IoT sensor readings
+model IoTReading {
+  id                    String    @id @default(cuid())
+  deviceId              String    @map("device_id")
+
+  // Reading values
+  temperature           Float?    // Celsius
+  humidity              Float?    // Percentage
+  pressure              Float?    // hPa
+  lightLevel            Float?    @map("light_level") // Lux
+  shockLevel            Float?    @map("shock_level") // g-force
+  doorStatus            String?   @map("door_status") // OPEN, CLOSED
+
+  // Location
+  latitude              Float?
+  longitude             Float?
+  altitude              Float?
+  speed                 Float?    // km/h
+
+  // Status
+  batteryLevel          Float?    @map("battery_level")
+  signalStrength        Float?    @map("signal_strength")
+
+  // Context
+  shipmentId            String?   @map("shipment_id")
+  tripId                String?   @map("trip_id")
+
+  // Flags
+  isAnomaly             Boolean   @default(false) @map("is_anomaly")
+  anomalyType           String?   @map("anomaly_type") // TEMP_HIGH, TEMP_LOW, SHOCK, DOOR_OPEN
+
+  recordedAt            DateTime  @default(now()) @map("recorded_at")
+  receivedAt            DateTime  @default(now()) @map("received_at")
+
+  // Relations
+  device                IoTDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, recordedAt])
+  @@index([shipmentId])
+  @@index([isAnomaly])
+  @@map("iot_readings")
+}
+
+// Cold chain shipment requirements
+model ColdChainShipment {
+  id                    String    @id @default(cuid())
+  shipmentId            String    @unique @map("shipment_id")
+
+  // Temperature requirements
+  tempCategory          String    @map("temp_category") // FROZEN, CHILLED, AMBIENT_CONTROLLED
+  tempMinRequired       Float     @map("temp_min_required") // Celsius
+  tempMaxRequired       Float     @map("temp_max_required") // Celsius
+  tempTolerance         Float     @default(2) @map("temp_tolerance") // Allowed deviation
+
+  // Additional requirements
+  humidityMinRequired   Float?    @map("humidity_min_required")
+  humidityMaxRequired   Float?    @map("humidity_max_required")
+  lightSensitive        Boolean   @default(false) @map("light_sensitive")
+  shockSensitive        Boolean   @default(false) @map("shock_sensitive")
+  maxShockG             Float?    @map("max_shock_g")
+
+  // Monitoring devices
+  assignedDeviceIds     String?   @map("assigned_device_ids") // JSON array
+
+  // Compliance
+  requiresDataLogger    Boolean   @default(true) @map("requires_data_logger")
+  requiresGDPCompliance Boolean   @default(false) @map("requires_gdp_compliance") // Good Distribution Practice
+  requiresHACCP         Boolean   @default(false) @map("requires_haccp") // Hazard Analysis
+
+  // Product details
+  productType           String?   @map("product_type") // PHARMA, VACCINE, FOOD, CHEMICALS
+  batchNumbers          String?   @map("batch_numbers") // JSON array
+  expiryDate            DateTime? @map("expiry_date")
+
+  // Status
+  monitoringStatus      String    @default("ACTIVE") @map("monitoring_status") // ACTIVE, PAUSED, COMPLETED, BREACH
+  totalExcursions       Int       @default(0) @map("total_excursions")
+  maxExcursionDuration  Int       @default(0) @map("max_excursion_duration") // Minutes
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  excursions            ColdChainExcursion[]
+  certificates          ColdChainCertificate[]
+
+  @@map("cold_chain_shipments")
+}
+
+// Temperature/condition excursion events
+model ColdChainExcursion {
+  id                    String    @id @default(cuid())
+  coldChainShipmentId   String    @map("cold_chain_shipment_id")
+  deviceId              String?   @map("device_id")
+
+  // Excursion details
+  excursionType         String    @map("excursion_type") // TEMP_HIGH, TEMP_LOW, HUMIDITY_HIGH, HUMIDITY_LOW, SHOCK, DOOR_OPEN
+  thresholdValue        Float     @map("threshold_value")
+  actualValue           Float     @map("actual_value")
+  deviationAmount       Float     @map("deviation_amount")
+
+  // Duration
+  startTime             DateTime  @map("start_time")
+  endTime               DateTime? @map("end_time")
+  durationMinutes       Int?      @map("duration_minutes")
+
+  // Location
+  latitude              Float?
+  longitude             Float?
+  locationDescription   String?   @map("location_description")
+
+  // Severity
+  severity              String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+
+  // Resolution
+  status                String    @default("ACTIVE") // ACTIVE, RESOLVED, ACKNOWLEDGED
+  resolvedAt            DateTime? @map("resolved_at")
+  resolvedBy            String?   @map("resolved_by")
+  resolutionNotes       String?   @map("resolution_notes")
+
+  // Impact assessment
+  productImpact         String?   @map("product_impact") // NONE, MINOR, MAJOR, TOTAL_LOSS
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  coldChainShipment     ColdChainShipment @relation(fields: [coldChainShipmentId], references: [id], onDelete: Cascade)
+
+  @@index([coldChainShipmentId])
+  @@index([severity, status])
+  @@map("cold_chain_excursions")
+}
+
+// Cold chain alerts
+model ColdChainAlert {
+  id                    String    @id @default(cuid())
+  deviceId              String    @map("device_id")
+  shipmentId            String?   @map("shipment_id")
+
+  alertType             String    @map("alert_type") // TEMP_BREACH, HUMIDITY_BREACH, SHOCK, DOOR_OPEN, BATTERY_LOW, DEVICE_OFFLINE
+  severity              String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+
+  message               String
+  currentValue          Float?    @map("current_value")
+  thresholdValue        Float?    @map("threshold_value")
+
+  status                String    @default("ACTIVE") // ACTIVE, ACKNOWLEDGED, RESOLVED
+  acknowledgedBy        String?   @map("acknowledged_by")
+  acknowledgedAt        DateTime? @map("acknowledged_at")
+  resolvedAt            DateTime? @map("resolved_at")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  device                IoTDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@index([shipmentId])
+  @@index([alertType, status])
+  @@map("cold_chain_alerts")
+}
+
+// Cold chain compliance certificates
+model ColdChainCertificate {
+  id                    String    @id @default(cuid())
+  coldChainShipmentId   String    @map("cold_chain_shipment_id")
+
+  certificateType       String    @map("certificate_type") // TEMPERATURE_LOG, GDP_COMPLIANCE, HACCP, CUSTOMS_RELEASE
+  certificateNumber     String    @map("certificate_number")
+
+  // Validity
+  issuedAt              DateTime  @map("issued_at")
+  validUntil            DateTime? @map("valid_until")
+
+  // Content
+  temperatureDataUrl    String?   @map("temperature_data_url") // Link to temperature log
+  chartImageUrl         String?   @map("chart_image_url") // Temperature chart image
+  pdfUrl                String?   @map("pdf_url")
+
+  // Summary
+  minTempRecorded       Float?    @map("min_temp_recorded")
+  maxTempRecorded       Float?    @map("max_temp_recorded")
+  avgTempRecorded       Float?    @map("avg_temp_recorded")
+  totalReadings         Int?      @map("total_readings")
+  excursionCount        Int       @default(0) @map("excursion_count")
+
+  // Compliance result
+  complianceStatus      String    @map("compliance_status") // COMPLIANT, NON_COMPLIANT, PARTIAL
+  remarks               String?
+
+  // Digital signature
+  signedBy              String?   @map("signed_by")
+  signatureHash         String?   @map("signature_hash")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  coldChainShipment     ColdChainShipment @relation(fields: [coldChainShipmentId], references: [id], onDelete: Cascade)
+
+  @@index([coldChainShipmentId])
+  @@map("cold_chain_certificates")
+}
+
+// ============================================
+// PHASE 3: ADVANCED ML MODELS
+// ============================================
+
+// ML model registry
+model MLModel {
+  id                    String    @id @default(cuid())
+  modelName             String    @map("model_name")
+  modelType             String    @map("model_type") // DEMAND_FORECAST, ETA_PREDICTION, DELAY_RISK, ROUTE_OPTIMIZATION
+  version               String
+
+  // Training details
+  trainingDataStart     DateTime? @map("training_data_start")
+  trainingDataEnd       DateTime? @map("training_data_end")
+  sampleCount           Int?      @map("sample_count")
+  features              String?   // JSON array of features used
+
+  // Algorithm
+  algorithm             String?   // XGBoost, LSTM, Prophet, Random Forest, etc.
+  hyperparameters       String?   // JSON object
+
+  // Performance metrics
+  trainingAccuracy      Float?    @map("training_accuracy")
+  validationAccuracy    Float?    @map("validation_accuracy")
+  mape                  Float?    // Mean Absolute Percentage Error
+  rmse                  Float?    // Root Mean Square Error
+
+  // Deployment
+  status                String    @default("TRAINING") // TRAINING, VALIDATED, DEPLOYED, DEPRECATED
+  deployedAt            DateTime? @map("deployed_at")
+  isActive              Boolean   @default(false) @map("is_active")
+
+  // Artifacts
+  modelArtifactUrl      String?   @map("model_artifact_url")
+  modelSize             Int?      @map("model_size") // bytes
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  trainingJobs          MLTrainingJob[]
+
+  @@index([modelType, isActive])
+  @@map("ml_models")
+}
+
+// ML model training jobs
+model MLTrainingJob {
+  id                    String    @id @default(cuid())
+  modelId               String?   @map("model_id")
+  modelType             String    @map("model_type")
+
+  // Job details
+  jobName               String    @map("job_name")
+  status                String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+
+  // Training parameters
+  trainingConfig        String?   @map("training_config") // JSON
+  datasetConfig         String?   @map("dataset_config") // JSON
+
+  // Progress
+  progress              Float     @default(0) // 0-100
+  currentEpoch          Int?      @map("current_epoch")
+  totalEpochs           Int?      @map("total_epochs")
+
+  // Results
+  metricsLog            String?   @map("metrics_log") // JSON array of epoch metrics
+  finalMetrics          String?   @map("final_metrics") // JSON
+
+  // Timing
+  startedAt             DateTime? @map("started_at")
+  completedAt           DateTime? @map("completed_at")
+  durationSeconds       Int?      @map("duration_seconds")
+
+  // Error handling
+  errorMessage          String?   @map("error_message")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  model                 MLModel?  @relation(fields: [modelId], references: [id])
+
+  @@index([modelType, status])
+  @@index([createdAt])
+  @@map("ml_training_jobs")
+}
+
+// ============================================
+// PHASE 3: BI TOOL INTEGRATION
+// ============================================
+
+// BI tool connections
+model BIConnection {
+  id                    String    @id @default(cuid())
+  name                  String
+  toolType              String    @map("tool_type") // POWER_BI, TABLEAU, METABASE, LOOKER, CUSTOM
+
+  // Connection details
+  connectionType        String    @map("connection_type") // DIRECT, OAUTH, API_KEY, SERVICE_ACCOUNT
+  host                  String?
+  port                  Int?
+  database              String?
+  username              String?
+  encryptedPassword     String?   @map("encrypted_password")
+  apiKey                String?   @map("api_key")
+  oauthToken            String?   @map("oauth_token")
+
+  // Settings
+  refreshIntervalMin    Int       @default(60) @map("refresh_interval_min")
+  autoRefresh           Boolean   @default(true) @map("auto_refresh")
+
+  // Status
+  status                String    @default("ACTIVE") // ACTIVE, INACTIVE, ERROR
+  lastConnectedAt       DateTime? @map("last_connected_at")
+  lastError             String?   @map("last_error")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  datasets              BIDataset[]
+
+  @@map("bi_connections")
+}
+
+// BI datasets/data sources
+model BIDataset {
+  id                    String    @id @default(cuid())
+  connectionId          String    @map("connection_id")
+  name                  String
+  description           String?
+
+  // Data definition
+  dataType              String    @map("data_type") // SHIPMENTS, HUBS, VEHICLES, PERFORMANCE, CUSTOM
+  queryDefinition       String?   @map("query_definition") // SQL or query config
+  aggregationLevel      String?   @map("aggregation_level") // RAW, HOURLY, DAILY, WEEKLY, MONTHLY
+
+  // Schema
+  columns               String?   // JSON array of column definitions
+  primaryKey            String?   @map("primary_key")
+
+  // Refresh
+  lastRefreshAt         DateTime? @map("last_refresh_at")
+  nextRefreshAt         DateTime? @map("next_refresh_at")
+  rowCount              Int?      @map("row_count")
+  sizeBytes             Int?      @map("size_bytes")
+
+  // Status
+  status                String    @default("ACTIVE") // ACTIVE, REFRESHING, ERROR, PAUSED
+  lastError             String?   @map("last_error")
+
+  isPublic              Boolean   @default(false) @map("is_public")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  connection            BIConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  reports               BIReport[]
+
+  @@map("bi_datasets")
+}
+
+// BI reports
+model BIReport {
+  id                    String    @id @default(cuid())
+  datasetId             String    @map("dataset_id")
+  name                  String
+  description           String?
+
+  // Report configuration
+  reportType            String    @map("report_type") // DASHBOARD, TABLE, CHART, PIVOT
+  visualizations        String?   // JSON array of visualization configs
+  filters               String?   // JSON array of filter configs
+
+  // Sharing
+  isPublic              Boolean   @default(false) @map("is_public")
+  shareableLink         String?   @map("shareable_link")
+  allowedUsers          String?   @map("allowed_users") // JSON array
+
+  // Scheduling
+  scheduleEnabled       Boolean   @default(false) @map("schedule_enabled")
+  scheduleCron          String?   @map("schedule_cron")
+  emailRecipients       String?   @map("email_recipients") // JSON array
+
+  // Stats
+  viewCount             Int       @default(0) @map("view_count")
+  lastViewedAt          DateTime? @map("last_viewed_at")
+
+  createdBy             String?   @map("created_by")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  dataset               BIDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@map("bi_reports")
+}
+
+// ============================================
+// PHASE 3: WAREHOUSE ROBOTICS
+// ============================================
+
+// Warehouse robot/AGV/AMR registry
+model WarehouseRobot {
+  id                    String    @id @default(cuid())
+  robotId               String    @unique @map("robot_id")
+  warehouseId           String    @map("warehouse_id")
+
+  // Robot details
+  robotType             String    @map("robot_type") // AGV, AMR, PICKING_ARM, SORTING_ROBOT, PALLET_MOVER
+  manufacturer          String?
+  model                 String?
+  serialNumber          String?   @map("serial_number")
+
+  // Capabilities
+  maxPayloadKg          Float?    @map("max_payload_kg")
+  maxSpeedMps           Float?    @map("max_speed_mps") // meters per second
+  navigationTechnology  String?   @map("navigation_technology") // LIDAR, VISION, MAGNETIC, QR_CODE
+  canPickItems          Boolean   @default(false) @map("can_pick_items")
+  canPlaceItems         Boolean   @default(false) @map("can_place_items")
+  canTransportPallets   Boolean   @default(false) @map("can_transport_pallets")
+  canSortPackages       Boolean   @default(false) @map("can_sort_packages")
+
+  // Current status
+  status                String    @default("IDLE") // IDLE, WORKING, CHARGING, MAINTENANCE, ERROR, OFFLINE
+  currentZoneId         String?   @map("current_zone_id")
+  currentTaskId         String?   @map("current_task_id")
+
+  // Position
+  positionX             Float?    @map("position_x")
+  positionY             Float?    @map("position_y")
+  positionZ             Float?    @map("position_z")
+  orientationDeg        Float?    @map("orientation_deg")
+
+  // Battery/power
+  batteryLevel          Float?    @map("battery_level") // 0-100
+  isCharging            Boolean   @default(false) @map("is_charging")
+  chargingStationId     String?   @map("charging_station_id")
+
+  // Stats
+  totalTasksCompleted   Int       @default(0) @map("total_tasks_completed")
+  totalDistanceMeters   Float     @default(0) @map("total_distance_meters")
+  totalOperatingHours   Float     @default(0) @map("total_operating_hours")
+  errorCount            Int       @default(0) @map("error_count")
+
+  // Maintenance
+  lastMaintenanceAt     DateTime? @map("last_maintenance_at")
+  nextMaintenanceDue    DateTime? @map("next_maintenance_due")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  tasks                 RobotTask[]
+  maintenanceRecords    RobotMaintenance[]
+
+  @@index([warehouseId])
+  @@index([status])
+  @@map("warehouse_robots")
+}
+
+// Robot task assignments
+model RobotTask {
+  id                    String    @id @default(cuid())
+  robotId               String    @map("robot_id")
+  warehouseId           String    @map("warehouse_id")
+
+  // Task details
+  taskType              String    @map("task_type") // PICK, PLACE, TRANSPORT, SORT, CHARGE, RELOCATE
+  priority              Int       @default(5) // 1-10, 1 is highest
+
+  // Source and destination
+  sourceZoneId          String?   @map("source_zone_id")
+  sourceLocation        String?   @map("source_location") // Bin/slot location
+  destinationZoneId     String?   @map("destination_zone_id")
+  destinationLocation   String?   @map("destination_location")
+
+  // Items
+  itemId                String?   @map("item_id")
+  itemSku               String?   @map("item_sku")
+  itemQuantity          Int?      @map("item_quantity")
+  containerType         String?   @map("container_type") // BIN, PALLET, TOTE
+  containerId           String?   @map("container_id")
+
+  // Linked orders
+  pickListId            String?   @map("pick_list_id")
+  waveId                String?   @map("wave_id")
+  orderId               String?   @map("order_id")
+
+  // Status
+  status                String    @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, FAILED, CANCELLED
+
+  // Timing
+  scheduledAt           DateTime? @map("scheduled_at")
+  startedAt             DateTime? @map("started_at")
+  completedAt           DateTime? @map("completed_at")
+  estimatedDurationSec  Int?      @map("estimated_duration_sec")
+  actualDurationSec     Int?      @map("actual_duration_sec")
+
+  // Errors
+  failureReason         String?   @map("failure_reason")
+  retryCount            Int       @default(0) @map("retry_count")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  robot                 WarehouseRobot @relation(fields: [robotId], references: [id], onDelete: Cascade)
+
+  @@index([robotId, status])
+  @@index([warehouseId, status])
+  @@index([priority, status])
+  @@map("robot_tasks")
+}
+
+// Robot operating zones
+model RobotZone {
+  id                    String    @id @default(cuid())
+  warehouseId           String    @map("warehouse_id")
+  zoneName              String    @map("zone_name")
+  zoneCode              String    @map("zone_code")
+
+  // Zone type
+  zoneType              String    @map("zone_type") // PICKING, PACKING, STORAGE, RECEIVING, SHIPPING, CHARGING
+
+  // Boundaries (coordinates in meters from warehouse origin)
+  minX                  Float     @map("min_x")
+  maxX                  Float     @map("max_x")
+  minY                  Float     @map("min_y")
+  maxY                  Float     @map("max_y")
+
+  // Configuration
+  maxRobots             Int       @default(5) @map("max_robots")
+  speedLimitMps         Float?    @map("speed_limit_mps")
+  isRestrictedAccess    Boolean   @default(false) @map("is_restricted_access")
+  allowedRobotTypes     String?   @map("allowed_robot_types") // JSON array
+
+  // Traffic rules
+  oneWayDirection       String?   @map("one_way_direction") // N, S, E, W, or null for bidirectional
+  priority              Int       @default(5) // Zone priority for routing
+
+  status                String    @default("ACTIVE") // ACTIVE, MAINTENANCE, BLOCKED
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@unique([warehouseId, zoneCode])
+  @@map("robot_zones")
+}
+
+// Robot maintenance records
+model RobotMaintenance {
+  id                    String    @id @default(cuid())
+  robotId               String    @map("robot_id")
+
+  // Maintenance details
+  maintenanceType       String    @map("maintenance_type") // PREVENTIVE, CORRECTIVE, EMERGENCY
+  description           String
+
+  // Parts
+  partsReplaced         String?   @map("parts_replaced") // JSON array
+  partsCost             Float?    @map("parts_cost")
+  laborCost             Float?    @map("labor_cost")
+  totalCost             Float?    @map("total_cost")
+
+  // Technician
+  technicianName        String?   @map("technician_name")
+  technicianId          String?   @map("technician_id")
+
+  // Timing
+  scheduledAt           DateTime? @map("scheduled_at")
+  startedAt             DateTime  @map("started_at")
+  completedAt           DateTime? @map("completed_at")
+  durationMinutes       Int?      @map("duration_minutes")
+
+  // Status
+  status                String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+
+  notes                 String?
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  robot                 WarehouseRobot @relation(fields: [robotId], references: [id], onDelete: Cascade)
+
+  @@index([robotId])
+  @@index([maintenanceType])
+  @@map("robot_maintenance")
+}

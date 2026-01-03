@@ -444,3 +444,469 @@ test.describe("Public Tracking API", () => {
     expect(data.success).toBe(false);
   });
 });
+
+// ============================================
+// PHASE 3 - ADVANCED CAPABILITIES API TESTS
+// ============================================
+
+test.describe("API Endpoints - Phase 3 Freight Exchange", () => {
+  test("GET /api/freight-exchange returns freight requests", async ({ request }) => {
+    const response = await request.get("/api/freight-exchange");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toBeDefined();
+    expect(data.data.items).toBeDefined();
+    expect(data.data.summary).toBeDefined();
+  });
+
+  test("GET /api/freight-exchange?type=bids returns bids", async ({ request }) => {
+    const response = await request.get("/api/freight-exchange?type=bids");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data.items).toBeDefined();
+  });
+
+  test("GET /api/freight-exchange?type=carriers returns carriers", async ({ request }) => {
+    const response = await request.get("/api/freight-exchange?type=carriers");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data.items).toBeDefined();
+  });
+
+  test("POST /api/freight-exchange CREATE_REQUEST creates freight request", async ({ request }) => {
+    const response = await request.post("/api/freight-exchange", {
+      data: {
+        action: "CREATE_REQUEST",
+        clientId: "test-client-001",
+        originPincode: "400001",
+        originCity: "Mumbai",
+        originState: "Maharashtra",
+        destinationPincode: "110001",
+        destinationCity: "New Delhi",
+        destinationState: "Delhi",
+        shipmentType: "FTL",
+        vehicleType: "TRUCK_20FT",
+        totalWeightKg: 5000,
+        packageCount: 50,
+        contentDescription: "Electronics",
+        pickupDate: new Date(Date.now() + 86400000).toISOString(),
+        expectedDeliveryDate: new Date(Date.now() + 259200000).toISOString(),
+        biddingEndTime: new Date(Date.now() + 172800000).toISOString(),
+        baseBudget: 50000,
+      }
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("requestNumber");
+    expect(data.data.status).toBe("OPEN");
+  });
+});
+
+test.describe("API Endpoints - Phase 3 IoT Devices", () => {
+  test("GET /api/iot returns IoT devices", async ({ request }) => {
+    const response = await request.get("/api/iot");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toBeDefined();
+    expect(data.data.items).toBeDefined();
+    expect(data.data.summary).toBeDefined();
+  });
+
+  test("GET /api/iot?type=readings returns device readings", async ({ request }) => {
+    const response = await request.get("/api/iot?type=readings");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("GET /api/iot?type=alerts returns device alerts", async ({ request }) => {
+    const response = await request.get("/api/iot?type=alerts");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("POST /api/iot REGISTER_DEVICE registers new device", async ({ request }) => {
+    const response = await request.post("/api/iot", {
+      data: {
+        action: "REGISTER_DEVICE",
+        deviceId: `IOT-TEST-${Date.now()}`,
+        deviceType: "TEMPERATURE_SENSOR",
+        manufacturer: "TestMfg",
+        model: "TMP-100",
+        firmwareVersion: "1.0.0",
+      }
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("deviceId");
+    expect(data.data.status).toBe("ACTIVE");
+  });
+});
+
+test.describe("API Endpoints - Phase 3 Cold Chain", () => {
+  test("GET /api/cold-chain returns cold chain shipments", async ({ request }) => {
+    const response = await request.get("/api/cold-chain");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toBeDefined();
+    expect(data.data.items).toBeDefined();
+    expect(data.data.summary).toBeDefined();
+  });
+
+  test("GET /api/cold-chain?type=excursions returns excursions", async ({ request }) => {
+    const response = await request.get("/api/cold-chain?type=excursions");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("GET /api/cold-chain?type=certificates returns certificates", async ({ request }) => {
+    const response = await request.get("/api/cold-chain?type=certificates");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+});
+
+test.describe("API Endpoints - Phase 3 ML Models", () => {
+  test("GET /api/ml-models returns ML models", async ({ request }) => {
+    const response = await request.get("/api/ml-models");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toBeDefined();
+    expect(data.data.items).toBeDefined();
+    expect(data.data.summary).toBeDefined();
+  });
+
+  test("GET /api/ml-models?type=training-jobs returns training jobs", async ({ request }) => {
+    const response = await request.get("/api/ml-models?type=training-jobs");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("GET /api/ml-models?type=forecasts returns demand forecasts", async ({ request }) => {
+    const response = await request.get("/api/ml-models?type=forecasts");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("POST /api/ml-models REGISTER_MODEL creates new model", async ({ request }) => {
+    const response = await request.post("/api/ml-models", {
+      data: {
+        action: "REGISTER_MODEL",
+        modelName: `TestModel_${Date.now()}`,
+        modelType: "DEMAND_FORECAST",
+        version: "1.0.0",
+        algorithm: "RANDOM_FOREST",
+        features: "volume,weight,origin,destination,time",
+      }
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("modelName");
+    expect(data.data.status).toBe("TRAINING");
+  });
+});
+
+test.describe("API Endpoints - Phase 3 BI Integration", () => {
+  test("GET /api/bi returns BI connections", async ({ request }) => {
+    const response = await request.get("/api/bi");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toBeDefined();
+    expect(data.data.items).toBeDefined();
+    expect(data.data.summary).toBeDefined();
+  });
+
+  test("GET /api/bi?type=datasets returns BI datasets", async ({ request }) => {
+    const response = await request.get("/api/bi?type=datasets");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("POST /api/bi CREATE_CONNECTION creates BI connection", async ({ request }) => {
+    const response = await request.post("/api/bi", {
+      data: {
+        action: "CREATE_CONNECTION",
+        connectionName: `TestBI_${Date.now()}`,
+        connectionType: "POWER_BI",
+        workspaceId: "test-workspace",
+        refreshIntervalMin: 60,
+        autoRefresh: true,
+      }
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("connectionName");
+    expect(data.data.status).toBe("ACTIVE");
+  });
+});
+
+test.describe("API Endpoints - Phase 3 Robotics", () => {
+  test("GET /api/robotics returns warehouse robots", async ({ request }) => {
+    const response = await request.get("/api/robotics");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toBeDefined();
+    expect(data.data.items).toBeDefined();
+    expect(data.data.summary).toBeDefined();
+  });
+
+  test("GET /api/robotics?type=tasks returns robot tasks", async ({ request }) => {
+    const response = await request.get("/api/robotics?type=tasks");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("GET /api/robotics?type=zones returns robot zones", async ({ request }) => {
+    const response = await request.get("/api/robotics?type=zones");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+
+  test("GET /api/robotics?type=maintenance returns maintenance records", async ({ request }) => {
+    const response = await request.get("/api/robotics?type=maintenance");
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.success).toBe(true);
+  });
+});
+
+// ============================================
+// PHASE 3 - FRONTEND PAGE TESTS
+// ============================================
+
+test.describe("Frontend Pages - Phase 3 Advanced Capabilities", () => {
+  test("Freight Exchange page loads", async ({ page }) => {
+    await page.goto("/freight-exchange");
+    await expect(page.locator("h1")).toContainText(/freight/i);
+    await page.waitForTimeout(2000);
+    // Check for key elements
+    await expect(page.getByText(/requests/i).first()).toBeVisible();
+  });
+
+  test("IoT Monitoring page loads", async ({ page }) => {
+    await page.goto("/iot");
+    await expect(page.locator("h1")).toContainText(/iot/i);
+    await page.waitForTimeout(2000);
+    // Check for device monitoring elements
+    await expect(page.getByText(/device/i).first()).toBeVisible();
+  });
+
+  test("ML Models page loads", async ({ page }) => {
+    await page.goto("/ml-models");
+    await expect(page.locator("h1")).toContainText(/ml/i);
+    await page.waitForTimeout(2000);
+    // Check for model registry elements
+    await expect(page.getByText(/model/i).first()).toBeVisible();
+  });
+
+  test("BI Integration page loads", async ({ page }) => {
+    await page.goto("/bi");
+    await expect(page.locator("h1")).toContainText(/bi/i);
+    await page.waitForTimeout(2000);
+    // Check for BI connection elements
+    await expect(page.getByText(/connection/i).first()).toBeVisible();
+  });
+
+  test("Robotics page loads", async ({ page }) => {
+    await page.goto("/robotics");
+    await expect(page.locator("h1")).toContainText(/robotic/i);
+    await page.waitForTimeout(2000);
+    // Check for fleet management elements
+    await expect(page.getByText(/fleet/i).first()).toBeVisible();
+  });
+});
+
+// ============================================
+// PHASE 3 - DATA FLOW INTEGRATION TESTS
+// ============================================
+
+test.describe("Phase 3 Data Flow Integration", () => {
+  test("Freight exchange bidding workflow", async ({ request }) => {
+    // Create a freight request
+    const createResponse = await request.post("/api/freight-exchange", {
+      data: {
+        action: "CREATE_REQUEST",
+        clientId: "flow-test-client",
+        originPincode: "400001",
+        originCity: "Mumbai",
+        originState: "Maharashtra",
+        destinationPincode: "110001",
+        destinationCity: "New Delhi",
+        destinationState: "Delhi",
+        shipmentType: "FTL",
+        vehicleType: "TRUCK_20FT",
+        totalWeightKg: 5000,
+        packageCount: 50,
+        contentDescription: "Test Goods",
+        pickupDate: new Date(Date.now() + 86400000).toISOString(),
+        expectedDeliveryDate: new Date(Date.now() + 259200000).toISOString(),
+        biddingEndTime: new Date(Date.now() + 172800000).toISOString(),
+        baseBudget: 50000,
+      }
+    });
+    expect(createResponse.ok()).toBeTruthy();
+    const createData = await createResponse.json();
+    expect(createData.success).toBe(true);
+    const requestId = createData.data.id;
+
+    // Submit a bid
+    const bidResponse = await request.post("/api/freight-exchange", {
+      data: {
+        action: "SUBMIT_BID",
+        requestId,
+        carrierId: "carrier-001",
+        carrierName: "Test Carrier",
+        bidAmount: 45000,
+        estimatedPickupTime: new Date(Date.now() + 90000000).toISOString(),
+        estimatedDeliveryTime: new Date(Date.now() + 259200000).toISOString(),
+        vehicleType: "TRUCK_20FT",
+      }
+    });
+    expect(bidResponse.ok()).toBeTruthy();
+    const bidData = await bidResponse.json();
+    expect(bidData.success).toBe(true);
+    expect(bidData.data.status).toBe("SUBMITTED");
+
+    // Verify request updated to BIDDING
+    const checkResponse = await request.get(`/api/freight-exchange?status=BIDDING`);
+    const checkData = await checkResponse.json();
+    expect(checkData.success).toBe(true);
+  });
+
+  test("IoT device telemetry workflow", async ({ request }) => {
+    // Register device
+    const deviceId = `IOT-FLOW-${Date.now()}`;
+    const registerResponse = await request.post("/api/iot", {
+      data: {
+        action: "REGISTER_DEVICE",
+        deviceId,
+        deviceType: "TEMPERATURE_SENSOR",
+        manufacturer: "FlowTest",
+        model: "FT-100",
+        firmwareVersion: "1.0.0",
+      }
+    });
+    expect(registerResponse.ok()).toBeTruthy();
+
+    // Get the device ID from the created record
+    const registerData = await registerResponse.json();
+    const iotDeviceDbId = registerData.data.id;
+
+    // Send telemetry reading
+    const readingResponse = await request.post("/api/iot", {
+      data: {
+        action: "RECORD_READING",
+        iotDeviceId: iotDeviceDbId,
+        temperature: 4.5,
+        humidity: 65,
+        batteryLevel: 85,
+      }
+    });
+    expect(readingResponse.ok()).toBeTruthy();
+    const readingData = await readingResponse.json();
+    expect(readingData.success).toBe(true);
+
+    // Verify reading was recorded
+    const readingsResponse = await request.get(`/api/iot?type=readings&deviceId=${iotDeviceDbId}`);
+    expect(readingsResponse.ok()).toBeTruthy();
+  });
+
+  test("ML model training workflow", async ({ request }) => {
+    // Register model
+    const modelName = `FlowTestModel_${Date.now()}`;
+    const registerResponse = await request.post("/api/ml-models", {
+      data: {
+        action: "REGISTER_MODEL",
+        modelName,
+        modelType: "DEMAND_FORECAST",
+        version: "1.0.0",
+        algorithm: "GRADIENT_BOOST",
+        features: "volume,weight,origin,destination",
+      }
+    });
+    expect(registerResponse.ok()).toBeTruthy();
+    const registerData = await registerResponse.json();
+    const modelId = registerData.data.id;
+
+    // Start training
+    const trainResponse = await request.post("/api/ml-models", {
+      data: {
+        action: "START_TRAINING",
+        modelId,
+        config: {
+          modelType: "DEMAND_FORECAST",
+          hyperparameters: { learningRate: 0.01, maxDepth: 10 },
+        }
+      }
+    });
+    expect(trainResponse.ok()).toBeTruthy();
+    const trainData = await trainResponse.json();
+    expect(trainData.data.status).toBe("RUNNING");
+
+    // Verify training job appears in list
+    const jobsResponse = await request.get("/api/ml-models?type=training-jobs");
+    expect(jobsResponse.ok()).toBeTruthy();
+    const jobsData = await jobsResponse.json();
+    expect(jobsData.data.items.length).toBeGreaterThan(0);
+  });
+
+  test("BI dashboard data export workflow", async ({ request }) => {
+    // Create connection
+    const connectionName = `FlowTestBI_${Date.now()}`;
+    const createResponse = await request.post("/api/bi", {
+      data: {
+        action: "CREATE_CONNECTION",
+        connectionName,
+        connectionType: "TABLEAU",
+        workspaceId: "flow-test-workspace",
+        refreshIntervalMin: 30,
+        autoRefresh: true,
+      }
+    });
+    expect(createResponse.ok()).toBeTruthy();
+    const createData = await createResponse.json();
+    const connectionId = createData.data.id;
+
+    // Create dataset
+    const datasetResponse = await request.post("/api/bi", {
+      data: {
+        action: "CREATE_DATASET",
+        connectionId,
+        datasetName: `FlowTestDataset_${Date.now()}`,
+        sourceTable: "shipments",
+        queryDefinition: "SELECT * FROM shipments WHERE status = 'DELIVERED'",
+        refreshSchedule: "HOURLY",
+      }
+    });
+    expect(datasetResponse.ok()).toBeTruthy();
+    const datasetData = await datasetResponse.json();
+    expect(datasetData.success).toBe(true);
+    expect(datasetData.data.status).toBe("ACTIVE");
+
+    // Verify datasets appear in list
+    const datasetsResponse = await request.get("/api/bi?type=datasets");
+    expect(datasetsResponse.ok()).toBeTruthy();
+    const datasetsData = await datasetsResponse.json();
+    expect(datasetsData.data.items.length).toBeGreaterThan(0);
+  });
+});
