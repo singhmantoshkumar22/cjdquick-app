@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@cjdquick/database";
+import { triggerNotifications, NotificationEvent } from "@/lib/notifications";
 
 /**
  * Shipment Scanning API
@@ -49,6 +50,15 @@ const SCAN_EVENT_TEXT: Record<ScanType, string> = {
   OFD_SCAN: "Shipment out for delivery",
   DELIVERY_SCAN: "Shipment delivered successfully",
   RTO_SCAN: "Return to origin initiated",
+};
+
+// Map scan types to notification events
+const SCAN_NOTIFICATION_MAP: Partial<Record<ScanType, NotificationEvent>> = {
+  PICKUP_SCAN: "PICKED_UP",
+  OUTSCAN: "IN_TRANSIT",
+  OFD_SCAN: "OUT_FOR_DELIVERY",
+  DELIVERY_SCAN: "DELIVERED",
+  RTO_SCAN: "RTO_INITIATED",
 };
 
 // POST /api/shipments/[shipmentId]/scan - Record a scan
@@ -133,10 +143,7 @@ export async function POST(
         latitude,
         longitude,
         location,
-        remarks,
-        podImage,
-        receiverName,
-        receiverPhone,
+        remarks: remarks ? `${remarks}${receiverName ? ` (Receiver: ${receiverName})` : ""}` : receiverName ? `Receiver: ${receiverName}` : null,
       },
     });
 
@@ -152,13 +159,12 @@ export async function POST(
     // Handle specific scan types
     if (scanType === "HANDOVER_SCAN") {
       updateData.handedOverToPartner = true;
-      updateData.partnerHandoverTime = new Date();
+      updateData.partnerHandoverAt = new Date();
     }
 
     if (scanType === "DELIVERY_SCAN") {
-      updateData.deliveredAt = new Date();
+      updateData.actualDeliveryDate = new Date();
       updateData.podReceiverName = receiverName;
-      updateData.podReceiverPhone = receiverPhone;
     }
 
     await prisma.shipment.update({
@@ -181,8 +187,8 @@ export async function POST(
             where: { id: currentLeg.id },
             data: {
               status: "COMPLETED",
-              actualArrivalTime: new Date(),
-              unloadScanBy: scannedBy,
+              completedAt: new Date(),
+              unloadScanId: scan.id,
             },
           });
         } else if (scanType === "OUTSCAN" && currentLeg.fromHubId === hubId) {
@@ -190,9 +196,9 @@ export async function POST(
           await prisma.shipmentLeg.update({
             where: { id: currentLeg.id },
             data: {
-              status: "IN_TRANSIT",
-              actualDepartureTime: new Date(),
-              loadScanBy: scannedBy,
+              status: "IN_PROGRESS",
+              startedAt: new Date(),
+              loadScanId: scan.id,
             },
           });
         }
@@ -210,14 +216,27 @@ export async function POST(
         hubId,
         source: "HUB_SCAN",
         eventTime: new Date(),
-        metadata: JSON.stringify({
-          scannedBy,
-          tripId,
-          consignmentId,
-          remarks,
-        }),
+        remarks: remarks ? `${remarks}, By: ${scannedBy}` : `Scanned by: ${scannedBy}`,
       },
     });
+
+    // Trigger SMS/WhatsApp notifications based on scan type
+    const notificationEvent = SCAN_NOTIFICATION_MAP[scanType as ScanType];
+    if (notificationEvent) {
+      // Fire and forget - don't block the API response
+      triggerNotifications({
+        shipmentId: shipment.id,
+        awbNumber: shipment.awbNumber,
+        event: notificationEvent,
+        additionalData: {
+          current_location: location,
+          delivery_agent: scannedBy,
+          receiver_name: receiverName,
+        },
+      }).catch((err) => {
+        console.error("Notification trigger error:", err);
+      });
+    }
 
     // If this is a consignment scan, update consignment shipment count
     if (consignmentId && scanType === "LOAD_SCAN") {

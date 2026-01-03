@@ -1,7 +1,54 @@
 "use client";
 
-import { STATUS_LABELS, STATUS_COLORS } from "@cjdquick/types";
 import { cn } from "../utils";
+
+const STATUS_LABELS: Record<string, string> = {
+  CREATED: "Order Created",
+  PARTNER_ASSIGNED: "Partner Assigned",
+  AWB_GENERATED: "AWB Generated",
+  PICKUP_SCHEDULED: "Pickup Scheduled",
+  PICKUP_PENDING: "Pickup Pending",
+  PICKED: "Picked",
+  PACKING: "Packing",
+  PACKED: "Packed",
+  LABELLED: "Labelled",
+  READY_TO_DISPATCH: "Ready to Dispatch",
+  DISPATCHED: "Dispatched",
+  HANDED_OVER: "Handed Over",
+  IN_TRANSIT: "In Transit",
+  OUT_FOR_DELIVERY: "Out for Delivery",
+  DELIVERED: "Delivered",
+  NDR: "NDR",
+  RTO_INITIATED: "RTO Initiated",
+  RTO_IN_TRANSIT: "RTO In Transit",
+  RTO_DELIVERED: "RTO Delivered",
+  CANCELLED: "Cancelled",
+  LOST: "Lost",
+};
+
+const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  CREATED: { bg: "bg-gray-100", text: "text-gray-700" },
+  PARTNER_ASSIGNED: { bg: "bg-blue-100", text: "text-blue-700" },
+  AWB_GENERATED: { bg: "bg-blue-100", text: "text-blue-700" },
+  PICKUP_SCHEDULED: { bg: "bg-purple-100", text: "text-purple-700" },
+  PICKUP_PENDING: { bg: "bg-purple-100", text: "text-purple-700" },
+  PICKED: { bg: "bg-purple-100", text: "text-purple-700" },
+  PACKING: { bg: "bg-indigo-100", text: "text-indigo-700" },
+  PACKED: { bg: "bg-indigo-100", text: "text-indigo-700" },
+  LABELLED: { bg: "bg-indigo-100", text: "text-indigo-700" },
+  READY_TO_DISPATCH: { bg: "bg-orange-100", text: "text-orange-700" },
+  DISPATCHED: { bg: "bg-orange-100", text: "text-orange-700" },
+  HANDED_OVER: { bg: "bg-orange-100", text: "text-orange-700" },
+  IN_TRANSIT: { bg: "bg-teal-100", text: "text-teal-700" },
+  OUT_FOR_DELIVERY: { bg: "bg-teal-100", text: "text-teal-700" },
+  DELIVERED: { bg: "bg-green-100", text: "text-green-700" },
+  NDR: { bg: "bg-amber-100", text: "text-amber-700" },
+  RTO_INITIATED: { bg: "bg-red-100", text: "text-red-700" },
+  RTO_IN_TRANSIT: { bg: "bg-red-100", text: "text-red-700" },
+  RTO_DELIVERED: { bg: "bg-red-100", text: "text-red-700" },
+  CANCELLED: { bg: "bg-gray-100", text: "text-gray-700" },
+  LOST: { bg: "bg-red-100", text: "text-red-700" },
+};
 import {
   Package,
   Truck,

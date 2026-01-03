@@ -131,7 +131,7 @@ export async function PATCH(
           closedAt: new Date(),
           shipmentCount: totals._count,
           totalWeightKg: totals._sum.chargeableWeightKg || 0,
-          sealNumber,
+          sealNumbers: sealNumber ? JSON.stringify([sealNumber]) : null,
         },
       });
 

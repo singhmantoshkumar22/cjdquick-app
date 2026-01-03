@@ -77,7 +77,8 @@ function KPICard({
   onClick?: () => void;
 }) {
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onClick}>
+    <div onClick={onClick} className="cursor-pointer">
+    <Card className="hover:shadow-md transition-shadow">
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -105,6 +106,7 @@ function KPICard({
         </div>
       </div>
     </Card>
+    </div>
   );
 }
 
@@ -246,7 +248,7 @@ export default function ControlTowerPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant={autoRefresh ? "default" : "outline"}
+              variant={autoRefresh ? "primary" : "outline"}
               size="sm"
               onClick={() => setAutoRefresh(!autoRefresh)}
             >

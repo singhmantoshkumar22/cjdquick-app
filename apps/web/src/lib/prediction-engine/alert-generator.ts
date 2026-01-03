@@ -195,12 +195,20 @@ export async function generateStuckShipmentAlerts(): Promise<number> {
       awbNumber: true,
       status: true,
       updatedAt: true,
-      currentHub: {
-        select: { code: true, name: true },
-      },
+      currentHubId: true,
     },
     take: 50,
   });
+
+  // Get hub details for stuck shipments
+  const hubIds = [...new Set(stuckShipments.map((s) => s.currentHubId).filter(Boolean))] as string[];
+  const hubs = hubIds.length > 0
+    ? await prisma.hub.findMany({
+        where: { id: { in: hubIds } },
+        select: { id: true, code: true, name: true },
+      })
+    : [];
+  const hubMap = new Map(hubs.map((h) => [h.id, h]));
 
   let alertsCreated = 0;
 
@@ -217,12 +225,13 @@ export async function generateStuckShipmentAlerts(): Promise<number> {
     if (!existingAlert) {
       const hoursStuck = (Date.now() - shipment.updatedAt.getTime()) / (1000 * 60 * 60);
       const severity = hoursStuck > 48 ? "HIGH" : "MEDIUM";
+      const currentHub = shipment.currentHubId ? hubMap.get(shipment.currentHubId) : null;
 
       await createAlert({
         alertType: "SHIPMENT_STUCK",
         severity,
         title: `Shipment Stuck: ${shipment.awbNumber}`,
-        description: `No movement for ${Math.round(hoursStuck)} hours. Last location: ${shipment.currentHub?.name || "Unknown"}`,
+        description: `No movement for ${Math.round(hoursStuck)} hours. Last location: ${currentHub?.name || "Unknown"}`,
         shipmentId: shipment.id,
         metrics: {
           hoursStuck,

@@ -456,30 +456,79 @@ model NdrCase {
 // ============================================
 
 model Invoice {
-  id              String   @id @default(cuid())
-  invoiceNumber   String   @unique @map("invoice_number")
-  clientId        String   @map("client_id")
+  id                String    @id @default(cuid())
+  invoiceNumber     String    @unique @map("invoice_number")
 
-  invoiceDate     DateTime @map("invoice_date")
-  dueDate         DateTime @map("due_date")
+  // Client
+  clientId          String    @map("client_id")
+  clientName        String?   @map("client_name")
+  clientGstin       String?   @map("client_gstin")
+  clientAddress     String?   @map("client_address")
 
-  subtotal        Float
-  taxAmount       Float    @map("tax_amount")
-  totalAmount     Float    @map("total_amount")
+  // Invoice period
+  periodStart       DateTime? @map("period_start")
+  periodEnd         DateTime? @map("period_end")
+  invoiceDate       DateTime  @map("invoice_date")
+  dueDate           DateTime  @map("due_date")
 
-  status          String   @default("PENDING") // InvoiceStatus enum value
-  pdfUrl          String?  @map("pdf_url")
+  // Shipment counts
+  totalShipments    Int       @default(0) @map("total_shipments")
+  deliveredCount    Int       @default(0) @map("delivered_count")
+  rtoCount          Int       @default(0) @map("rto_count")
 
-  paidAt          DateTime? @map("paid_at")
-  paymentRef      String?   @map("payment_ref")
+  // Amount breakdown
+  freightCharges    Float     @default(0) @map("freight_charges")
+  codCharges        Float     @default(0) @map("cod_charges")
+  fuelSurcharge     Float     @default(0) @map("fuel_surcharge")
+  handlingCharges   Float     @default(0) @map("handling_charges")
+  otherCharges      Float     @default(0) @map("other_charges")
 
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  // Totals
+  subtotal          Float
+  taxAmount         Float     @map("tax_amount")
+  gstAmount         Float     @default(0) @map("gst_amount")
+  totalAmount       Float     @map("total_amount")
 
-  client          Client    @relation(fields: [clientId], references: [id])
-  orders          Order[]
+  // Adjustments
+  discountAmount    Float     @default(0) @map("discount_amount")
+  adjustmentAmount  Float     @default(0) @map("adjustment_amount")
+  netPayable        Float     @default(0) @map("net_payable")
+
+  // Payment status
+  paidAmount        Float     @default(0) @map("paid_amount")
+  balanceDue        Float     @default(0) @map("balance_due")
+  status            String    @default("PENDING") // DRAFT, PENDING, SENT, PAID, PARTIALLY_PAID, OVERDUE, CANCELLED
+
+  // GST details
+  cgstAmount        Float     @default(0) @map("cgst_amount")
+  sgstAmount        Float     @default(0) @map("sgst_amount")
+  igstAmount        Float     @default(0) @map("igst_amount")
+
+  // PDF and sharing
+  pdfUrl            String?   @map("pdf_url")
+  sentAt            DateTime? @map("sent_at")
+  sentTo            String?   @map("sent_to")
+
+  paidAt            DateTime? @map("paid_at")
+  paymentRef        String?   @map("payment_ref")
+
+  // Notes
+  notes             String?
+  internalNotes     String?   @map("internal_notes")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  client            Client    @relation(fields: [clientId], references: [id])
+  orders            Order[]
+  lineItems         InvoiceLineItem[]
+  payments          Payment[]
+  creditNotes       CreditNote[]
 
   @@index([clientId, status])
+  @@index([invoiceDate])
+  @@index([dueDate, status])
   @@map("invoices")
 }
 
@@ -1544,4 +1593,2901 @@ model ControlTowerAlert {
   @@index([severity, status])
   @@index([createdAt])
   @@map("control_tower_alerts")
+}
+
+// ============================================
+// COD MANAGEMENT
+// ============================================
+
+// Track COD collection at delivery level
+model CODCollection {
+  id                String    @id @default(cuid())
+
+  // Link to shipment/order
+  shipmentId        String?   @map("shipment_id")
+  orderId           String?   @map("order_id")
+  awbNumber         String    @map("awb_number")
+
+  // Collection details
+  expectedAmount    Float     @map("expected_amount")
+  collectedAmount   Float     @map("collected_amount")
+  shortageAmount    Float     @default(0) @map("shortage_amount")
+
+  // Payment mode
+  paymentMode       String    @map("payment_mode") // CASH, UPI, CARD, CHEQUE
+  paymentRef        String?   @map("payment_ref") // UPI ref, card last 4, cheque number
+
+  // Collector (driver/agent)
+  collectedById     String    @map("collected_by_id")
+  collectedByName   String    @map("collected_by_name")
+  collectedByType   String    @map("collected_by_type") // DRIVER, DELIVERY_AGENT, PARTNER
+
+  // Location & time
+  collectionTime    DateTime  @map("collection_time")
+  latitude          Float?
+  longitude         Float?
+
+  // Status
+  status            String    @default("COLLECTED") // COLLECTED, DEPOSITED, RECONCILED, DISPUTED
+
+  // Deposit tracking
+  depositId         String?   @map("deposit_id")
+  depositedAt       DateTime? @map("deposited_at")
+
+  // Reconciliation
+  isReconciled      Boolean   @default(false) @map("is_reconciled")
+  reconciledAt      DateTime? @map("reconciled_at")
+  remittanceId      String?   @map("remittance_id")
+
+  // Notes
+  remarks           String?
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  deposit           CODDeposit?   @relation(fields: [depositId], references: [id])
+  remittance        CODRemittance? @relation(fields: [remittanceId], references: [id])
+
+  @@index([awbNumber])
+  @@index([collectedById, status])
+  @@index([status, createdAt])
+  @@index([depositId])
+  @@map("cod_collections")
+}
+
+// Driver/Agent deposits cash at hub
+model CODDeposit {
+  id                String    @id @default(cuid())
+  depositNumber     String    @unique @map("deposit_number")
+
+  // Depositor
+  depositedById     String    @map("deposited_by_id")
+  depositedByName   String    @map("deposited_by_name")
+  depositedByType   String    @map("deposited_by_type") // DRIVER, DELIVERY_AGENT
+
+  // Receiver at hub
+  receivedById      String    @map("received_by_id")
+  receivedByName    String    @map("received_by_name")
+  hubId             String    @map("hub_id")
+
+  // Amount details
+  expectedAmount    Float     @map("expected_amount") // Sum of all COD collections
+  depositedAmount   Float     @map("deposited_amount")
+  shortageAmount    Float     @default(0) @map("shortage_amount")
+  excessAmount      Float     @default(0) @map("excess_amount")
+
+  // Collection count
+  collectionCount   Int       @map("collection_count")
+
+  // Breakdown by payment mode
+  cashAmount        Float     @default(0) @map("cash_amount")
+  upiAmount         Float     @default(0) @map("upi_amount")
+  cardAmount        Float     @default(0) @map("card_amount")
+  chequeAmount      Float     @default(0) @map("cheque_amount")
+
+  // Status
+  status            String    @default("PENDING") // PENDING, VERIFIED, DISCREPANCY, RESOLVED
+
+  // Verification
+  verifiedAt        DateTime? @map("verified_at")
+  verifiedBy        String?   @map("verified_by")
+
+  // Discrepancy handling
+  discrepancyReason String?   @map("discrepancy_reason")
+  discrepancyAction String?   @map("discrepancy_action") // ADJUST, RECOVER, WAIVE
+
+  // Bank deposit (if cash)
+  bankDepositRef    String?   @map("bank_deposit_ref")
+  bankDepositDate   DateTime? @map("bank_deposit_date")
+
+  depositTime       DateTime  @map("deposit_time")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  collections       CODCollection[]
+
+  @@index([depositedById])
+  @@index([hubId, depositTime])
+  @@index([status])
+  @@map("cod_deposits")
+}
+
+// Client COD Remittance (payment to clients)
+model CODRemittance {
+  id                  String    @id @default(cuid())
+  remittanceNumber    String    @unique @map("remittance_number")
+
+  // Client
+  clientId            String    @map("client_id")
+
+  // Period
+  periodStart         DateTime  @map("period_start")
+  periodEnd           DateTime  @map("period_end")
+
+  // Amount breakdown
+  grossCodCollected   Float     @map("gross_cod_collected")
+  deductions          Float     @default(0) // Freight, COD charges, returns
+  netRemittance       Float     @map("net_remittance")
+
+  // Deduction details (JSON)
+  deductionDetails    String?   @map("deduction_details") // {freightCharges, codFee, rtoCharges, adjustments}
+
+  // Shipment details
+  shipmentCount       Int       @map("shipment_count")
+  deliveredCount      Int       @map("delivered_count")
+  rtoCount            Int       @default(0) @map("rto_count")
+
+  // Status
+  status              String    @default("PENDING") // PENDING, APPROVED, PROCESSING, PAID, FAILED
+
+  // Approval
+  approvedBy          String?   @map("approved_by")
+  approvedAt          DateTime? @map("approved_at")
+
+  // Payment
+  paymentMode         String?   @map("payment_mode") // NEFT, RTGS, IMPS, UPI
+  paymentRef          String?   @map("payment_ref")
+  paidAt              DateTime? @map("paid_at")
+
+  // Bank details
+  bankAccountNumber   String?   @map("bank_account_number")
+  bankIfsc            String?   @map("bank_ifsc")
+  bankName            String?   @map("bank_name")
+
+  // UTR details
+  utrNumber           String?   @map("utr_number")
+
+  // Documents
+  invoiceUrl          String?   @map("invoice_url")
+
+  remarks             String?
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  collections         CODCollection[]
+
+  @@index([clientId, status])
+  @@index([periodStart, periodEnd])
+  @@index([status])
+  @@map("cod_remittances")
+}
+
+// Daily COD Summary per driver/hub
+model CODDailySummary {
+  id                String    @id @default(cuid())
+
+  summaryDate       DateTime  @map("summary_date")
+
+  // Entity type
+  entityType        String    @map("entity_type") // DRIVER, HUB, CLIENT
+  entityId          String    @map("entity_id")
+  entityName        String    @map("entity_name")
+
+  // Totals
+  totalCollections  Int       @map("total_collections")
+  totalExpected     Float     @map("total_expected")
+  totalCollected    Float     @map("total_collected")
+  totalShortage     Float     @default(0) @map("total_shortage")
+
+  // By payment mode
+  cashCollected     Float     @default(0) @map("cash_collected")
+  upiCollected      Float     @default(0) @map("upi_collected")
+  cardCollected     Float     @default(0) @map("card_collected")
+
+  // Deposit status
+  totalDeposited    Float     @default(0) @map("total_deposited")
+  pendingDeposit    Float     @default(0) @map("pending_deposit")
+
+  // Remittance status (for clients)
+  totalRemitted     Float     @default(0) @map("total_remitted")
+  pendingRemittance Float     @default(0) @map("pending_remittance")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@unique([summaryDate, entityType, entityId])
+  @@index([entityType, entityId])
+  @@index([summaryDate])
+  @@map("cod_daily_summaries")
+}
+
+// COD Ledger for complete audit trail
+model CODLedger {
+  id                String    @id @default(cuid())
+
+  // Transaction type
+  transactionType   String    @map("transaction_type") // COLLECTION, DEPOSIT, REMITTANCE, ADJUSTMENT, RECOVERY
+
+  // Reference
+  referenceType     String    @map("reference_type") // COLLECTION, DEPOSIT, REMITTANCE
+  referenceId       String    @map("reference_id")
+
+  // Entities
+  clientId          String?   @map("client_id")
+  driverId          String?   @map("driver_id")
+  hubId             String?   @map("hub_id")
+
+  // Amount
+  amount            Float
+  runningBalance    Float?    @map("running_balance")
+
+  // Direction
+  direction         String    // CREDIT, DEBIT
+
+  // Description
+  description       String
+  awbNumber         String?   @map("awb_number")
+
+  transactionTime   DateTime  @map("transaction_time")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([clientId, transactionTime])
+  @@index([driverId, transactionTime])
+  @@index([hubId, transactionTime])
+  @@index([transactionType])
+  @@map("cod_ledger")
+}
+
+// ============================================
+// NDR (NON-DELIVERY REPORT) MANAGEMENT
+// ============================================
+
+// Main NDR record - created when delivery fails
+model NDRReport {
+  id                  String    @id @default(cuid())
+  ndrNumber           String    @unique @map("ndr_number")
+
+  // Shipment reference
+  shipmentId          String    @map("shipment_id")
+  awbNumber           String    @map("awb_number")
+  clientId            String    @map("client_id")
+
+  // Delivery attempt details
+  attemptNumber       Int       @map("attempt_number")
+  attemptDate         DateTime  @map("attempt_date")
+  attemptTime         String?   @map("attempt_time")
+
+  // Driver/Agent who attempted
+  attemptedById       String    @map("attempted_by_id")
+  attemptedByName     String    @map("attempted_by_name")
+
+  // Failure reason
+  failureReason       String    @map("failure_reason") // CUSTOMER_UNAVAILABLE, WRONG_ADDRESS, REFUSED, INCOMPLETE_ADDRESS, CUSTOMER_RESCHEDULED, CUSTOMER_UNREACHABLE, PREMISES_CLOSED, COD_NOT_READY, OTHER
+  failureSubReason    String?   @map("failure_sub_reason")
+  failureRemarks      String?   @map("failure_remarks")
+
+  // Location of attempt
+  attemptLatitude     Float?    @map("attempt_latitude")
+  attemptLongitude    Float?    @map("attempt_longitude")
+  attemptLocation     String?   @map("attempt_location")
+
+  // Customer contact from shipment
+  customerName        String    @map("customer_name")
+  customerPhone       String    @map("customer_phone")
+  customerAltPhone    String?   @map("customer_alt_phone")
+  deliveryAddress     String    @map("delivery_address")
+  deliveryPincode     String    @map("delivery_pincode")
+
+  // NDR Status
+  status              String    @default("OPEN") // OPEN, CUSTOMER_CONTACTED, ACTION_TAKEN, REATTEMPT_SCHEDULED, RTO_INITIATED, DELIVERED, CLOSED
+
+  // Priority based on SLA/value
+  priority            String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+
+  // Customer response
+  customerContacted   Boolean   @default(false) @map("customer_contacted")
+  customerResponse    String?   @map("customer_response") // REATTEMPT, ADDRESS_CHANGE, RESCHEDULE, CANCEL, NO_RESPONSE
+  customerResponseAt  DateTime? @map("customer_response_at")
+
+  // Resolution action
+  actionTaken         String?   @map("action_taken") // REATTEMPT, ADDRESS_CORRECTED, RESCHEDULED, RTO, DELIVERED
+  actionDetails       String?   @map("action_details")
+  actionTakenAt       DateTime? @map("action_taken_at")
+  actionTakenBy       String?   @map("action_taken_by")
+
+  // Address correction
+  correctedAddress    String?   @map("corrected_address")
+  correctedPincode    String?   @map("corrected_pincode")
+  correctedPhone      String?   @map("corrected_phone")
+  correctedLandmark   String?   @map("corrected_landmark")
+
+  // Rescheduling
+  rescheduledDate     DateTime? @map("rescheduled_date")
+  preferredTimeSlot   String?   @map("preferred_time_slot")
+
+  // Resolution
+  isResolved          Boolean   @default(false) @map("is_resolved")
+  resolvedAt          DateTime? @map("resolved_at")
+  resolutionType      String?   @map("resolution_type") // DELIVERED, RTO, CANCELLED
+
+  // Aging
+  agingHours          Int       @default(0) @map("aging_hours")
+  slaBreached         Boolean   @default(false) @map("sla_breached")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  callLogs            NDRCallLog[]
+  actions             NDRAction[]
+
+  @@index([shipmentId])
+  @@index([awbNumber])
+  @@index([clientId, status])
+  @@index([status, priority])
+  @@index([attemptDate])
+  @@index([isResolved])
+  @@map("ndr_reports")
+}
+
+// Call/Contact logs for NDR follow-up
+model NDRCallLog {
+  id                String    @id @default(cuid())
+  ndrReportId       String    @map("ndr_report_id")
+
+  // Call details
+  callType          String    @map("call_type") // OUTBOUND, INBOUND, SMS, WHATSAPP, IVR
+  callTime          DateTime  @map("call_time")
+  callDuration      Int?      @map("call_duration") // in seconds
+
+  // Caller
+  calledById        String?   @map("called_by_id")
+  calledByName      String?   @map("called_by_name")
+  calledByType      String?   @map("called_by_type") // AGENT, SYSTEM, IVR
+
+  // Contact
+  contactNumber     String    @map("contact_number")
+  contactName       String?   @map("contact_name")
+
+  // Outcome
+  callStatus        String    @map("call_status") // CONNECTED, NO_ANSWER, BUSY, SWITCHED_OFF, WRONG_NUMBER, DISCONNECTED
+  callOutcome       String?   @map("call_outcome") // REATTEMPT_REQUESTED, ADDRESS_UPDATED, RESCHEDULED, CANCEL_REQUESTED, CALLBACK_REQUESTED, NO_ACTION
+
+  // Customer response captured
+  customerResponse  String?   @map("customer_response")
+  newAddress        String?   @map("new_address")
+  newPhone          String?   @map("new_phone")
+  preferredDate     DateTime? @map("preferred_date")
+  preferredSlot     String?   @map("preferred_slot")
+
+  remarks           String?
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  ndrReport         NDRReport @relation(fields: [ndrReportId], references: [id], onDelete: Cascade)
+
+  @@index([ndrReportId, callTime])
+  @@index([callStatus])
+  @@map("ndr_call_logs")
+}
+
+// NDR Action history
+model NDRAction {
+  id                String    @id @default(cuid())
+  ndrReportId       String    @map("ndr_report_id")
+
+  // Action details
+  actionType        String    @map("action_type") // REATTEMPT_SCHEDULED, ADDRESS_UPDATED, PHONE_UPDATED, ESCALATED, RTO_INITIATED, DELIVERED, CLOSED
+  actionDetails     String?   @map("action_details")
+
+  // Before/After values
+  previousStatus    String    @map("previous_status")
+  newStatus         String    @map("new_status")
+
+  // Changes made
+  changesJson       String?   @map("changes_json") // JSON of what changed
+
+  // Performed by
+  performedById     String    @map("performed_by_id")
+  performedByName   String    @map("performed_by_name")
+  performedByType   String    @map("performed_by_type") // AGENT, CUSTOMER, SYSTEM, DRIVER
+
+  remarks           String?
+  actionTime        DateTime  @map("action_time")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  ndrReport         NDRReport @relation(fields: [ndrReportId], references: [id], onDelete: Cascade)
+
+  @@index([ndrReportId, actionTime])
+  @@index([actionType])
+  @@map("ndr_actions")
+}
+
+// NDR Daily Summary
+model NDRDailySummary {
+  id                String    @id @default(cuid())
+
+  summaryDate       DateTime  @map("summary_date")
+  entityType        String    @map("entity_type") // HUB, CLIENT, DRIVER
+  entityId          String    @map("entity_id")
+  entityName        String    @map("entity_name")
+
+  // Counts
+  totalNdrs         Int       @map("total_ndrs")
+  openNdrs          Int       @map("open_ndrs")
+  contactedNdrs     Int       @map("contacted_ndrs")
+  resolvedNdrs      Int       @map("resolved_ndrs")
+  rtoInitiated      Int       @map("rto_initiated")
+  delivered         Int       @default(0)
+
+  // By reason
+  customerUnavailable Int     @default(0) @map("customer_unavailable")
+  wrongAddress        Int     @default(0) @map("wrong_address")
+  refused             Int     @default(0) @map("refused")
+  otherReasons        Int     @default(0) @map("other_reasons")
+
+  // Resolution rate
+  resolutionRate    Float     @default(0) @map("resolution_rate")
+  avgResolutionHours Float    @default(0) @map("avg_resolution_hours")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@unique([summaryDate, entityType, entityId])
+  @@index([entityType, entityId])
+  @@index([summaryDate])
+  @@map("ndr_daily_summaries")
+}
+
+// ============================================
+// POD (PROOF OF DELIVERY) MANAGEMENT
+// ============================================
+
+// Detailed POD capture record
+model PODCapture {
+  id                String    @id @default(cuid())
+
+  // Link to shipment
+  shipmentId        String    @unique @map("shipment_id")
+  awbNumber         String    @map("awb_number")
+  clientId          String    @map("client_id")
+
+  // Receiver details
+  receiverName      String    @map("receiver_name")
+  receiverRelation  String?   @map("receiver_relation") // SELF, FAMILY, SECURITY, COLLEAGUE, NEIGHBOR
+  receiverIdType    String?   @map("receiver_id_type") // AADHAAR, PAN, DRIVING_LICENSE, VOTER_ID
+  receiverIdNumber  String?   @map("receiver_id_number") // Last 4 digits only
+
+  // Capture method
+  captureMethod     String    @map("capture_method") // SIGNATURE, PHOTO, OTP, QR_CODE, BIOMETRIC
+
+  // OTP verification
+  otpSent           Boolean   @default(false) @map("otp_sent")
+  otpVerified       Boolean   @default(false) @map("otp_verified")
+  otpPhone          String?   @map("otp_phone")
+
+  // Digital signature
+  signatureData     String?   @map("signature_data") // Base64 encoded signature
+  signatureUrl      String?   @map("signature_url") // S3/storage URL
+
+  // Photos
+  deliveryPhotoUrl  String?   @map("delivery_photo_url") // Photo of package at delivery
+  receiverPhotoUrl  String?   @map("receiver_photo_url") // Photo of receiver (optional)
+  idProofPhotoUrl   String?   @map("id_proof_photo_url") // ID proof photo
+
+  // Location at delivery
+  deliveryLatitude  Float?    @map("delivery_latitude")
+  deliveryLongitude Float?    @map("delivery_longitude")
+  deliveryAddress   String?   @map("delivery_address") // Captured from GPS
+  geoAccuracyMeters Float?    @map("geo_accuracy_meters")
+
+  // Delivery agent/driver
+  deliveredById     String    @map("delivered_by_id")
+  deliveredByName   String    @map("delivered_by_name")
+  deliveredByType   String    @map("delivered_by_type") // DRIVER, DELIVERY_AGENT, PARTNER
+
+  // Timestamps
+  capturedAt        DateTime  @map("captured_at")
+  syncedAt          DateTime? @map("synced_at") // When synced from mobile
+
+  // Verification status
+  verificationStatus String   @default("PENDING") @map("verification_status") // PENDING, VERIFIED, DISPUTED, REJECTED
+  verifiedAt        DateTime? @map("verified_at")
+  verifiedBy        String?   @map("verified_by")
+
+  // Quality score (auto-calculated)
+  qualityScore      Int       @default(0) @map("quality_score") // 0-100
+  qualityFlags      String?   @map("quality_flags") // JSON array of flags
+
+  // Dispute handling
+  isDisputed        Boolean   @default(false) @map("is_disputed")
+  disputeReason     String?   @map("dispute_reason")
+  disputeRaisedAt   DateTime? @map("dispute_raised_at")
+  disputeRaisedBy   String?   @map("dispute_raised_by")
+  disputeResolvedAt DateTime? @map("dispute_resolved_at")
+  disputeResolution String?   @map("dispute_resolution")
+
+  // Additional notes
+  deliveryNotes     String?   @map("delivery_notes")
+  customerFeedback  String?   @map("customer_feedback")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([awbNumber])
+  @@index([clientId, capturedAt])
+  @@index([verificationStatus])
+  @@index([isDisputed])
+  @@index([capturedAt])
+  @@map("pod_captures")
+}
+
+// POD Quality Audit Trail
+model PODAudit {
+  id              String    @id @default(cuid())
+  podCaptureId    String    @map("pod_capture_id")
+
+  // Action
+  action          String    // CREATED, VERIFIED, DISPUTED, RESOLVED, REJECTED, QUALITY_CHECKED
+  previousStatus  String?   @map("previous_status")
+  newStatus       String?   @map("new_status")
+
+  // Performed by
+  performedById   String    @map("performed_by_id")
+  performedByName String    @map("performed_by_name")
+
+  // Details
+  details         String?   // JSON with action details
+  remarks         String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([podCaptureId, createdAt])
+  @@index([action])
+  @@map("pod_audits")
+}
+
+// RTO (Return to Origin) tracking
+model RTOShipment {
+  id                String    @id @default(cuid())
+  rtoNumber         String    @unique @map("rto_number")
+
+  // Original shipment
+  shipmentId        String    @unique @map("shipment_id")
+  awbNumber         String    @map("awb_number")
+  clientId          String    @map("client_id")
+
+  // NDR reference
+  ndrReportId       String?   @map("ndr_report_id")
+
+  // RTO reason
+  rtoReason         String    @map("rto_reason") // MAX_ATTEMPTS_EXCEEDED, CUSTOMER_REFUSED, CUSTOMER_CANCELLED, UNDELIVERABLE_ADDRESS, DAMAGED, OTHER
+  rtoRemarks        String?   @map("rto_remarks")
+
+  // RTO initiated
+  initiatedAt       DateTime  @map("initiated_at")
+  initiatedBy       String    @map("initiated_by")
+  initiatedFromHub  String    @map("initiated_from_hub")
+
+  // Return journey
+  returnTripId      String?   @map("return_trip_id")
+  currentStatus     String    @default("INITIATED") @map("current_status") // INITIATED, IN_TRANSIT, ARRIVED_AT_ORIGIN, DELIVERED_TO_CLIENT
+
+  // Delivery to client
+  deliveredAt       DateTime? @map("delivered_at")
+  receivedBy        String?   @map("received_by")
+  podPhoto          String?   @map("pod_photo")
+
+  // Cost allocation
+  forwardFreight    Float     @default(0) @map("forward_freight")
+  returnFreight     Float     @default(0) @map("return_freight")
+  totalRtoCost      Float     @default(0) @map("total_rto_cost")
+  chargedToClient   Boolean   @default(true) @map("charged_to_client")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([shipmentId])
+  @@index([awbNumber])
+  @@index([clientId, currentStatus])
+  @@index([currentStatus])
+  @@map("rto_shipments")
+}
+
+// ============================================
+// BILLING & INVOICING
+// ============================================
+
+// Rate Card - Client-specific pricing configuration
+model RateCard {
+  id                String    @id @default(cuid())
+
+  clientId          String    @map("client_id")
+  clientName        String    @map("client_name")
+
+  // Rate card details
+  name              String
+  description       String?
+
+  // Validity
+  effectiveFrom     DateTime  @map("effective_from")
+  effectiveTo       DateTime? @map("effective_to")
+  isActive          Boolean   @default(true) @map("is_active")
+
+  // Base charges
+  baseFreightPerKg  Float     @default(0) @map("base_freight_per_kg")
+  minFreight        Float     @default(0) @map("min_freight")
+
+  // COD charges
+  codChargePercent  Float     @default(0) @map("cod_charge_percent")
+  codMinCharge      Float     @default(0) @map("cod_min_charge")
+
+  // Fuel surcharge
+  fuelSurchargePercent Float  @default(0) @map("fuel_surcharge_percent")
+
+  // Other charges
+  handlingChargePerShipment Float @default(0) @map("handling_charge_per_shipment")
+  packagingCharge   Float     @default(0) @map("packaging_charge")
+  insurancePercent  Float     @default(0) @map("insurance_percent")
+
+  // RTO charges
+  rtoChargePercent  Float     @default(100) @map("rto_charge_percent") // % of forward freight
+
+  // GST
+  gstPercent        Float     @default(18) @map("gst_percent")
+
+  // Billing cycle
+  billingCycle      String    @default("WEEKLY") @map("billing_cycle") // DAILY, WEEKLY, BIWEEKLY, MONTHLY
+  paymentTermsDays  Int       @default(7) @map("payment_terms_days")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  zoneRates         ZoneRate[]
+  weightSlabs       WeightSlab[]
+
+  @@index([clientId, isActive])
+  @@map("rate_cards")
+}
+
+// Zone-based pricing
+model ZoneRate {
+  id                String    @id @default(cuid())
+  rateCardId        String    @map("rate_card_id")
+
+  // Zone definition
+  zoneName          String    @map("zone_name") // LOCAL, REGIONAL, METRO, REST_OF_INDIA, SPECIAL
+  zoneCode          String    @map("zone_code")
+
+  // Zone-specific rates
+  baseRatePerKg     Float     @map("base_rate_per_kg")
+  additionalPerKg   Float     @map("additional_per_kg")
+  minWeight         Float     @default(0.5) @map("min_weight")
+
+  // Transit time
+  expectedTatDays   Int       @map("expected_tat_days")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  rateCard          RateCard  @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+
+  @@unique([rateCardId, zoneCode])
+  @@map("zone_rates")
+}
+
+// Weight-based pricing slabs
+model WeightSlab {
+  id                String    @id @default(cuid())
+  rateCardId        String    @map("rate_card_id")
+
+  // Weight range
+  fromWeight        Float     @map("from_weight")
+  toWeight          Float     @map("to_weight")
+
+  // Slab-specific rate
+  ratePerKg         Float     @map("rate_per_kg")
+  flatRate          Float?    @map("flat_rate") // If flat rate instead of per kg
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  rateCard          RateCard  @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+
+  @@index([rateCardId, fromWeight])
+  @@map("weight_slabs")
+}
+
+// Invoice Line Items
+model InvoiceLineItem {
+  id                String    @id @default(cuid())
+  invoiceId         String    @map("invoice_id")
+
+  // Shipment reference
+  shipmentId        String?   @map("shipment_id")
+  awbNumber         String?   @map("awb_number")
+
+  // Item details
+  description       String
+  itemType          String    @map("item_type") // FREIGHT, COD_CHARGE, FUEL_SURCHARGE, HANDLING, RTO_CHARGE, OTHER
+
+  // Quantity and rate
+  quantity          Float     @default(1)
+  rate              Float
+  amount            Float
+
+  // Tax
+  taxPercent        Float     @default(0) @map("tax_percent")
+  taxAmount         Float     @default(0) @map("tax_amount")
+  totalAmount       Float     @map("total_amount")
+
+  // Additional info
+  weight            Float?
+  zone              String?
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  invoice           Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([shipmentId])
+  @@map("invoice_line_items")
+}
+
+// Payment records
+model Payment {
+  id                String    @id @default(cuid())
+  paymentNumber     String    @unique @map("payment_number")
+
+  // Invoice reference
+  invoiceId         String    @map("invoice_id")
+
+  // Client
+  clientId          String    @map("client_id")
+
+  // Payment details
+  amount            Float
+  paymentDate       DateTime  @map("payment_date")
+  paymentMode       String    @map("payment_mode") // BANK_TRANSFER, CHEQUE, UPI, CASH, NEFT, RTGS
+
+  // Bank details
+  bankName          String?   @map("bank_name")
+  transactionRef    String?   @map("transaction_ref")
+  chequeNumber      String?   @map("cheque_number")
+  chequeDate        DateTime? @map("cheque_date")
+
+  // Status
+  status            String    @default("PENDING") // PENDING, CONFIRMED, BOUNCED, REVERSED
+  confirmedAt       DateTime? @map("confirmed_at")
+  confirmedBy       String?   @map("confirmed_by")
+
+  remarks           String?
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  invoice           Invoice   @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@index([clientId, paymentDate])
+  @@map("payments")
+}
+
+// Credit Notes for adjustments/refunds
+model CreditNote {
+  id                String    @id @default(cuid())
+  creditNoteNumber  String    @unique @map("credit_note_number")
+
+  // Reference
+  invoiceId         String    @map("invoice_id")
+  clientId          String    @map("client_id")
+
+  // Reason
+  reason            String    // RATE_DIFFERENCE, SERVICE_ISSUE, OVERCHARGE, DAMAGE, OTHER
+  description       String
+
+  // Amount
+  amount            Float
+  gstAmount         Float     @default(0) @map("gst_amount")
+  totalAmount       Float     @map("total_amount")
+
+  // Status
+  status            String    @default("PENDING") // PENDING, APPROVED, APPLIED, REJECTED
+  approvedBy        String?   @map("approved_by")
+  approvedAt        DateTime? @map("approved_at")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  invoice           Invoice   @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@index([clientId])
+  @@map("credit_notes")
+}
+
+// Debit Notes for additional charges
+model DebitNote {
+  id                String    @id @default(cuid())
+  debitNoteNumber   String    @unique @map("debit_note_number")
+
+  // Reference
+  clientId          String    @map("client_id")
+  invoiceId         String?   @map("invoice_id") // Optional, can be standalone
+
+  // Reason
+  reason            String    // ADDITIONAL_CHARGES, PENALTY, RATE_REVISION, OTHER
+  description       String
+
+  // Amount
+  amount            Float
+  gstAmount         Float     @default(0) @map("gst_amount")
+  totalAmount       Float     @map("total_amount")
+
+  // Status
+  status            String    @default("PENDING") // PENDING, APPROVED, INVOICED, REJECTED
+  approvedBy        String?   @map("approved_by")
+  approvedAt        DateTime? @map("approved_at")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([clientId])
+  @@map("debit_notes")
+}
+
+// Client Ledger - Running balance
+model ClientLedger {
+  id                String    @id @default(cuid())
+
+  clientId          String    @map("client_id")
+
+  // Transaction
+  transactionDate   DateTime  @map("transaction_date")
+  transactionType   String    @map("transaction_type") // INVOICE, PAYMENT, CREDIT_NOTE, DEBIT_NOTE, OPENING_BALANCE
+  referenceType     String    @map("reference_type")
+  referenceId       String    @map("reference_id")
+  referenceNumber   String    @map("reference_number")
+
+  // Amount
+  debitAmount       Float     @default(0) @map("debit_amount")
+  creditAmount      Float     @default(0) @map("credit_amount")
+  balanceAmount     Float     @map("balance_amount") // Running balance
+
+  description       String
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([clientId, transactionDate])
+  @@index([referenceType, referenceId])
+  @@map("client_ledger")
+}
+
+// ============================================
+// AUTOMATED COMMUNICATIONS
+// ============================================
+
+// Communication Templates
+model NotificationTemplate {
+  id                String    @id @default(cuid())
+
+  // Template identification
+  code              String    @unique // e.g., SHIPMENT_BOOKED, OUT_FOR_DELIVERY, DELIVERED
+  name              String
+  description       String?
+
+  // Channel and type
+  channel           String    // SMS, WHATSAPP, EMAIL, PUSH
+  triggerEvent      String    @map("trigger_event") // Event that triggers this notification
+
+  // Recipients
+  recipientType     String    @map("recipient_type") // CONSIGNEE, SHIPPER, CLIENT, DRIVER, AGENT
+
+  // Template content
+  subject           String?   // For EMAIL
+  body              String    // Message body with placeholders {{awb}}, {{status}}, etc.
+  bodyHtml          String?   @map("body_html") // HTML body for email
+
+  // Settings
+  isActive          Boolean   @default(true) @map("is_active")
+  isClientSpecific  Boolean   @default(false) @map("is_client_specific")
+  clientId          String?   @map("client_id") // If client-specific
+
+  // Variables available
+  availableVars     String    @map("available_vars") // JSON array of available placeholders
+
+  // Timing
+  delayMinutes      Int       @default(0) @map("delay_minutes") // Delay before sending
+  scheduledTime     String?   @map("scheduled_time") // HH:MM if time-specific
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([channel, triggerEvent])
+  @@index([isActive])
+  @@map("notification_templates")
+}
+
+// Notification Queue - Pending notifications
+model NotificationQueue {
+  id                String    @id @default(cuid())
+
+  // Template
+  templateId        String    @map("template_id")
+  templateCode      String    @map("template_code")
+  channel           String
+
+  // Recipient
+  recipientType     String    @map("recipient_type")
+  recipientPhone    String?   @map("recipient_phone")
+  recipientEmail    String?   @map("recipient_email")
+  recipientName     String?   @map("recipient_name")
+
+  // Reference
+  shipmentId        String?   @map("shipment_id")
+  awbNumber         String?   @map("awb_number")
+  clientId          String?   @map("client_id")
+
+  // Content (resolved from template)
+  subject           String?
+  messageBody       String    @map("message_body")
+
+  // Scheduling
+  scheduledAt       DateTime  @map("scheduled_at")
+  priority          Int       @default(1) // 1=Normal, 2=High, 3=Urgent
+
+  // Status
+  status            String    @default("PENDING") // PENDING, PROCESSING, SENT, FAILED, CANCELLED
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(3) @map("max_attempts")
+
+  // Processing
+  processedAt       DateTime? @map("processed_at")
+  failureReason     String?   @map("failure_reason")
+  providerRef       String?   @map("provider_ref") // External provider reference
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([status, scheduledAt])
+  @@index([shipmentId])
+  @@index([channel, status])
+  @@map("notification_queue")
+}
+
+// Notification Log - Sent notifications
+model NotificationLog {
+  id                String    @id @default(cuid())
+
+  // Template reference
+  templateId        String?   @map("template_id")
+  templateCode      String?   @map("template_code")
+
+  // Channel
+  channel           String    // SMS, WHATSAPP, EMAIL, PUSH
+
+  // Recipient details
+  recipientType     String    @map("recipient_type")
+  recipientPhone    String?   @map("recipient_phone")
+  recipientEmail    String?   @map("recipient_email")
+  recipientName     String?   @map("recipient_name")
+
+  // Reference
+  shipmentId        String?   @map("shipment_id")
+  awbNumber         String?   @map("awb_number")
+  clientId          String?   @map("client_id")
+
+  // Content sent
+  subject           String?
+  messageBody       String    @map("message_body")
+
+  // Delivery status
+  status            String    @default("SENT") // SENT, DELIVERED, READ, FAILED, BOUNCED
+  deliveredAt       DateTime? @map("delivered_at")
+  readAt            DateTime? @map("read_at")
+
+  // Provider details
+  providerName      String?   @map("provider_name") // MSG91, TWILIO, SENDGRID
+  providerRef       String?   @map("provider_ref")
+  providerResponse  String?   @map("provider_response") // JSON response
+
+  // Cost
+  costCredits       Float     @default(0) @map("cost_credits")
+
+  // Failure info
+  failureReason     String?   @map("failure_reason")
+
+  sentAt            DateTime  @map("sent_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([shipmentId, sentAt])
+  @@index([clientId, sentAt])
+  @@index([channel, status])
+  @@index([sentAt])
+  @@map("notification_logs")
+}
+
+// Notification Preferences - Client/User preferences
+model NotificationPreference {
+  id                String    @id @default(cuid())
+
+  // Owner
+  ownerType         String    @map("owner_type") // CLIENT, USER
+  ownerId           String    @map("owner_id")
+
+  // Channels enabled
+  smsEnabled        Boolean   @default(true) @map("sms_enabled")
+  whatsappEnabled   Boolean   @default(true) @map("whatsapp_enabled")
+  emailEnabled      Boolean   @default(true) @map("email_enabled")
+  pushEnabled       Boolean   @default(true) @map("push_enabled")
+
+  // Event preferences (JSON - which events to notify)
+  enabledEvents     String    @map("enabled_events") // JSON array
+
+  // Quiet hours
+  quietHoursStart   String?   @map("quiet_hours_start") // HH:MM
+  quietHoursEnd     String?   @map("quiet_hours_end") // HH:MM
+
+  // Language
+  preferredLanguage String    @default("en") @map("preferred_language")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@unique([ownerType, ownerId])
+  @@map("notification_preferences")
+}
+
+// =============================================================================
+// CUSTOMER FEEDBACK & NPS
+// =============================================================================
+
+// Delivery Feedback - Customer ratings and reviews
+model DeliveryFeedback {
+  id                String    @id @default(cuid())
+
+  // Reference
+  shipmentId        String    @unique @map("shipment_id")
+  awbNumber         String    @map("awb_number")
+  clientId          String    @map("client_id")
+
+  // Customer info
+  customerName      String?   @map("customer_name")
+  customerPhone     String?   @map("customer_phone")
+  customerEmail     String?   @map("customer_email")
+
+  // Ratings (1-5 stars)
+  overallRating     Int       @map("overall_rating") // 1-5
+  deliverySpeedRating Int?    @map("delivery_speed_rating") // 1-5
+  packagingRating   Int?      @map("packaging_rating") // 1-5
+  courierBehaviorRating Int?  @map("courier_behavior_rating") // 1-5
+
+  // NPS Score (0-10)
+  npsScore          Int?      @map("nps_score") // 0-10: How likely to recommend?
+
+  // Feedback text
+  feedbackText      String?   @map("feedback_text")
+
+  // Categories (JSON array of selected issues/compliments)
+  categories        String?   // JSON: ["FAST_DELIVERY", "GOOD_PACKAGING", "FRIENDLY_COURIER"]
+
+  // Sentiment (calculated)
+  sentiment         String?   // POSITIVE, NEUTRAL, NEGATIVE
+
+  // Source
+  source            String    @default("TRACKING_PAGE") // TRACKING_PAGE, SMS_LINK, APP, CALL
+
+  // Response handling
+  requiresFollowUp  Boolean   @default(false) @map("requires_follow_up")
+  followUpStatus    String?   @map("follow_up_status") // PENDING, CONTACTED, RESOLVED
+  followUpNotes     String?   @map("follow_up_notes")
+  resolvedBy        String?   @map("resolved_by")
+  resolvedAt        DateTime? @map("resolved_at")
+
+  // Timestamps
+  submittedAt       DateTime  @default(now()) @map("submitted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([shipmentId])
+  @@index([clientId, submittedAt])
+  @@index([overallRating])
+  @@index([npsScore])
+  @@index([requiresFollowUp, followUpStatus])
+  @@map("delivery_feedback")
+}
+
+// =============================================================================
+// SLOT-BASED DELIVERY
+// =============================================================================
+
+// Delivery Slot Configuration - Hub-level slot definitions
+model DeliverySlotConfig {
+  id                String    @id @default(cuid())
+
+  hubId             String    @map("hub_id")
+  name              String    // e.g., "Morning Slot", "Afternoon Slot"
+
+  // Time window
+  startTime         String    @map("start_time") // HH:MM format
+  endTime           String    @map("end_time") // HH:MM format
+
+  // Days available (JSON array: ["MONDAY", "TUESDAY", ...])
+  availableDays     String    @map("available_days")
+
+  // Capacity
+  maxOrders         Int       @default(50) @map("max_orders")
+
+  // Premium pricing (if any)
+  premiumCharge     Float     @default(0) @map("premium_charge")
+  isPremium         Boolean   @default(false) @map("is_premium")
+
+  // Settings
+  isActive          Boolean   @default(true) @map("is_active")
+  cutoffHours       Int       @default(12) @map("cutoff_hours") // Hours before slot to stop booking
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([hubId, isActive])
+  @@map("delivery_slot_configs")
+}
+
+// Delivery Slot Booking - Customer slot selections
+model DeliverySlotBooking {
+  id                String    @id @default(cuid())
+
+  shipmentId        String    @unique @map("shipment_id")
+  awbNumber         String    @map("awb_number")
+
+  // Slot details
+  slotConfigId      String?   @map("slot_config_id")
+  slotDate          DateTime  @map("slot_date")
+  slotStartTime     String    @map("slot_start_time")
+  slotEndTime       String    @map("slot_end_time")
+  slotName          String?   @map("slot_name")
+
+  // Customer preference
+  preferredTime     String?   @map("preferred_time") // MORNING, AFTERNOON, EVENING
+  alternateDate     DateTime? @map("alternate_date")
+
+  // Status
+  status            String    @default("BOOKED") // BOOKED, CONFIRMED, DELIVERED, MISSED, RESCHEDULED
+  confirmedBy       String?   @map("confirmed_by")
+  confirmedAt       DateTime? @map("confirmed_at")
+
+  // Customer contact
+  customerPhone     String?   @map("customer_phone")
+  customerEmail     String?   @map("customer_email")
+
+  // Notes
+  specialInstructions String? @map("special_instructions")
+
+  // Premium
+  premiumCharge     Float     @default(0) @map("premium_charge")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([shipmentId])
+  @@index([slotDate, status])
+  @@index([slotConfigId, slotDate])
+  @@map("delivery_slot_bookings")
+}
+
+// =============================================================================
+// WMS - WAREHOUSE MANAGEMENT SYSTEM
+// =============================================================================
+
+// Warehouse Zones - Areas within a warehouse (Receiving, Storage, Picking, Packing, Shipping)
+model WarehouseZone {
+  id              String    @id @default(cuid())
+  warehouseId     String    @map("warehouse_id")
+
+  code            String    // Zone code e.g., "RCV-A", "STG-1", "PCK-01"
+  name            String    // Zone name e.g., "Receiving Area A"
+  type            String    // RECEIVING, STORAGE, PICKING, PACKING, SHIPPING, RETURNS, QUARANTINE
+
+  // Physical dimensions
+  lengthM         Float?    @map("length_m")
+  widthM          Float?    @map("width_m")
+  heightM         Float?    @map("height_m")
+  areaM2          Float?    @map("area_m2")
+
+  // Capacity
+  maxBins         Int       @default(100) @map("max_bins")
+  maxWeightKg     Float?    @map("max_weight_kg")
+
+  // Temperature control (for cold storage)
+  isTemperatureControlled Boolean @default(false) @map("is_temperature_controlled")
+  minTempC        Float?    @map("min_temp_c")
+  maxTempC        Float?    @map("max_temp_c")
+
+  // Access control
+  requiresSpecialAccess Boolean @default(false) @map("requires_special_access")
+  accessLevel     String?   @map("access_level") // PUBLIC, RESTRICTED, HIGH_VALUE
+
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  bins            StorageBin[]
+  packStations    PackStation[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId, type])
+  @@map("warehouse_zones")
+}
+
+// Storage Bins - Individual storage locations
+model StorageBin {
+  id              String    @id @default(cuid())
+  zoneId          String    @map("zone_id")
+
+  code            String    // Bin code e.g., "A-01-02-03" (Aisle-Rack-Level-Position)
+  barcode         String    @unique
+
+  // Location within zone
+  aisle           String?
+  rack            String?
+  level           String?   // Shelf level
+  position        String?   // Position on shelf
+
+  // Bin type
+  type            String    @default("STANDARD") // STANDARD, PALLET, BULK, SMALL_PARTS, HAZMAT
+
+  // Dimensions
+  lengthCm        Float?    @map("length_cm")
+  widthCm         Float?    @map("width_cm")
+  heightCm        Float?    @map("height_cm")
+  volumeCm3       Float?    @map("volume_cm3")
+  maxWeightKg     Float?    @map("max_weight_kg")
+
+  // Current status
+  status          String    @default("EMPTY") // EMPTY, PARTIAL, FULL, RESERVED, BLOCKED
+
+  // Occupancy
+  currentItemCount Int      @default(0) @map("current_item_count")
+  currentWeightKg Float     @default(0) @map("current_weight_kg")
+  currentVolumeCm3 Float    @default(0) @map("current_volume_cm3")
+
+  // Priority for picking (lower = pick first)
+  pickPriority    Int       @default(100) @map("pick_priority")
+
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  zone            WarehouseZone @relation(fields: [zoneId], references: [id])
+  inventoryBatches InventoryBatch[]
+
+  @@unique([zoneId, code])
+  @@index([status])
+  @@index([type])
+  @@map("storage_bins")
+}
+
+// Inventory Items - SKU master data
+model InventoryItem {
+  id              String    @id @default(cuid())
+  clientId        String    @map("client_id")
+  warehouseId     String    @map("warehouse_id")
+
+  // SKU identification
+  sku             String    // Client's SKU code
+  barcode         String?
+  upc             String?   // Universal Product Code
+  ean             String?   // European Article Number
+
+  // Product info
+  name            String
+  description     String?
+  category        String?
+  subcategory     String?
+  brand           String?
+
+  // Dimensions
+  lengthCm        Float?    @map("length_cm")
+  widthCm         Float?    @map("width_cm")
+  heightCm        Float?    @map("height_cm")
+  weightGrams     Float?    @map("weight_grams")
+
+  // Packaging
+  unitsPerCase    Int       @default(1) @map("units_per_case")
+  casesPerPallet  Int       @default(1) @map("cases_per_pallet")
+
+  // Inventory settings
+  minStockLevel   Int       @default(0) @map("min_stock_level")
+  reorderPoint    Int       @default(0) @map("reorder_point")
+  reorderQty      Int       @default(0) @map("reorder_qty")
+  maxStockLevel   Int?      @map("max_stock_level")
+
+  // Special handling
+  isFragile       Boolean   @default(false) @map("is_fragile")
+  isHazardous     Boolean   @default(false) @map("is_hazardous")
+  requiresColdStorage Boolean @default(false) @map("requires_cold_storage")
+  isSerialTracked Boolean   @default(false) @map("is_serial_tracked")
+  isBatchTracked  Boolean   @default(false) @map("is_batch_tracked")
+
+  // Picking method
+  pickingMethod   String    @default("PIECE") // PIECE, CASE, PALLET
+
+  // Status
+  status          String    @default("ACTIVE") // ACTIVE, INACTIVE, DISCONTINUED
+
+  // Valuation
+  costPrice       Float?    @map("cost_price")
+  sellingPrice    Float?    @map("selling_price")
+  currency        String    @default("INR")
+
+  // Images
+  imageUrl        String?   @map("image_url")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  batches         InventoryBatch[]
+  movements       InventoryMovement[]
+  pickListItems   PickListItem[]
+
+  @@unique([clientId, warehouseId, sku])
+  @@index([barcode])
+  @@index([status])
+  @@map("inventory_items")
+}
+
+// Inventory Batches - Track inventory by batch/lot
+model InventoryBatch {
+  id              String    @id @default(cuid())
+  itemId          String    @map("item_id")
+  binId           String    @map("bin_id")
+
+  // Batch identification
+  batchNumber     String    @map("batch_number")
+  lotNumber       String?   @map("lot_number")
+  serialNumbers   String?   @map("serial_numbers") // JSON array for serialized items
+
+  // Quantity
+  quantity        Int       @default(0)
+  reservedQty     Int       @default(0) @map("reserved_qty") // Reserved for pending orders
+  availableQty    Int       @default(0) @map("available_qty") // quantity - reservedQty
+
+  // Dates
+  manufacturingDate DateTime? @map("manufacturing_date")
+  expiryDate      DateTime?  @map("expiry_date")
+  receivedDate    DateTime   @map("received_date")
+
+  // Source
+  poNumber        String?   @map("po_number")
+  supplierId      String?   @map("supplier_id")
+
+  // Status
+  status          String    @default("AVAILABLE") // AVAILABLE, RESERVED, QUARANTINE, EXPIRED, DAMAGED
+
+  // Quality
+  qualityStatus   String    @default("PASSED") // PENDING, PASSED, FAILED, HOLD
+  qualityNotes    String?   @map("quality_notes")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  item            InventoryItem @relation(fields: [itemId], references: [id])
+  bin             StorageBin    @relation(fields: [binId], references: [id])
+  movements       InventoryMovement[]
+
+  @@index([itemId, status])
+  @@index([binId])
+  @@index([batchNumber])
+  @@index([expiryDate])
+  @@map("inventory_batches")
+}
+
+// Inventory Movements - All stock movements
+model InventoryMovement {
+  id              String    @id @default(cuid())
+  itemId          String    @map("item_id")
+  batchId         String?   @map("batch_id")
+
+  // Movement type
+  type            String    // RECEIVE, PUTAWAY, PICK, PACK, SHIP, ADJUST, TRANSFER, RETURN, CYCLE_COUNT
+
+  // Quantity
+  quantity        Int
+  previousQty     Int       @map("previous_qty")
+  newQty          Int       @map("new_qty")
+
+  // Location
+  fromBinId       String?   @map("from_bin_id")
+  toBinId         String?   @map("to_bin_id")
+
+  // Reference
+  referenceType   String?   @map("reference_type") // ORDER, PICK_LIST, ADJUSTMENT, TRANSFER
+  referenceId     String?   @map("reference_id")
+  referenceNumber String?   @map("reference_number")
+
+  // Reason (for adjustments)
+  reason          String?
+  notes           String?
+
+  // Performed by
+  performedBy     String?   @map("performed_by")
+  performedAt     DateTime  @default(now()) @map("performed_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  item            InventoryItem  @relation(fields: [itemId], references: [id])
+  batch           InventoryBatch? @relation(fields: [batchId], references: [id])
+
+  @@index([itemId, type])
+  @@index([referenceId])
+  @@index([performedAt])
+  @@map("inventory_movements")
+}
+
+// WMS Wave - Batch processing for pick-pack-ship
+model WMSWave {
+  id              String    @id @default(cuid())
+  warehouseId     String    @map("warehouse_id")
+
+  waveNumber      String    @unique @map("wave_number")
+  name            String?
+
+  // Wave configuration
+  type            String    @default("STANDARD") // STANDARD, PRIORITY, EXPRESS, BULK
+
+  // Orders included
+  orderCount      Int       @default(0) @map("order_count")
+  totalItems      Int       @default(0) @map("total_items")
+  totalUnits      Int       @default(0) @map("total_units")
+
+  // Timing
+  plannedStartTime DateTime? @map("planned_start_time")
+  plannedEndTime   DateTime? @map("planned_end_time")
+  actualStartTime  DateTime? @map("actual_start_time")
+  actualEndTime    DateTime? @map("actual_end_time")
+
+  // Cutoff for carrier
+  carrierCutoff   DateTime? @map("carrier_cutoff")
+
+  // Status
+  status          String    @default("PLANNED") // PLANNED, RELEASED, IN_PROGRESS, COMPLETED, CANCELLED
+
+  // Progress
+  pickedOrders    Int       @default(0) @map("picked_orders")
+  packedOrders    Int       @default(0) @map("packed_orders")
+  shippedOrders   Int       @default(0) @map("shipped_orders")
+
+  // Created by
+  createdBy       String?   @map("created_by")
+  releasedBy      String?   @map("released_by")
+  releasedAt      DateTime? @map("released_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  pickLists       PickList[]
+
+  @@index([warehouseId, status])
+  @@index([plannedStartTime])
+  @@map("wms_waves")
+}
+
+// Pick List - Picking assignments
+model PickList {
+  id              String    @id @default(cuid())
+  warehouseId     String    @map("warehouse_id")
+  waveId          String?   @map("wave_id")
+
+  pickListNumber  String    @unique @map("pick_list_number")
+
+  // Assignment
+  assignedTo      String?   @map("assigned_to") // User ID
+  assignedAt      DateTime? @map("assigned_at")
+
+  // Pick method
+  pickMethod      String    @default("DISCRETE") // DISCRETE (one order), BATCH (multiple orders), ZONE
+
+  // Orders in this pick list
+  orderIds        String    @map("order_ids") // JSON array of order IDs
+
+  // Item counts
+  totalItems      Int       @default(0) @map("total_items")
+  totalUnits      Int       @default(0) @map("total_units")
+  pickedItems     Int       @default(0) @map("picked_items")
+  pickedUnits     Int       @default(0) @map("picked_units")
+
+  // Timing
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+
+  // Status
+  status          String    @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, PARTIAL, CANCELLED
+  priority        Int       @default(5) // 1=Urgent, 10=Low priority
+
+  // Equipment
+  cartId          String?   @map("cart_id")
+  scannerId       String?   @map("scanner_id")
+
+  // Route optimization
+  optimizedRoute  String?   @map("optimized_route") // JSON: Ordered list of bin locations
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  wave            WMSWave?   @relation(fields: [waveId], references: [id])
+  items           PickListItem[]
+
+  @@index([warehouseId, status])
+  @@index([assignedTo, status])
+  @@map("pick_lists")
+}
+
+// Pick List Items - Individual items to pick
+model PickListItem {
+  id              String    @id @default(cuid())
+  pickListId      String    @map("pick_list_id")
+  itemId          String    @map("item_id")
+  orderId         String    @map("order_id")
+
+  // Pick location
+  binCode         String    @map("bin_code")
+  binId           String?   @map("bin_id")
+  zoneCode        String?   @map("zone_code")
+
+  // Quantities
+  quantityRequired Int      @map("quantity_required")
+  quantityPicked  Int       @default(0) @map("quantity_picked")
+  quantityShorted Int       @default(0) @map("quantity_shorted")
+
+  // Batch info
+  batchNumber     String?   @map("batch_number")
+  serialNumbers   String?   @map("serial_numbers") // JSON array of picked serial numbers
+
+  // Sequence in pick path
+  sequence        Int       @default(0)
+
+  // Status
+  status          String    @default("PENDING") // PENDING, IN_PROGRESS, PICKED, SHORTED, CANCELLED
+
+  // Verification
+  scannedBarcode  String?   @map("scanned_barcode")
+  pickedAt        DateTime? @map("picked_at")
+  pickedBy        String?   @map("picked_by")
+
+  // Issues
+  shortReason     String?   @map("short_reason")
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  pickList        PickList       @relation(fields: [pickListId], references: [id], onDelete: Cascade)
+  item            InventoryItem  @relation(fields: [itemId], references: [id])
+
+  @@index([pickListId, sequence])
+  @@index([status])
+  @@map("pick_list_items")
+}
+
+// Pack Station - Packing workstations
+model PackStation {
+  id              String    @id @default(cuid())
+  zoneId          String    @map("zone_id")
+
+  code            String    // e.g., "PACK-01"
+  name            String
+
+  // Equipment
+  hasScale        Boolean   @default(true) @map("has_scale")
+  hasScanner      Boolean   @default(true) @map("has_scanner")
+  hasPrinter      Boolean   @default(true) @map("has_printer")
+  hasCamera       Boolean   @default(false) @map("has_camera") // For photo POD
+
+  // Current assignment
+  assignedTo      String?   @map("assigned_to")
+  currentOrderId  String?   @map("current_order_id")
+
+  // Status
+  status          String    @default("AVAILABLE") // AVAILABLE, IN_USE, MAINTENANCE, OFFLINE
+
+  // Statistics (today)
+  ordersPackedToday Int     @default(0) @map("orders_packed_today")
+  avgPackTimeSeconds Int?   @map("avg_pack_time_seconds")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  zone            WarehouseZone @relation(fields: [zoneId], references: [id])
+  packingTasks    PackingTask[]
+
+  @@unique([zoneId, code])
+  @@index([status])
+  @@map("pack_stations")
+}
+
+// Packing Task - Individual packing jobs
+model PackingTask {
+  id              String    @id @default(cuid())
+  packStationId   String?   @map("pack_station_id")
+  orderId         String    @map("order_id")
+  awbNumber       String?   @map("awb_number")
+
+  // Task number
+  taskNumber      String    @unique @map("task_number")
+
+  // Assignment
+  assignedTo      String?   @map("assigned_to")
+  assignedAt      DateTime? @map("assigned_at")
+
+  // Items
+  totalItems      Int       @default(0) @map("total_items")
+  packedItems     Int       @default(0) @map("packed_items")
+  itemsList       String?   @map("items_list") // JSON array of items to pack
+
+  // Packaging used
+  boxType         String?   @map("box_type") // SMALL, MEDIUM, LARGE, CUSTOM
+  boxDimensions   String?   @map("box_dimensions") // LxWxH
+  packagingMaterial String? @map("packaging_material")
+
+  // Weights
+  itemsWeightGrams Int?     @map("items_weight_grams")
+  packagedWeightGrams Int?  @map("packaged_weight_grams")
+
+  // Verification
+  allItemsScanned Boolean   @default(false) @map("all_items_scanned")
+  weightVerified  Boolean   @default(false) @map("weight_verified")
+  photoTaken      Boolean   @default(false) @map("photo_taken")
+  photoUrl        String?   @map("photo_url")
+
+  // Labels
+  shippingLabelPrinted Boolean @default(false) @map("shipping_label_printed")
+  invoicePrinted  Boolean   @default(false) @map("invoice_printed")
+
+  // Timing
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  packTimeSeconds Int?      @map("pack_time_seconds")
+
+  // Status
+  status          String    @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, ON_HOLD, CANCELLED
+  priority        Int       @default(5)
+
+  // Issues
+  hasIssue        Boolean   @default(false) @map("has_issue")
+  issueType       String?   @map("issue_type") // MISSING_ITEM, DAMAGED_ITEM, WRONG_ITEM
+  issueNotes      String?   @map("issue_notes")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  packStation     PackStation? @relation(fields: [packStationId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+  @@index([assignedTo, status])
+  @@map("packing_tasks")
+}
+
+// Receiving - Inbound shipments
+model ReceivingRecord {
+  id              String    @id @default(cuid())
+  warehouseId     String    @map("warehouse_id")
+
+  receiptNumber   String    @unique @map("receipt_number")
+
+  // Supplier/Source
+  supplierId      String?   @map("supplier_id")
+  supplierName    String?   @map("supplier_name")
+  poNumber        String?   @map("po_number")
+
+  // Carrier
+  carrierName     String?   @map("carrier_name")
+  trackingNumber  String?   @map("tracking_number")
+  vehicleNumber   String?   @map("vehicle_number")
+
+  // Expected
+  expectedDate    DateTime? @map("expected_date")
+  expectedItems   Int       @default(0) @map("expected_items")
+  expectedUnits   Int       @default(0) @map("expected_units")
+
+  // Received
+  receivedDate    DateTime? @map("received_date")
+  receivedItems   Int       @default(0) @map("received_items")
+  receivedUnits   Int       @default(0) @map("received_units")
+
+  // Discrepancies
+  shortItems      Int       @default(0) @map("short_items")
+  overItems       Int       @default(0) @map("over_items")
+  damagedItems    Int       @default(0) @map("damaged_items")
+
+  // Status
+  status          String    @default("EXPECTED") // EXPECTED, ARRIVED, IN_PROGRESS, COMPLETED, CLOSED
+
+  // Receiving dock
+  dockDoor        String?   @map("dock_door")
+
+  // Processing
+  receivedBy      String?   @map("received_by")
+  verifiedBy      String?   @map("verified_by")
+  putawayComplete Boolean   @default(false) @map("putaway_complete")
+
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  items           ReceivingItem[]
+
+  @@index([warehouseId, status])
+  @@index([poNumber])
+  @@map("receiving_records")
+}
+
+// Receiving Items - Line items in a receiving record
+model ReceivingItem {
+  id              String    @id @default(cuid())
+  receivingId     String    @map("receiving_id")
+
+  // SKU
+  sku             String
+  itemName        String    @map("item_name")
+  barcode         String?
+
+  // Expected
+  expectedQty     Int       @map("expected_qty")
+
+  // Received
+  receivedQty     Int       @default(0) @map("received_qty")
+  damagedQty      Int       @default(0) @map("damaged_qty")
+
+  // Batch/Lot info
+  batchNumber     String?   @map("batch_number")
+  lotNumber       String?   @map("lot_number")
+  expiryDate      DateTime? @map("expiry_date")
+
+  // Putaway
+  putawayBinId    String?   @map("putaway_bin_id")
+  putawayComplete Boolean   @default(false) @map("putaway_complete")
+  putawayBy       String?   @map("putaway_by")
+  putawayAt       DateTime? @map("putaway_at")
+
+  // Status
+  status          String    @default("PENDING") // PENDING, RECEIVED, VERIFIED, PUTAWAY
+
+  // Quality
+  qcStatus        String    @default("PENDING") // PENDING, PASSED, FAILED, HOLD
+  qcNotes         String?   @map("qc_notes")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  receiving       ReceivingRecord @relation(fields: [receivingId], references: [id], onDelete: Cascade)
+
+  @@index([receivingId])
+  @@index([sku])
+  @@map("receiving_items")
+}
+
+// Cycle Count - Inventory verification
+model CycleCount {
+  id              String    @id @default(cuid())
+  warehouseId     String    @map("warehouse_id")
+
+  countNumber     String    @unique @map("count_number")
+  name            String?
+
+  // Count type
+  type            String    @default("ZONE") // FULL, ZONE, ABC, RANDOM, ITEM
+  scope           String?   // Zone codes or item categories to count
+
+  // Schedule
+  scheduledDate   DateTime  @map("scheduled_date")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+
+  // Counts
+  totalLocations  Int       @default(0) @map("total_locations")
+  countedLocations Int      @default(0) @map("counted_locations")
+  totalItems      Int       @default(0) @map("total_items")
+  countedItems    Int       @default(0) @map("counted_items")
+
+  // Variance
+  varianceItems   Int       @default(0) @map("variance_items")
+  varianceValue   Float     @default(0) @map("variance_value")
+
+  // Status
+  status          String    @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, APPROVED, CANCELLED
+
+  // Approval
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  adjustmentsApplied Boolean @default(false) @map("adjustments_applied")
+
+  createdBy       String?   @map("created_by")
+  assignedTo      String?   @map("assigned_to")
+
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  countItems      CycleCountItem[]
+
+  @@index([warehouseId, status])
+  @@index([scheduledDate])
+  @@map("cycle_counts")
+}
+
+// Cycle Count Items - Individual count entries
+model CycleCountItem {
+  id              String    @id @default(cuid())
+  cycleCountId    String    @map("cycle_count_id")
+
+  // Location
+  binId           String    @map("bin_id")
+  binCode         String    @map("bin_code")
+
+  // Item
+  sku             String
+  batchNumber     String?   @map("batch_number")
+
+  // Counts
+  systemQty       Int       @map("system_qty")
+  countedQty      Int?      @map("counted_qty")
+  recountQty      Int?      @map("recount_qty") // For double-check
+
+  // Variance
+  variance        Int       @default(0)
+  varianceReason  String?   @map("variance_reason")
+
+  // Status
+  status          String    @default("PENDING") // PENDING, COUNTED, RECOUNTED, VERIFIED, ADJUSTED
+
+  countedBy       String?   @map("counted_by")
+  countedAt       DateTime? @map("counted_at")
+
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  cycleCount      CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+
+  @@index([cycleCountId])
+  @@index([binId])
+  @@map("cycle_count_items")
+}
+
+// ============================================
+// ERP INTEGRATION (SAP, Tally, Zoho)
+// ============================================
+
+// ERP Integration Configuration
+model ERPIntegration {
+  id                  String    @id @default(cuid())
+  clientId            String    @map("client_id")
+
+  // ERP System Info
+  erpType             String    @map("erp_type") // SAP, TALLY, ZOHO_BOOKS, ZOHO_INVENTORY, QUICKBOOKS, CUSTOM
+  erpName             String    @map("erp_name") // Display name
+  erpVersion          String?   @map("erp_version")
+
+  // Connection
+  connectionType      String    @default("API") @map("connection_type") // API, WEBHOOK, FILE_IMPORT, DIRECT_DB
+  apiBaseUrl          String?   @map("api_base_url")
+  apiKey              String?   @map("api_key")
+  apiSecret           String?   @map("api_secret")
+  authType            String?   @map("auth_type") // API_KEY, OAUTH2, BASIC, TOKEN
+  accessToken         String?   @map("access_token")
+  refreshToken        String?   @map("refresh_token")
+  tokenExpiresAt      DateTime? @map("token_expires_at")
+
+  // SAP Specific
+  sapClientId         String?   @map("sap_client_id")
+  sapCompanyCode      String?   @map("sap_company_code")
+  sapPlantCode        String?   @map("sap_plant_code")
+
+  // Tally Specific
+  tallyHost           String?   @map("tally_host")
+  tallyPort           Int?      @map("tally_port")
+  tallyCompanyName    String?   @map("tally_company_name")
+
+  // Zoho Specific
+  zohoOrganizationId  String?   @map("zoho_organization_id")
+  zohoDataCenter      String?   @map("zoho_data_center") // US, EU, IN, AU
+
+  // Sync Settings
+  isActive            Boolean   @default(true) @map("is_active")
+  syncDirection       String    @default("BIDIRECTIONAL") @map("sync_direction") // INBOUND, OUTBOUND, BIDIRECTIONAL
+  syncFrequency       String    @default("REALTIME") @map("sync_frequency") // REALTIME, HOURLY, DAILY, MANUAL
+
+  // Entity Sync Settings (JSON)
+  enabledEntities     String    @map("enabled_entities") // JSON: {orders: true, inventory: true, invoices: true, etc.}
+
+  // Error Handling
+  retryAttempts       Int       @default(3) @map("retry_attempts")
+  retryDelayMinutes   Int       @default(5) @map("retry_delay_minutes")
+  errorNotifyEmail    String?   @map("error_notify_email")
+
+  // Status
+  lastSyncAt          DateTime? @map("last_sync_at")
+  lastSyncStatus      String?   @map("last_sync_status") // SUCCESS, PARTIAL, FAILED
+  connectionStatus    String    @default("PENDING") @map("connection_status") // PENDING, CONNECTED, DISCONNECTED, ERROR
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  syncJobs            ERPSyncJob[]
+  fieldMappings       ERPFieldMapping[]
+  webhooks            ERPWebhook[]
+
+  @@unique([clientId, erpType])
+  @@index([clientId])
+  @@index([erpType, isActive])
+  @@map("erp_integrations")
+}
+
+// ERP Sync Jobs
+model ERPSyncJob {
+  id                  String    @id @default(cuid())
+  integrationId       String    @map("integration_id")
+
+  // Job Info
+  jobNumber           String    @unique @map("job_number")
+  jobType             String    @map("job_type") // FULL_SYNC, INCREMENTAL, ENTITY_SYNC, RETRY, MANUAL
+
+  // Entity being synced
+  entityType          String    @map("entity_type") // ORDER, SHIPMENT, INVOICE, INVENTORY, CUSTOMER, PRODUCT
+  direction           String    @default("OUTBOUND") // INBOUND, OUTBOUND
+
+  // Filters
+  dateFrom            DateTime? @map("date_from")
+  dateTo              DateTime? @map("date_to")
+  entityIds           String?   @map("entity_ids") // JSON array of specific IDs to sync
+
+  // Status
+  status              String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED, PARTIAL
+
+  // Progress
+  totalRecords        Int       @default(0) @map("total_records")
+  processedRecords    Int       @default(0) @map("processed_records")
+  successRecords      Int       @default(0) @map("success_records")
+  failedRecords       Int       @default(0) @map("failed_records")
+  skippedRecords      Int       @default(0) @map("skipped_records")
+
+  // Timing
+  scheduledAt         DateTime? @map("scheduled_at")
+  startedAt           DateTime? @map("started_at")
+  completedAt         DateTime? @map("completed_at")
+
+  // Error Info
+  errorMessage        String?   @map("error_message")
+  errorDetails        String?   @map("error_details") // JSON
+
+  // Triggered by
+  triggeredBy         String?   @map("triggered_by") // SCHEDULE, WEBHOOK, MANUAL, RETRY
+  triggeredByUserId   String?   @map("triggered_by_user_id")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  integration         ERPIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  syncLogs            ERPSyncLog[]
+
+  @@index([integrationId, status])
+  @@index([entityType, status])
+  @@index([scheduledAt])
+  @@map("erp_sync_jobs")
+}
+
+// ERP Sync Log - Detailed record-level logs
+model ERPSyncLog {
+  id                  String    @id @default(cuid())
+  syncJobId           String    @map("sync_job_id")
+
+  // Entity Info
+  entityType          String    @map("entity_type")
+  entityId            String    @map("entity_id")
+  entityRef           String?   @map("entity_ref") // AWB number, order ID, etc.
+
+  // Direction
+  direction           String    // INBOUND, OUTBOUND
+
+  // Status
+  status              String    @default("PENDING") // PENDING, PROCESSING, SUCCESS, FAILED, SKIPPED
+
+  // Data
+  requestPayload      String?   @map("request_payload") // JSON
+  responsePayload     String?   @map("response_payload") // JSON
+
+  // ERP Reference
+  erpEntityId         String?   @map("erp_entity_id") // ID in ERP system
+  erpDocumentNumber   String?   @map("erp_document_number")
+
+  // Error
+  errorCode           String?   @map("error_code")
+  errorMessage        String?   @map("error_message")
+
+  // Timing
+  startedAt           DateTime? @map("started_at")
+  completedAt         DateTime? @map("completed_at")
+  durationMs          Int?      @map("duration_ms")
+
+  // Retry info
+  attemptNumber       Int       @default(1) @map("attempt_number")
+  maxRetries          Int       @default(3) @map("max_retries")
+  nextRetryAt         DateTime? @map("next_retry_at")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  syncJob             ERPSyncJob @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+
+  @@index([syncJobId, status])
+  @@index([entityType, entityId])
+  @@index([status, nextRetryAt])
+  @@map("erp_sync_logs")
+}
+
+// ERP Field Mapping - Custom field mappings
+model ERPFieldMapping {
+  id                  String    @id @default(cuid())
+  integrationId       String    @map("integration_id")
+
+  // Entity Type
+  entityType          String    @map("entity_type") // ORDER, SHIPMENT, INVOICE, INVENTORY, etc.
+
+  // Mapping
+  cjdFieldName        String    @map("cjd_field_name")
+  cjdFieldPath        String?   @map("cjd_field_path") // For nested fields: "order.customer.name"
+  erpFieldName        String    @map("erp_field_name")
+  erpFieldPath        String?   @map("erp_field_path")
+
+  // Transformation
+  transformationType  String?   @map("transformation_type") // DIRECT, FORMAT, LOOKUP, CALCULATE, CUSTOM
+  transformationRule  String?   @map("transformation_rule") // JSON: {format: "YYYY-MM-DD", lookup: {...}, formula: "..."}
+
+  // Direction
+  direction           String    @default("BIDIRECTIONAL") // INBOUND, OUTBOUND, BIDIRECTIONAL
+
+  // Settings
+  isRequired          Boolean   @default(false) @map("is_required")
+  defaultValue        String?   @map("default_value")
+  isActive            Boolean   @default(true) @map("is_active")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  integration         ERPIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, entityType, cjdFieldName, direction])
+  @@index([integrationId, entityType])
+  @@map("erp_field_mappings")
+}
+
+// ERP Webhook Configuration
+model ERPWebhook {
+  id                  String    @id @default(cuid())
+  integrationId       String    @map("integration_id")
+
+  // Webhook Details
+  webhookUrl          String    @map("webhook_url")
+  webhookSecret       String?   @map("webhook_secret")
+
+  // Events
+  eventTypes          String    @map("event_types") // JSON array: ["ORDER_CREATED", "SHIPMENT_DELIVERED", etc.]
+
+  // Settings
+  isActive            Boolean   @default(true) @map("is_active")
+  retryAttempts       Int       @default(3) @map("retry_attempts")
+  timeoutSeconds      Int       @default(30) @map("timeout_seconds")
+
+  // Headers
+  customHeaders       String?   @map("custom_headers") // JSON
+
+  // Status
+  lastTriggeredAt     DateTime? @map("last_triggered_at")
+  lastStatus          String?   @map("last_status") // SUCCESS, FAILED
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  integration         ERPIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId, isActive])
+  @@map("erp_webhooks")
+}
+
+// ERP Entity Mapping - Links CJD entities to ERP entities
+model ERPEntityLink {
+  id                  String    @id @default(cuid())
+
+  // Client
+  clientId            String    @map("client_id")
+  erpType             String    @map("erp_type")
+
+  // Entity Info
+  entityType          String    @map("entity_type") // ORDER, SHIPMENT, INVOICE, PRODUCT, etc.
+  cjdEntityId         String    @map("cjd_entity_id")
+  erpEntityId         String    @map("erp_entity_id")
+
+  // Additional References
+  erpDocumentNumber   String?   @map("erp_document_number")
+  erpDocumentType     String?   @map("erp_document_type")
+
+  // Sync Status
+  lastSyncedAt        DateTime? @map("last_synced_at")
+  lastSyncStatus      String?   @map("last_sync_status")
+  syncVersion         Int       @default(1) @map("sync_version") // For conflict detection
+
+  // Metadata
+  metadata            String?   // JSON for any additional data
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([clientId, erpType, entityType, cjdEntityId])
+  @@unique([clientId, erpType, entityType, erpEntityId])
+  @@index([clientId, erpType])
+  @@index([entityType, cjdEntityId])
+  @@map("erp_entity_links")
+}
+
+// ============================================
+// ADVANCED ANALYTICS & BI
+// ============================================
+
+// Daily Metrics Snapshot (Pre-aggregated for fast dashboards)
+model DailyMetricsSnapshot {
+  id                  String    @id @default(cuid())
+
+  snapshotDate        DateTime  @map("snapshot_date")
+  entityType          String    @map("entity_type") // CLIENT, HUB, ROUTE, PARTNER, OVERALL
+  entityId            String?   @map("entity_id") // null for OVERALL
+
+  // Volume Metrics
+  shipmentsCreated    Int       @default(0) @map("shipments_created")
+  shipmentsDelivered  Int       @default(0) @map("shipments_delivered")
+  shipmentsRTO        Int       @default(0) @map("shipments_rto")
+  shipmentsPending    Int       @default(0) @map("shipments_pending")
+  shipmentsInTransit  Int       @default(0) @map("shipments_in_transit")
+  shipmentsNDR        Int       @default(0) @map("shipments_ndr")
+
+  // Revenue Metrics
+  totalRevenue        Float     @default(0) @map("total_revenue")
+  freightCharges      Float     @default(0) @map("freight_charges")
+  codCollected        Float     @default(0) @map("cod_collected")
+  codRemitted         Float     @default(0) @map("cod_remitted")
+
+  // Performance Metrics
+  onTimeDeliveryRate  Float     @default(0) @map("on_time_delivery_rate") // Percentage
+  firstAttemptRate    Float     @default(0) @map("first_attempt_rate")
+  rtoRate             Float     @default(0) @map("rto_rate")
+  ndrRate             Float     @default(0) @map("ndr_rate")
+  avgDeliveryDays     Float     @default(0) @map("avg_delivery_days")
+
+  // SLA Metrics
+  slaMet              Int       @default(0) @map("sla_met")
+  slaBreached         Int       @default(0) @map("sla_breached")
+  slaComplianceRate   Float     @default(0) @map("sla_compliance_rate")
+
+  // Weight & Dimensions
+  totalWeightKg       Float     @default(0) @map("total_weight_kg")
+  avgWeightKg         Float     @default(0) @map("avg_weight_kg")
+
+  // Cost Metrics
+  totalCost           Float     @default(0) @map("total_cost")
+  costPerShipment     Float     @default(0) @map("cost_per_shipment")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@unique([snapshotDate, entityType, entityId])
+  @@index([snapshotDate])
+  @@index([entityType, entityId])
+  @@map("daily_metrics_snapshots")
+}
+
+// Hourly Traffic Metrics (For real-time charts)
+model HourlyTrafficMetrics {
+  id                  String    @id @default(cuid())
+
+  metricHour          DateTime  @map("metric_hour")
+  hubId               String?   @map("hub_id")
+
+  // Volume
+  shipmentsIn         Int       @default(0) @map("shipments_in")
+  shipmentsOut        Int       @default(0) @map("shipments_out")
+  ordersCreated       Int       @default(0) @map("orders_created")
+  deliveriesCompleted Int       @default(0) @map("deliveries_completed")
+
+  // Capacity
+  hubUtilization      Float?    @map("hub_utilization")
+  activeVehicles      Int       @default(0) @map("active_vehicles")
+  activeTrips         Int       @default(0) @map("active_trips")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@unique([metricHour, hubId])
+  @@index([metricHour])
+  @@index([hubId])
+  @@map("hourly_traffic_metrics")
+}
+
+// Lane Performance Analytics
+model LanePerformance {
+  id                  String    @id @default(cuid())
+
+  // Lane Definition
+  originPincode       String    @map("origin_pincode")
+  originCity          String    @map("origin_city")
+  originState         String    @map("origin_state")
+  destinationPincode  String    @map("destination_pincode")
+  destinationCity     String    @map("destination_city")
+  destinationState    String    @map("destination_state")
+
+  // Period
+  periodType          String    @map("period_type") // DAILY, WEEKLY, MONTHLY
+  periodStart         DateTime  @map("period_start")
+  periodEnd           DateTime  @map("period_end")
+
+  // Volume
+  totalShipments      Int       @default(0) @map("total_shipments")
+  deliveredShipments  Int       @default(0) @map("delivered_shipments")
+  rtoShipments        Int       @default(0) @map("rto_shipments")
+
+  // Performance
+  avgTransitDays      Float     @default(0) @map("avg_transit_days")
+  onTimeRate          Float     @default(0) @map("on_time_rate")
+  firstAttemptRate    Float     @default(0) @map("first_attempt_rate")
+  deliverySuccessRate Float     @default(0) @map("delivery_success_rate")
+
+  // Cost & Revenue
+  avgFreightPerKg     Float     @default(0) @map("avg_freight_per_kg")
+  avgShipmentValue    Float     @default(0) @map("avg_shipment_value")
+
+  // Best Performing Partner on this lane
+  bestPartnerId       String?   @map("best_partner_id")
+  bestPartnerScore    Float?    @map("best_partner_score")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([originPincode, destinationPincode, periodType, periodStart])
+  @@index([originCity, destinationCity])
+  @@index([periodStart, periodEnd])
+  @@map("lane_performance")
+}
+
+// Client Analytics Dashboard Cache
+model ClientAnalyticsCache {
+  id                  String    @id @default(cuid())
+  clientId            String    @map("client_id")
+
+  // Time Period
+  periodType          String    @map("period_type") // TODAY, WEEK, MONTH, QUARTER, YEAR
+  periodStart         DateTime  @map("period_start")
+  periodEnd           DateTime  @map("period_end")
+
+  // Summary Stats (JSON for flexibility)
+  volumeStats         String    @map("volume_stats") // JSON
+  revenueStats        String    @map("revenue_stats") // JSON
+  performanceStats    String    @map("performance_stats") // JSON
+  topLanes            String    @map("top_lanes") // JSON
+  topProducts         String    @map("top_products") // JSON
+
+  // Trend Data
+  dailyTrend          String    @map("daily_trend") // JSON array
+
+  // Comparisons
+  periodOverPeriod    String?   @map("period_over_period") // JSON
+
+  generatedAt         DateTime  @default(now()) @map("generated_at")
+  expiresAt           DateTime  @map("expires_at")
+
+  @@unique([clientId, periodType, periodStart])
+  @@index([clientId, periodType])
+  @@index([expiresAt])
+  @@map("client_analytics_cache")
+}
+
+// Custom Report Definition
+model CustomReport {
+  id                  String    @id @default(cuid())
+  clientId            String?   @map("client_id") // null for system-wide reports
+
+  name                String
+  description         String?
+  reportType          String    @map("report_type") // SHIPMENT, REVENUE, PERFORMANCE, COD, CUSTOM
+
+  // Configuration
+  dimensions          String    // JSON: ["date", "hub", "client"]
+  metrics             String    // JSON: ["shipmentCount", "revenue", "onTimeRate"]
+  filters             String?   // JSON: {status: ["DELIVERED"], dateRange: "last_30_days"}
+  groupBy             String?   @map("group_by") // JSON
+  sortBy              String?   @map("sort_by") // JSON
+
+  // Visualization
+  chartType           String?   @map("chart_type") // TABLE, LINE, BAR, PIE, MAP, FUNNEL
+  chartConfig         String?   @map("chart_config") // JSON
+
+  // Schedule
+  isScheduled         Boolean   @default(false) @map("is_scheduled")
+  scheduleFrequency   String?   @map("schedule_frequency") // DAILY, WEEKLY, MONTHLY
+  scheduleTime        String?   @map("schedule_time") // "09:00"
+  scheduleRecipients  String?   @map("schedule_recipients") // JSON array of emails
+
+  // Access
+  isPublic            Boolean   @default(false) @map("is_public")
+  createdBy           String    @map("created_by")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  executions          ReportExecution[]
+
+  @@index([clientId, reportType])
+  @@index([createdBy])
+  @@map("custom_reports")
+}
+
+// Report Execution History
+model ReportExecution {
+  id                  String    @id @default(cuid())
+  reportId            String    @map("report_id")
+
+  // Execution Details
+  executionNumber     String    @unique @map("execution_number")
+  triggeredBy         String    @map("triggered_by") // SCHEDULE, MANUAL, API
+  triggeredByUserId   String?   @map("triggered_by_user_id")
+
+  // Parameters Used
+  parameters          String?   // JSON
+
+  // Status
+  status              String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+
+  // Results
+  rowCount            Int       @default(0) @map("row_count")
+  resultUrl           String?   @map("result_url") // S3/storage URL for large reports
+  resultPreview       String?   @map("result_preview") // JSON - first few rows
+
+  // Timing
+  startedAt           DateTime? @map("started_at")
+  completedAt         DateTime? @map("completed_at")
+  durationMs          Int?      @map("duration_ms")
+
+  // Error Info
+  errorMessage        String?   @map("error_message")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  report              CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, status])
+  @@index([triggeredBy])
+  @@map("report_executions")
+}
+
+// Saved Dashboard Configuration
+model DashboardConfig {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  clientId            String?   @map("client_id")
+
+  name                String
+  description         String?
+  isDefault           Boolean   @default(false) @map("is_default")
+
+  // Layout Configuration
+  layout              String    // JSON: array of widget positions
+  widgets             String    // JSON: array of widget configurations
+
+  // Filters
+  defaultFilters      String?   @map("default_filters") // JSON
+  dateRange           String?   @map("date_range") // last_7_days, last_30_days, custom
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([clientId])
+  @@map("dashboard_configs")
+}
+
+// ============================================
+// CAPACITY PLANNING & FORECASTING
+// ============================================
+
+// Demand Forecast
+model DemandForecast {
+  id                  String    @id @default(cuid())
+
+  // Scope
+  forecastType        String    @map("forecast_type") // OVERALL, CLIENT, HUB, LANE, ZONE
+  entityId            String?   @map("entity_id")
+
+  // Time Period
+  forecastDate        DateTime  @map("forecast_date")
+  periodType          String    @map("period_type") // DAILY, WEEKLY, MONTHLY
+
+  // Predictions
+  predictedShipments  Int       @map("predicted_shipments")
+  predictedWeightKg   Float     @map("predicted_weight_kg")
+  predictedRevenue    Float     @map("predicted_revenue")
+
+  // Confidence
+  confidenceLevel     Float     @map("confidence_level") // 0-100
+  predictionLow       Int       @map("prediction_low") // Lower bound
+  predictionHigh      Int       @map("prediction_high") // Upper bound
+
+  // Factors influencing forecast
+  seasonalityFactor   Float     @default(1) @map("seasonality_factor")
+  trendFactor         Float     @default(1) @map("trend_factor")
+  eventFactor         Float     @default(1) @map("event_factor") // Festivals, sales, etc.
+
+  // Actual vs Predicted (updated after period ends)
+  actualShipments     Int?      @map("actual_shipments")
+  actualWeightKg      Float?    @map("actual_weight_kg")
+  accuracyPercent     Float?    @map("accuracy_percent")
+
+  // Model info
+  modelVersion        String?   @map("model_version")
+  generatedAt         DateTime  @default(now()) @map("generated_at")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@unique([forecastType, entityId, forecastDate, periodType])
+  @@index([forecastDate])
+  @@index([forecastType, entityId])
+  @@map("demand_forecasts")
+}
+
+// Hub Capacity Planning
+model HubCapacityPlan {
+  id                  String    @id @default(cuid())
+  hubId               String    @map("hub_id")
+
+  // Planning Period
+  planDate            DateTime  @map("plan_date")
+
+  // Current Capacity
+  maxDailyCapacity    Int       @map("max_daily_capacity") // Max shipments per day
+  currentUtilization  Float     @map("current_utilization") // Percentage
+
+  // Storage Capacity
+  storageCapacitySqFt Float?    @map("storage_capacity_sq_ft")
+  storageUsedSqFt     Float?    @map("storage_used_sq_ft")
+  storageUtilization  Float?    @map("storage_utilization")
+
+  // Staffing
+  staffRequired       Int       @map("staff_required")
+  staffAvailable      Int       @map("staff_available")
+  staffUtilization    Float?    @map("staff_utilization")
+
+  // Expected Load
+  forecastedShipments Int       @map("forecasted_shipments")
+  forecastedWeight    Float     @map("forecasted_weight")
+
+  // Capacity Status
+  capacityStatus      String    @map("capacity_status") // UNDER_UTILIZED, OPTIMAL, NEAR_CAPACITY, OVER_CAPACITY
+  alertLevel          String?   @map("alert_level") // LOW, MEDIUM, HIGH, CRITICAL
+
+  // Recommendations
+  recommendations     String?   // JSON array of recommendations
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([hubId, planDate])
+  @@index([hubId, planDate])
+  @@index([capacityStatus])
+  @@map("hub_capacity_plans")
+}
+
+// Fleet Capacity Planning
+model FleetCapacityPlan {
+  id                  String    @id @default(cuid())
+
+  // Planning Period
+  planDate            DateTime  @map("plan_date")
+  hubId               String?   @map("hub_id") // null for overall
+
+  // Vehicle Requirements
+  vehiclesRequired    Int       @map("vehicles_required")
+  vehiclesAvailable   Int       @map("vehicles_available")
+  vehicleShortfall    Int       @default(0) @map("vehicle_shortfall")
+
+  // By Vehicle Type (JSON)
+  vehicleBreakdown    String    @map("vehicle_breakdown") // JSON: {bike: 10, tempo: 5, truck: 2}
+
+  // Capacity
+  totalCapacityKg     Float     @map("total_capacity_kg")
+  forecastedLoadKg    Float     @map("forecasted_load_kg")
+  capacityUtilization Float     @map("capacity_utilization")
+
+  // Drivers
+  driversRequired     Int       @map("drivers_required")
+  driversAvailable    Int       @map("drivers_available")
+  driverShortfall     Int       @default(0) @map("driver_shortfall")
+
+  // Status
+  capacityStatus      String    @map("capacity_status")
+  alertLevel          String?   @map("alert_level")
+
+  // Recommendations
+  recommendations     String?   // JSON
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@unique([planDate, hubId])
+  @@index([planDate])
+  @@index([capacityStatus])
+  @@map("fleet_capacity_plans")
+}
+
+// Route Optimization
+model RouteOptimization {
+  id                  String    @id @default(cuid())
+
+  // Context
+  hubId               String    @map("hub_id")
+  optimizationDate    DateTime  @map("optimization_date")
+  routeType           String    @map("route_type") // PICKUP, DELIVERY, LINEHAUL
+
+  // Before Optimization
+  originalRouteCount  Int       @map("original_route_count")
+  originalDistanceKm  Float     @map("original_distance_km")
+  originalDuration    Float     @map("original_duration") // minutes
+  originalCost        Float     @map("original_cost")
+
+  // After Optimization
+  optimizedRouteCount Int       @map("optimized_route_count")
+  optimizedDistanceKm Float     @map("optimized_distance_km")
+  optimizedDuration   Float     @map("optimized_duration")
+  optimizedCost       Float     @map("optimized_cost")
+
+  // Savings
+  distanceSavedKm     Float     @map("distance_saved_km")
+  timeSavedMinutes    Float     @map("time_saved_minutes")
+  costSaved           Float     @map("cost_saved")
+  efficiencyGain      Float     @map("efficiency_gain") // Percentage
+
+  // Stops
+  totalStops          Int       @map("total_stops")
+  avgStopsPerRoute    Float     @map("avg_stops_per_route")
+
+  // Details
+  routeDetails        String?   @map("route_details") // JSON
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@unique([hubId, optimizationDate, routeType])
+  @@index([hubId, optimizationDate])
+  @@map("route_optimizations")
+}
+
+// Capacity Alert
+model CapacityAlert {
+  id                  String    @id @default(cuid())
+
+  // Alert Type
+  alertType           String    @map("alert_type") // HUB_CAPACITY, FLEET_SHORTAGE, DRIVER_SHORTAGE, ROUTE_OVERLOAD
+  severity            String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+
+  // Context
+  entityType          String    @map("entity_type") // HUB, FLEET, ROUTE, ZONE
+  entityId            String    @map("entity_id")
+  entityName          String?   @map("entity_name")
+
+  // Alert Details
+  title               String
+  description         String
+  metrics             String?   // JSON: current utilization, thresholds, etc.
+
+  // Threshold
+  thresholdValue      Float     @map("threshold_value")
+  currentValue        Float     @map("current_value")
+
+  // Status
+  status              String    @default("ACTIVE") // ACTIVE, ACKNOWLEDGED, RESOLVED, IGNORED
+
+  // Resolution
+  acknowledgedBy      String?   @map("acknowledged_by")
+  acknowledgedAt      DateTime? @map("acknowledged_at")
+  resolvedAt          DateTime? @map("resolved_at")
+  resolutionNotes     String?   @map("resolution_notes")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([alertType, status])
+  @@index([entityType, entityId])
+  @@index([severity, status])
+  @@map("capacity_alerts")
+}
+
+// ============================================
+// CARBON FOOTPRINT & SUSTAINABILITY
+// ============================================
+
+// Carbon Emission Record
+model CarbonEmission {
+  id                  String    @id @default(cuid())
+
+  // Context
+  emissionType        String    @map("emission_type") // TRIP, SHIPMENT, HUB_OPERATION, VEHICLE
+  referenceId         String    @map("reference_id")
+  referenceType       String    @map("reference_type") // TRIP, SHIPMENT, HUB, VEHICLE
+
+  // Date
+  emissionDate        DateTime  @map("emission_date")
+
+  // Vehicle Details
+  vehicleId           String?   @map("vehicle_id")
+  vehicleType         String?   @map("vehicle_type")
+  fuelType            String?   @map("fuel_type") // DIESEL, PETROL, CNG, ELECTRIC, HYBRID
+
+  // Distance & Load
+  distanceKm          Float     @map("distance_km")
+  loadWeightKg        Float?    @map("load_weight_kg")
+  loadUtilization     Float?    @map("load_utilization") // Percentage
+
+  // Emissions
+  co2EmissionKg       Float     @map("co2_emission_kg")
+  co2PerKmKg          Float     @map("co2_per_km_kg")
+  co2PerKgCargo       Float?    @map("co2_per_kg_cargo")
+
+  // Emission Factors Used
+  emissionFactorId    String?   @map("emission_factor_id")
+  emissionFactorValue Float?    @map("emission_factor_value") // kg CO2 per km or per liter
+
+  // Calculation Method
+  calculationMethod   String    @map("calculation_method") // DISTANCE_BASED, FUEL_BASED, WEIGHT_DISTANCE
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@index([emissionDate])
+  @@index([referenceType, referenceId])
+  @@index([vehicleId])
+  @@map("carbon_emissions")
+}
+
+// Daily Carbon Summary
+model CarbonDailySummary {
+  id                  String    @id @default(cuid())
+
+  summaryDate         DateTime  @map("summary_date")
+  entityType          String    @map("entity_type") // OVERALL, HUB, CLIENT, VEHICLE
+  entityId            String?   @map("entity_id")
+
+  // Totals
+  totalDistanceKm     Float     @map("total_distance_km")
+  totalCo2Kg          Float     @map("total_co2_kg")
+  totalShipments      Int       @map("total_shipments")
+  totalWeightKg       Float     @map("total_weight_kg")
+
+  // Averages
+  avgCo2PerShipment   Float     @map("avg_co2_per_shipment")
+  avgCo2PerKm         Float     @map("avg_co2_per_km")
+  avgCo2PerKgCargo    Float?    @map("avg_co2_per_kg_cargo")
+
+  // By Fuel Type
+  dieselCo2Kg         Float     @default(0) @map("diesel_co2_kg")
+  petrolCo2Kg         Float     @default(0) @map("petrol_co2_kg")
+  cngCo2Kg            Float     @default(0) @map("cng_co2_kg")
+  electricCo2Kg       Float     @default(0) @map("electric_co2_kg")
+
+  // Comparison
+  previousDayCo2Kg    Float?    @map("previous_day_co2_kg")
+  changePercent       Float?    @map("change_percent")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@unique([summaryDate, entityType, entityId])
+  @@index([summaryDate])
+  @@index([entityType, entityId])
+  @@map("carbon_daily_summaries")
+}
+
+// Green Logistics Initiatives
+model GreenInitiative {
+  id                  String    @id @default(cuid())
+
+  name                String
+  description         String
+  category            String    // ELECTRIC_FLEET, ROUTE_OPTIMIZATION, PACKAGING, CONSOLIDATION, CARBON_OFFSET
+
+  // Target
+  targetCo2ReductionKg Float    @map("target_co2_reduction_kg")
+  targetDate          DateTime  @map("target_date")
+
+  // Progress
+  currentReductionKg  Float     @default(0) @map("current_reduction_kg")
+  progressPercent     Float     @default(0) @map("progress_percent")
+
+  // Status
+  status              String    @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, ON_HOLD
+
+  // Tracking
+  startDate           DateTime? @map("start_date")
+  completedDate       DateTime? @map("completed_date")
+
+  // Costs & Savings
+  investmentCost      Float?    @map("investment_cost")
+  operationalSavings  Float?    @map("operational_savings")
+  paybackPeriodMonths Int?      @map("payback_period_months")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([category, status])
+  @@map("green_initiatives")
+}
+
+// ============================================
+// INSURANCE MODULE
+// ============================================
+
+// Insurance Policy
+model InsurancePolicy {
+  id                  String    @id @default(cuid())
+  clientId            String?   @map("client_id") // null for default policy
+
+  policyNumber        String    @unique @map("policy_number")
+  insurerName         String    @map("insurer_name")
+
+  // Policy Details
+  policyType          String    @map("policy_type") // TRANSIT, WAREHOUSE, COMPREHENSIVE
+  coverageType        String    @map("coverage_type") // ALL_RISK, NAMED_PERILS, BASIC
+
+  // Coverage
+  maxCoveragePerShipment Float  @map("max_coverage_per_shipment")
+  maxCoverageTotal    Float     @map("max_coverage_total")
+  deductibleAmount    Float     @default(0) @map("deductible_amount")
+  deductiblePercent   Float     @default(0) @map("deductible_percent")
+
+  // Premium
+  premiumRate         Float     @map("premium_rate") // Percentage of declared value
+  minimumPremium      Float     @map("minimum_premium")
+
+  // Coverage Exclusions (JSON)
+  exclusions          String?   // JSON array
+
+  // Validity
+  startDate           DateTime  @map("start_date")
+  endDate             DateTime  @map("end_date")
+  isActive            Boolean   @default(true) @map("is_active")
+
+  // Terms
+  claimSettlementDays Int       @default(30) @map("claim_settlement_days")
+  termsConditions     String?   @map("terms_conditions")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  claims              InsuranceClaim[]
+
+  @@index([clientId, isActive])
+  @@index([policyType])
+  @@map("insurance_policies")
+}
+
+// Shipment Insurance Record
+model ShipmentInsurance {
+  id                  String    @id @default(cuid())
+  shipmentId          String    @unique @map("shipment_id")
+  policyId            String    @map("policy_id")
+
+  // Coverage Details
+  declaredValue       Float     @map("declared_value")
+  insuredValue        Float     @map("insured_value")
+  premiumAmount       Float     @map("premium_amount")
+
+  // Status
+  status              String    @default("ACTIVE") // ACTIVE, CLAIM_FILED, CLAIM_SETTLED, EXPIRED, CANCELLED
+
+  // Certificate
+  certificateNumber   String?   @unique @map("certificate_number")
+  certificateUrl      String?   @map("certificate_url")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([policyId])
+  @@index([status])
+  @@map("shipment_insurances")
+}
+
+// Insurance Claim
+model InsuranceClaim {
+  id                  String    @id @default(cuid())
+  policyId            String    @map("policy_id")
+  shipmentId          String    @map("shipment_id")
+
+  claimNumber         String    @unique @map("claim_number")
+
+  // Claim Details
+  claimType           String    @map("claim_type") // DAMAGE, LOSS, THEFT, DELAY, PARTIAL_LOSS
+  claimReason         String    @map("claim_reason")
+  description         String
+
+  // Amount
+  claimAmount         Float     @map("claim_amount")
+  declaredValue       Float     @map("declared_value")
+  approvedAmount      Float?    @map("approved_amount")
+  deductibleApplied   Float?    @map("deductible_applied")
+  settledAmount       Float?    @map("settled_amount")
+
+  // Evidence
+  incidentDate        DateTime  @map("incident_date")
+  incidentLocation    String?   @map("incident_location")
+  photos              String?   // JSON array of photo URLs
+  documents           String?   // JSON array of document URLs
+  policeReportNumber  String?   @map("police_report_number")
+  policeReportUrl     String?   @map("police_report_url")
+
+  // Status
+  status              String    @default("FILED") // FILED, UNDER_REVIEW, ADDITIONAL_INFO_REQUIRED, APPROVED, REJECTED, SETTLED, CLOSED
+
+  // Processing
+  filedAt             DateTime  @default(now()) @map("filed_at")
+  filedBy             String    @map("filed_by")
+  reviewedBy          String?   @map("reviewed_by")
+  reviewedAt          DateTime? @map("reviewed_at")
+  approvedBy          String?   @map("approved_by")
+  approvedAt          DateTime? @map("approved_at")
+  settledAt           DateTime? @map("settled_at")
+
+  // Rejection
+  rejectionReason     String?   @map("rejection_reason")
+
+  // Payment
+  paymentRef          String?   @map("payment_ref")
+  paymentMode         String?   @map("payment_mode")
+  paymentDate         DateTime? @map("payment_date")
+
+  // Communication
+  claimantName        String    @map("claimant_name")
+  claimantPhone       String    @map("claimant_phone")
+  claimantEmail       String?   @map("claimant_email")
+
+  notes               String?
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  policy              InsurancePolicy @relation(fields: [policyId], references: [id])
+
+  @@index([policyId, status])
+  @@index([shipmentId])
+  @@index([status])
+  @@map("insurance_claims")
 }

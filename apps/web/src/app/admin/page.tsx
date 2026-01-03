@@ -143,7 +143,7 @@ function PhaseCard({
           {actions.map((action, idx) => (
             <Link key={idx} href={action.href} className="flex-1">
               <Button
-                variant={action.primary ? "default" : "outline"}
+                variant={action.primary ? "primary" : "outline"}
                 size="sm"
                 className="w-full"
               >

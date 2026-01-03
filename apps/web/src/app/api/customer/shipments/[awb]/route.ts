@@ -41,20 +41,6 @@ export async function GET(
         awbNumber: awb,
         clientId: client.id,
       },
-      include: {
-        scans: {
-          orderBy: { scanTime: "desc" },
-          include: {
-            hub: {
-              select: { name: true, city: true },
-            },
-          },
-        },
-        currentHub: {
-          select: { name: true, city: true },
-        },
-        journeyPlan: true,
-      },
     });
 
     if (!shipment) {
@@ -63,6 +49,22 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Get scans for the shipment
+    const scans = await prisma.shipmentScan.findMany({
+      where: { shipmentId: shipment.id },
+      orderBy: { scanTime: "desc" },
+    });
+
+    // Get hub info for scans
+    const hubIds = [...new Set(scans.map((s) => s.hubId).filter(Boolean))] as string[];
+    const hubs = hubIds.length > 0
+      ? await prisma.hub.findMany({
+          where: { id: { in: hubIds } },
+          select: { id: true, name: true, city: true },
+        })
+      : [];
+    const hubMap = new Map(hubs.map((h) => [h.id, h]));
 
     // Calculate SLA status
     const now = new Date();
@@ -77,7 +79,7 @@ export async function GET(
       slaStatus = "delivered";
       // Check if it was delivered on time
       if (expectedDate) {
-        const deliveryScan = shipment.scans.find(
+        const deliveryScan = scans.find(
           (s) => s.scanType === "DELIVERED" || s.scanType === "POD_CAPTURED"
         );
         if (deliveryScan && new Date(deliveryScan.scanTime) > expectedDate) {
@@ -96,12 +98,22 @@ export async function GET(
     }
 
     // Format timeline
-    const timeline = shipment.scans.map((scan) => ({
-      type: scan.scanType,
-      time: scan.scanTime,
-      location: scan.hub ? `${scan.hub.name}, ${scan.hub.city}` : scan.location || "In Transit",
-      remarks: scan.remarks,
-    }));
+    const timeline = scans.map((scan) => {
+      const hub = scan.hubId ? hubMap.get(scan.hubId) : null;
+      return {
+        type: scan.scanType,
+        time: scan.scanTime,
+        location: hub ? `${hub.name}, ${hub.city}` : scan.location || "In Transit",
+        remarks: scan.remarks,
+      };
+    });
+
+    // Get current location
+    const latestScan = scans[0];
+    const latestHub = latestScan?.hubId ? hubMap.get(latestScan.hubId) : null;
+    const currentLocation = latestHub
+      ? `${latestHub.name}, ${latestHub.city}`
+      : "Processing";
 
     return NextResponse.json({
       success: true,
@@ -109,41 +121,39 @@ export async function GET(
         awbNumber: shipment.awbNumber,
         status: shipment.status,
         origin: {
-          city: shipment.originCity,
-          state: shipment.originState,
-          pincode: shipment.originPincode,
-          address: shipment.senderAddress,
-          name: shipment.senderName,
-          phone: shipment.senderPhone,
+          city: shipment.shipperCity,
+          state: shipment.shipperState,
+          pincode: shipment.shipperPincode,
+          address: shipment.shipperAddress,
+          name: shipment.shipperName,
+          phone: shipment.shipperPhone,
         },
         destination: {
-          city: shipment.destinationCity,
-          state: shipment.destinationState,
-          pincode: shipment.destinationPincode,
-          address: shipment.receiverAddress,
-          name: shipment.receiverName,
-          phone: shipment.receiverPhone,
+          city: shipment.consigneeCity,
+          state: shipment.consigneeState,
+          pincode: shipment.consigneePincode,
+          address: shipment.consigneeAddress,
+          name: shipment.consigneeName,
+          phone: shipment.consigneePhone,
         },
         package: {
-          weight: shipment.weightKg,
-          description: shipment.packageDescription,
-          pieces: shipment.packageCount,
-          isCod: shipment.isCod,
+          weight: shipment.actualWeightKg,
+          description: shipment.contentDescription,
+          pieces: shipment.pieces,
+          isCod: shipment.paymentMode === "COD",
           codAmount: shipment.codAmount,
         },
         dates: {
           booked: shipment.createdAt,
           expectedDelivery: shipment.expectedDeliveryDate,
-          actualDelivery: shipment.deliveredAt,
+          actualDelivery: shipment.actualDeliveryDate,
         },
         sla: {
           status: slaStatus,
           daysRemaining,
           expectedDate: shipment.expectedDeliveryDate,
         },
-        currentLocation: shipment.currentHub
-          ? `${shipment.currentHub.name}, ${shipment.currentHub.city}`
-          : shipment.lastLocation || "Processing",
+        currentLocation,
         timeline,
       },
     });

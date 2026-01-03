@@ -260,7 +260,7 @@ export default function AdminPartnerZonesPage() {
                         Active
                       </Badge>
                     ) : (
-                      <Badge variant="secondary" size="sm">
+                      <Badge variant="default" size="sm">
                         <XCircle className="h-3 w-3 mr-1" />
                         Inactive
                       </Badge>

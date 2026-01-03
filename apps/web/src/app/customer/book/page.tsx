@@ -143,7 +143,6 @@ export default function BookConsignmentPage() {
           originPincode,
           destinationPincode,
           serviceType: selectedOption.serviceType,
-          weightKg: details.weightKg,
           ...details,
           expectedDeliveryDate: selectedOption.tat.expectedDeliveryDate,
           estimatedCost: selectedOption.pricing.estimatedCost,

@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
         data: {
           handedOverToPartner: true,
           partnerId,
-          partnerHandoverTime: scanTime,
+          partnerHandoverAt: scanTime,
           status: "WITH_PARTNER",
         },
       });
@@ -206,11 +206,7 @@ export async function POST(request: NextRequest) {
           hubId: handoverHubId,
           source: "PARTNER_HANDOVER",
           eventTime: scanTime,
-          metadata: JSON.stringify({
-            handoverNumber,
-            partnerId,
-            partnerName: partner.name,
-          }),
+          remarks: `Handover: ${handoverNumber}, Partner: ${partner.name}`,
         },
       });
     }

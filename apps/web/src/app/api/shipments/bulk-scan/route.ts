@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
             hubId,
             source: "BULK_SCAN",
             eventTime: scanTime,
-            metadata: JSON.stringify({ scannedBy, tripId, consignmentId }),
+            remarks: `Bulk scan by: ${scannedBy}${tripId ? `, Trip: ${tripId}` : ""}`,
           },
         });
 

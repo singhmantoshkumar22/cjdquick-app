@@ -100,10 +100,7 @@ export async function POST(
           statusText: `Added to consignment ${consignment.consignmentNumber}`,
           source: "CONSOLIDATION",
           eventTime: scanTime,
-          metadata: JSON.stringify({
-            consignmentId: consignment.id,
-            consignmentNumber: consignment.consignmentNumber,
-          }),
+          remarks: `Consignment ID: ${consignment.id}`,
         },
       });
 
@@ -216,7 +213,7 @@ export async function DELETE(
         statusText: `Removed from consignment ${consignment.consignmentNumber}`,
         source: "CONSOLIDATION",
         eventTime: new Date(),
-        metadata: JSON.stringify({ reason }),
+        remarks: reason || "Removed from consignment",
       },
     });
 

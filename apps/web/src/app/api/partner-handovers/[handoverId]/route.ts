@@ -105,8 +105,8 @@ export async function PATCH(
         data: {
           status: "ACKNOWLEDGED",
           acknowledgedAt: new Date(),
-          acknowledgedBy,
-          partnerMrNumber, // Partner's manifest/receipt number
+          receivedBy: acknowledgedBy,
+          partnerRef: partnerMrNumber, // Partner's manifest/receipt number
         },
       });
 
@@ -142,7 +142,7 @@ export async function PATCH(
         where: { id: handoverId },
         data: {
           status: "HANDED_OVER",
-          handoverTime: new Date(),
+          handedOverAt: new Date(),
         },
       });
 

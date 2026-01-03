@@ -160,17 +160,17 @@ export default function AdminScanningPage() {
         const successAwbs = new Set(
           data.data.results.success.map((r: any) => r.awb)
         );
-        const failedAwbs = new Map(
+        const failedAwbs = new Map<string, string>(
           data.data.results.failed.map((r: any) => [r.awb, r.reason])
         );
 
         setScannedItems((prev) =>
           prev.map((item) => {
             if (successAwbs.has(item.awb)) {
-              return { ...item, status: "success", message: "Scan recorded" };
+              return { ...item, status: "success" as const, message: "Scan recorded" };
             }
             if (failedAwbs.has(item.awb)) {
-              return { ...item, status: "error", message: failedAwbs.get(item.awb) };
+              return { ...item, status: "error" as const, message: failedAwbs.get(item.awb) };
             }
             return item;
           })

@@ -55,7 +55,7 @@ export async function selectOptimalPartner(
   }
 
   // 2. Calculate rates and scores for each partner
-  const partnerOptions: PartnerOption[] = serviceability.map((s) => {
+  const partnerOptions: PartnerOption[] = serviceability.map((s: typeof serviceability[number]) => {
     // Calculate total rate
     const baseRate = Number(s.baseRate);
     const weightCharge = Number(s.ratePerKg) * weightKg;

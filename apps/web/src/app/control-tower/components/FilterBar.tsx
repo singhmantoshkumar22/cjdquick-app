@@ -199,7 +199,7 @@ export default function FilterBar({
           <span className="text-sm text-gray-500">Last Mile:</span>
           <div className="flex gap-1">
             <Button
-              variant={selectedFulfillmentMode === null ? "default" : "outline"}
+              variant={selectedFulfillmentMode === null ? "primary" : "outline"}
               size="sm"
               onClick={() => onFulfillmentModeChange(null)}
             >
@@ -211,7 +211,7 @@ export default function FilterBar({
               return (
                 <Button
                   key={mode.id}
-                  variant={isSelected ? "default" : "outline"}
+                  variant={isSelected ? "primary" : "outline"}
                   size="sm"
                   onClick={() => onFulfillmentModeChange(isSelected ? null : mode.id)}
                   className="gap-1"

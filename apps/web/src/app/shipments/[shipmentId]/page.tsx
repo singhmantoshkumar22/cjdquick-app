@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 const STATUS_COLORS: Record<string, string> = {
-  BOOKED: "secondary",
+  BOOKED: "default",
   PICKED_UP: "info",
   IN_HUB: "primary",
   CONSOLIDATED: "primary",
@@ -91,8 +91,7 @@ export default function ShipmentTrackingPage({ params }: PageProps) {
               {shipment.awbNumber}
             </h1>
             <Badge
-              variant={(STATUS_COLORS[shipment.status] as any) || "secondary"}
-              size="lg"
+              variant={(STATUS_COLORS[shipment.status] as any) || "default"}
             >
               {shipment.status.replace(/_/g, " ")}
             </Badge>
@@ -401,8 +400,7 @@ export default function ShipmentTrackingPage({ params }: PageProps) {
                           </div>
                           {event.source && (
                             <Badge
-                              variant="secondary"
-                              size="sm"
+                              variant="default"
                               className="mt-1"
                             >
                               {event.source}

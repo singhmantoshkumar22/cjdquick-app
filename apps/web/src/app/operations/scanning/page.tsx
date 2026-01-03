@@ -198,7 +198,7 @@ export default function HubScanningPage() {
               return {
                 ...item,
                 status: "error",
-                message: failedAwbs.get(item.awb),
+                message: failedAwbs.get(item.awb) as string,
               };
             }
             return item;
@@ -464,7 +464,7 @@ export default function HubScanningPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {item.newStatus && (
-                        <Badge variant="success" size="sm">
+                        <Badge variant="success">
                           {item.newStatus}
                         </Badge>
                       )}

@@ -223,9 +223,10 @@ function TrackingContent() {
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
                   statusConfig[tracking.status]?.color || "bg-gray-100 text-gray-600"
                 }`}>
-                  {statusConfig[tracking.status]?.icon && (
-                    <statusConfig[tracking.status].icon className="h-5 w-5" />
-                  )}
+  {(() => {
+                    const Icon = statusConfig[tracking.status]?.icon;
+                    return Icon ? <Icon className="h-5 w-5" /> : null;
+                  })()}
                   <span className="font-medium">
                     {statusConfig[tracking.status]?.label || tracking.status}
                   </span>

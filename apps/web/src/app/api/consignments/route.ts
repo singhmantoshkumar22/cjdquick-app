@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { originHubId, destinationHubId, routeId, notes } = body;
+    const { originHubId, destinationHubId } = body;
 
     // Validate hubs
     const [originHub, destHub] = await Promise.all([
@@ -124,12 +124,10 @@ export async function POST(request: NextRequest) {
         consignmentNumber,
         originHubId,
         destinationHubId,
-        routeId,
         shipmentCount: 0,
         totalWeightKg: 0,
         totalVolumeCBM: 0,
         status: "OPEN",
-        notes,
       },
     });
 

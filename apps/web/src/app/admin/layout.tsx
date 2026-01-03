@@ -21,6 +21,13 @@ import {
   Layers,
   Globe,
   TrendingUp,
+  Warehouse,
+  Link2,
+  BarChart3,
+  Target,
+  Leaf,
+  Shield,
+  Radio,
 } from "lucide-react";
 
 const navigation = [
@@ -64,6 +71,18 @@ const navigation = [
       { name: "Hub Scanning", href: "/admin/scanning", icon: ScanLine },
       { name: "Partner Handovers", href: "/admin/handovers", icon: Handshake },
       { name: "Partner Zones", href: "/admin/partner-zones", icon: Globe },
+      { name: "Control Tower", href: "/control-tower", icon: Radio },
+    ],
+  },
+  {
+    name: "Scale & Analytics",
+    items: [
+      { name: "WMS", href: "/wms", icon: Warehouse },
+      { name: "ERP Integrations", href: "/integrations", icon: Link2 },
+      { name: "Analytics", href: "/analytics", icon: BarChart3 },
+      { name: "Capacity Planning", href: "/capacity", icon: Target },
+      { name: "Carbon Footprint", href: "/carbon", icon: Leaf },
+      { name: "Insurance", href: "/insurance", icon: Shield },
     ],
   },
   {

@@ -62,13 +62,9 @@ export async function POST(request: NextRequest) {
         apiBaseUrl: body.apiBaseUrl,
         apiKey: body.apiKey,
         apiSecret: body.apiSecret,
-        webhookUrl: body.webhookUrl,
         webhookSecret: body.webhookSecret,
         supportsCod: body.supportsCod ?? true,
         supportsReverse: body.supportsReverse ?? false,
-        contactName: body.contactName,
-        contactEmail: body.contactEmail,
-        contactPhone: body.contactPhone,
         isActive: body.isActive ?? true,
       },
     });

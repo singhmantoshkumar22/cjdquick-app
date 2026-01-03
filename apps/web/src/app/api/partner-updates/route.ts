@@ -110,10 +110,7 @@ export async function POST(request: NextRequest) {
         scannedBy: `PARTNER_${partnerCode}`,
         scanTime: new Date(eventTime),
         location,
-        remarks: statusText,
-        receiverName,
-        receiverPhone,
-        podImage,
+        remarks: statusText ? `${statusText}${receiverName ? ` (Receiver: ${receiverName})` : ""}` : null,
       },
     });
 
@@ -127,12 +124,7 @@ export async function POST(request: NextRequest) {
         location,
         source: "PARTNER_PUSH",
         eventTime: new Date(eventTime),
-        metadata: JSON.stringify({
-          partnerCode,
-          partnerAwb,
-          otpVerified,
-          failureReason,
-        }),
+        remarks: `Partner: ${partnerCode}, AWB: ${partnerAwb || "N/A"}${failureReason ? `, Reason: ${failureReason}` : ""}`,
       },
     });
 

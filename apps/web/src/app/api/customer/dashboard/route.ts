@@ -130,8 +130,8 @@ export async function GET(request: NextRequest) {
         id: s.id,
         awbNumber: s.awbNumber,
         status: s.status,
-        origin: s.originCity,
-        destination: s.destinationCity,
+        origin: s.shipperCity,
+        destination: s.consigneeCity,
         updatedAt: s.updatedAt,
         expectedDeliveryDate: s.expectedDeliveryDate,
       }));
