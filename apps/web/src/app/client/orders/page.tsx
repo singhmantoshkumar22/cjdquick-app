@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -72,7 +72,7 @@ async function fetchOrders(status: string, search: string, page: number): Promis
   return res.json();
 }
 
-export default function ClientOrdersPage() {
+function OrdersContent() {
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get("status") || "all";
 
@@ -146,7 +146,17 @@ export default function ClientOrdersPage() {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const params = new URLSearchParams();
+                if (selectedStatus && selectedStatus !== "all") {
+                  params.set("status", selectedStatus);
+                }
+                params.set("format", "csv");
+                window.open(`/api/client/orders/export?${params.toString()}`, "_blank");
+              }}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -339,5 +349,13 @@ export default function ClientOrdersPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function ClientOrdersPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center"><RefreshCw className="h-6 w-6 animate-spin mx-auto" /></div>}>
+      <OrdersContent />
+    </Suspense>
   );
 }

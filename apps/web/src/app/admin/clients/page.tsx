@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Briefcase,
   Package,
@@ -24,7 +25,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
+  Plus,
 } from "lucide-react";
+import { Button } from "@cjdquick/ui";
 
 interface Client {
   id: string;
@@ -179,6 +182,12 @@ export default function ClientsPage() {
             View and manage client operations and KPIs
           </p>
         </div>
+        <Link href="/admin/clients/new">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Client
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-12 gap-6">

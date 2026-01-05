@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       where: { isActive: true },
       select: { id: true, code: true },
     });
-    const hubCodeMap = new Map(hubs.map((h) => [h.code.toUpperCase(), h.id]));
+    const hubCodeMap = new Map(hubs.map((h: { id: string; code: string }) => [h.code.toUpperCase(), h.id]));
 
     const results = {
       total: rows.length,

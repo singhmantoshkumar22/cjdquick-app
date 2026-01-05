@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         if (directChildren.length > 0) {
           const grandChildren = await prisma.hub.findMany({
             where: {
-              parentHubId: { in: directChildren.map((h) => h.id) },
+              parentHubId: { in: directChildren.map((h: { id: string }) => h.id) },
               isActive: true,
             },
             select: {

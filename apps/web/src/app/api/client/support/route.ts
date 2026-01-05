@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
           assignedTo: {
             select: { id: true, name: true, email: true },
           },
-          responses: {
+          comments: {
             orderBy: { createdAt: "desc" },
             take: 1,
           },
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           resolution: t.resolution,
           slaDeadline: t.slaDeadline,
           isEscalated: t.isEscalated,
-          lastResponseAt: t.responses[0]?.createdAt,
+          lastResponseAt: t.comments[0]?.createdAt,
           createdAt: t.createdAt,
           updatedAt: t.updatedAt,
         })),

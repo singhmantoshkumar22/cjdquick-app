@@ -75,10 +75,10 @@ export async function GET(request: NextRequest) {
           totalLanes: total,
           uniqueOrigins: uniqueOrigins.length,
           uniqueDestinations: uniqueDestinations.length,
-          byServiceType: stats.reduce((acc, s) => {
+          byServiceType: stats.reduce((acc: Record<string, number>, s: { serviceType: string; _count: number }) => {
             acc[s.serviceType] = s._count;
             return acc;
-          }, {} as Record<string, number>),
+          }, {}),
         },
       },
     });

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -22,6 +22,8 @@ import {
   Bell,
   User,
   LogOut,
+  Search,
+  X,
 } from "lucide-react";
 
 const navigation = [
@@ -87,18 +89,111 @@ const navigation = [
   },
 ];
 
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  client: {
+    id: string;
+    companyName: string;
+  };
+}
+
 export default function ClientLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
-  // Mock client data - will be replaced with actual auth
+  // Fetch user data on mount
+  useEffect(() => {
+    const token = localStorage.getItem("client_token");
+    if (!token) {
+      router.push("/client-login");
+      return;
+    }
+
+    fetch("/api/client/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setUser(data.data);
+        } else {
+          localStorage.removeItem("client_token");
+          router.push("/client-login");
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem("client_token");
+        router.push("/client-login");
+      });
+  }, [router]);
+
+  // Handle logout
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    const token = localStorage.getItem("client_token");
+    try {
+      await fetch("/api/client/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    localStorage.removeItem("client_token");
+    router.push("/client-login");
+  };
+
+  // Handle search
+  const handleSearch = async (query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+    const token = localStorage.getItem("client_token");
+
+    try {
+      const res = await fetch(`/api/client/orders?search=${encodeURIComponent(query)}&pageSize=5`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSearchResults(data.data.items || []);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+    }
+    setIsSearching(false);
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const client = {
-    companyName: "Demo Company",
-    userName: "Ashish Kumar",
+    companyName: user?.client?.companyName || "Loading...",
+    userName: user?.name || "Loading...",
   };
 
   return (
@@ -205,11 +300,83 @@ export default function ClientLayout({
           <div className="flex items-center gap-4">
             {/* Search */}
             <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search AWB or Order..."
-                className="w-64 px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
+                className="w-64 pl-10 pr-8 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setShowSearchResults(false);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      Searching...
+                    </div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      No orders found
+                    </div>
+                  ) : (
+                    <div>
+                      {searchResults.map((order: any) => (
+                        <Link
+                          key={order.id}
+                          href={`/client/orders/${order.id}`}
+                          onClick={() => {
+                            setShowSearchResults(false);
+                            setSearchQuery("");
+                          }}
+                          className="block px-4 py-3 hover:bg-gray-50 border-b last:border-b-0"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-900">{order.orderNumber}</p>
+                              {order.awbNumber && (
+                                <p className="text-xs text-gray-500">{order.awbNumber}</p>
+                              )}
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              order.status === "DELIVERED" ? "bg-green-100 text-green-700" :
+                              order.status === "IN_TRANSIT" ? "bg-blue-100 text-blue-700" :
+                              "bg-gray-100 text-gray-700"
+                            }`}>
+                              {order.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {order.customerName} - {order.deliveryCity}
+                          </p>
+                        </Link>
+                      ))}
+                      <Link
+                        href={`/client/orders?search=${encodeURIComponent(searchQuery)}`}
+                        onClick={() => {
+                          setShowSearchResults(false);
+                          setSearchQuery("");
+                        }}
+                        className="block px-4 py-2 text-center text-sm text-primary-600 hover:bg-primary-50 font-medium"
+                      >
+                        View all results
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             {/* Quick Actions */}
             <Link
@@ -223,9 +390,14 @@ export default function ClientLayout({
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
-            {/* User Menu */}
-            <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
-              <LogOut className="h-5 w-5" />
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+              title="Logout"
+            >
+              <LogOut className={`h-5 w-5 ${isLoggingOut ? "animate-pulse" : ""}`} />
             </button>
           </div>
         </header>

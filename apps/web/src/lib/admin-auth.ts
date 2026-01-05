@@ -98,7 +98,7 @@ export async function getHubIdsForUser(user: AdminUser): Promise<string[] | null
         select: { id: true },
       });
 
-      hubIds.push(...childHubs.map((h) => h.id));
+      hubIds.push(...childHubs.map((h: { id: string }) => h.id));
       return hubIds;
     }
 

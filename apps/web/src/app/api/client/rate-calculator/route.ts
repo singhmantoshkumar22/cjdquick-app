@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       : weightKg;
 
     // Check serviceability and get rates
-    const serviceability = await prisma.pincodeSLA.findFirst({
+    const serviceability = await prisma.pincodeToSla.findFirst({
       where: {
         OR: [
           { originPincode, destinationPincode },
@@ -63,11 +63,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate rates (simplified - in production would use rate cards)
-    const baseRate = 40; // Base rate per shipment
-    const perKgRate = chargeableWeight <= 0.5 ? 0 : (chargeableWeight - 0.5) * 15;
-    const zoneMultiplier = serviceability.zone === "LOCAL" ? 1 :
-                           serviceability.zone === "REGIONAL" ? 1.5 :
-                           serviceability.zone === "NATIONAL" ? 2 : 2.5;
+    const baseRate = serviceability.baseRate || 40; // Base rate per shipment
+    const perKgRate = chargeableWeight <= 0.5 ? 0 : (chargeableWeight - 0.5) * (serviceability.ratePerKg || 15);
+    const zoneMultiplier = serviceability.routeType === "LOCAL" ? 1 :
+                           serviceability.routeType === "ZONAL" ? 1.5 :
+                           serviceability.routeType === "NATIONAL" ? 2 : 2.5;
 
     const freightCharge = Math.round((baseRate + perKgRate) * zoneMultiplier);
 
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         serviceable: true,
         originPincode,
         destinationPincode,
-        zone: serviceability.zone,
+        zone: serviceability.routeType || "STANDARD",
         estimatedDeliveryDays: serviceability.tatDays,
         weight: {
           actual: weightKg,
