@@ -142,7 +142,7 @@ export default function AdminLayout({
           {!collapsed && (
             <div className="flex items-center gap-2">
               <Package className="h-8 w-8 text-primary-500" />
-              <span className="font-bold text-lg">CJDarcl Quick</span>
+              <span className="font-bold text-lg">CJDarcl Quick Super Admin</span>
             </div>
           )}
           {collapsed && <Package className="h-8 w-8 text-primary-500 mx-auto" />}
