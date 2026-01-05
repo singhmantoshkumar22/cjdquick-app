@@ -142,7 +142,7 @@ export default function AdminLayout({
           {!collapsed && (
             <div className="flex items-center gap-2">
               <Package className="h-8 w-8 text-primary-500" />
-              <span className="font-bold text-lg">CJDarcl Quick Super Admin</span>
+              <span className="font-bold text-lg">CJDarcl Quick</span>
             </div>
           )}
           {collapsed && <Package className="h-8 w-8 text-primary-500 mx-auto" />}
@@ -157,6 +157,25 @@ export default function AdminLayout({
             )}
           </button>
         </div>
+
+        {/* Panel Switcher */}
+        {!collapsed && (
+          <div className="px-3 py-3 border-b border-gray-800">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">
+                <Settings className="h-4 w-4" />
+                <span>Super Admin</span>
+              </div>
+              <Link
+                href="/admin/clients"
+                className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Building2 className="h-4 w-4" />
+                <span>B2B Client Admin</span>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 py-4 overflow-y-auto">
