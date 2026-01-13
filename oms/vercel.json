@@ -1,6 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd packages/database && npx prisma generate && cd ../../apps/web && npx next build",
-  "outputDirectory": "apps/web/.next",
-  "framework": null
+  "version": 2,
+  "installCommand": "pnpm install",
+  "builds": [
+    {
+      "src": "apps/web/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/apps/web/$1"
+    }
+  ]
 }

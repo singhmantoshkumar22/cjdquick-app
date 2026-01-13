@@ -1,9 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd apps/web && SKIP_ENV_VALIDATION=1 npx next build",
-  "outputDirectory": "apps/web/.next",
-  "framework": null,
-  "env": {
-    "SKIP_ENV_VALIDATION": "1"
-  }
+  "version": 2,
+  "installCommand": "pnpm install",
+  "builds": [
+    {
+      "src": "apps/web/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/apps/web/$1"
+    }
+  ]
 }
