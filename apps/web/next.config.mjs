@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   transpilePackages: ["@cjdquick/ui", "@cjdquick/database", "@cjdquick/types"],
   typescript: {
     ignoreBuildErrors: true,
