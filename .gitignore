@@ -54,3 +54,4 @@ packages/database/prisma/dev.db
 
 # Playwright test results
 apps/web/test-results/
+.env*.local
