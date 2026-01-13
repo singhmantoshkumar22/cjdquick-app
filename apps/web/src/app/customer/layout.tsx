@@ -4,25 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Truck, Building2, ShoppingCart, Boxes } from "lucide-react";
-
-type ServiceType = "b2b" | "b2c" | "oms";
-
-interface ServiceContextType {
-  selectedService: ServiceType;
-  setSelectedService: (service: ServiceType) => void;
-}
-
-import { createContext, useContext } from "react";
-
-const ServiceContext = createContext<ServiceContextType | null>(null);
-
-export function useService() {
-  const context = useContext(ServiceContext);
-  if (!context) {
-    throw new Error("useService must be used within CustomerLayout");
-  }
-  return context;
-}
+import { ServiceContext, type ServiceType } from "./service-context";
 
 const services = [
   {
