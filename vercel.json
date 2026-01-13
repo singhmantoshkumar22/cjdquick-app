@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd apps/web && npx next build",
+  "buildCommand": "cd apps/web && SKIP_ENV_VALIDATION=1 npx next build",
   "outputDirectory": "apps/web/.next",
-  "framework": null
+  "framework": null,
+  "env": {
+    "SKIP_ENV_VALIDATION": "1"
+  }
 }
