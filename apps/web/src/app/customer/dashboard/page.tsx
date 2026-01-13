@@ -21,7 +21,7 @@ import {
   ClipboardList,
   Settings,
 } from "lucide-react";
-import { useService } from "../layout";
+import { useService } from "../service-context";
 
 interface DashboardData {
   overview: {

@@ -117,7 +117,7 @@ export async function GET(
         openTickets,
         totalWarehouses,
         totalUsers,
-        recentOrders: recentOrders.map((o) => ({
+        recentOrders: recentOrders.map((o: typeof recentOrders[number]) => ({
           id: o.id,
           orderNumber: o.orderNumber,
           status: o.status,
@@ -125,7 +125,7 @@ export async function GET(
           consigneeName: o.customerName,
           destinationCity: o.deliveryCity,
         })),
-        recentPickups: recentPickups.map((p) => ({
+        recentPickups: recentPickups.map((p: typeof recentPickups[number]) => ({
           id: p.id,
           pickupNumber: p.pickupNumber,
           status: p.status,
