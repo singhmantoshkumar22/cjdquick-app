@@ -3,25 +3,47 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import {
-  Package,
-  LayoutDashboard,
-  Truck,
-  PlusCircle,
-  Search,
-  LogOut,
-  Menu,
-  X,
-  User,
-  Home,
-} from "lucide-react";
+import { Truck, Building2, ShoppingCart, Boxes } from "lucide-react";
 
-interface CustomerData {
-  id: string;
-  companyName: string;
-  name: string;
-  email: string;
+type ServiceType = "b2b" | "b2c" | "oms";
+
+interface ServiceContextType {
+  selectedService: ServiceType;
+  setSelectedService: (service: ServiceType) => void;
 }
+
+import { createContext, useContext } from "react";
+
+const ServiceContext = createContext<ServiceContextType | null>(null);
+
+export function useService() {
+  const context = useContext(ServiceContext);
+  if (!context) {
+    throw new Error("useService must be used within CustomerLayout");
+  }
+  return context;
+}
+
+const services = [
+  {
+    id: "b2b" as ServiceType,
+    label: "CJDQuick B2B",
+    icon: Building2,
+    color: "blue",
+  },
+  {
+    id: "b2c" as ServiceType,
+    label: "CJDQuick B2C",
+    icon: ShoppingCart,
+    color: "green",
+  },
+  {
+    id: "oms" as ServiceType,
+    label: "CJDQuick OMS",
+    icon: Boxes,
+    color: "purple",
+  },
+];
 
 export default function CustomerLayout({
   children,
@@ -30,9 +52,40 @@ export default function CustomerLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<ServiceType>("b2b");
+
+  useEffect(() => {
+    // Check if on OMS pages
+    if (pathname.startsWith("/customer/oms")) {
+      setSelectedService("oms");
+      localStorage.setItem("selected_service", "oms");
+      return;
+    }
+
+    // Load saved service preference
+    const saved = localStorage.getItem("selected_service") as ServiceType;
+    if (saved && ["b2b", "b2c", "oms"].includes(saved)) {
+      setSelectedService(saved);
+      // If OMS was saved but we're not on OMS page, redirect
+      if (saved === "oms" && !pathname.startsWith("/customer/oms")) {
+        router.push("/customer/oms/dashboard");
+      }
+    }
+  }, [pathname, router]);
+
+  const handleServiceChange = (service: ServiceType) => {
+    setSelectedService(service);
+    localStorage.setItem("selected_service", service);
+
+    // Navigate to appropriate dashboard
+    if (service === "oms") {
+      router.push("/customer/oms/dashboard");
+    } else if (pathname.startsWith("/customer/oms")) {
+      // If leaving OMS, go back to main dashboard
+      router.push("/customer/dashboard");
+    }
+  };
 
   useEffect(() => {
     // Skip auth check on login page
@@ -54,7 +107,7 @@ export default function CustomerLayout({
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          setCustomer(data.data);
+          setLoading(false);
         } else {
           localStorage.removeItem("customer_token");
           router.push("/customer/login");
@@ -66,11 +119,6 @@ export default function CustomerLayout({
       })
       .finally(() => setLoading(false));
   }, [pathname, router]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("customer_token");
-    router.push("/customer/login");
-  };
 
   // Show only children for login page
   if (pathname === "/customer/login") {
@@ -85,140 +133,62 @@ export default function CustomerLayout({
     );
   }
 
-  const navItems = [
-    { href: "/customer/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/customer/book", label: "Book Consignment", icon: PlusCircle },
-    { href: "/customer/shipments", label: "My Shipments", icon: Package },
-    { href: "/customer/tracking", label: "Track", icon: Search },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Home Button & Logo */}
-            <div className="flex items-center gap-3">
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-              >
-                <Home className="h-4 w-4" />
-                <span className="font-medium text-sm">Home</span>
+    <ServiceContext.Provider value={{ selectedService, setSelectedService: handleServiceChange }}>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Top Row - Logo */}
+            <div className="flex justify-center items-center h-16 border-b border-gray-100">
+              <Link href="/customer/dashboard" className="flex items-center gap-3">
+                <Truck className="h-10 w-10 text-blue-600" />
+                <span className="font-bold text-2xl text-gray-900">CJDarcl Quick</span>
               </Link>
-              <Link href="/customer/dashboard" className="flex items-center gap-2">
-                <Truck className="h-8 w-8 text-blue-600" />
-                <span className="font-bold text-xl text-gray-900">CJDarcl Quick</span>
-              </Link>
-              <span className="hidden sm:inline-block text-sm text-gray-500 border-l pl-3 ml-3">
-                Customer Portal
-              </span>
             </div>
 
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+            {/* Service Tabs */}
+            <div className="flex justify-center items-center py-3">
+              <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+                {services.map((service) => {
+                  const Icon = service.icon;
+                  const isActive = selectedService === service.id;
 
-            {/* User Menu */}
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
-                <User className="h-4 w-4" />
-                <span>{customer?.companyName || customer?.name}</span>
+                  const colorClasses = {
+                    blue: isActive
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-200",
+                    green: isActive
+                      ? "bg-green-600 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-200",
+                    purple: isActive
+                      ? "bg-purple-600 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-200",
+                  };
+
+                  return (
+                    <button
+                      key={service.id}
+                      onClick={() => handleServiceChange(service.id)}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        colorClasses[service.color as keyof typeof colorClasses]
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {service.label}
+                    </button>
+                  );
+                })}
               </div>
-              <button
-                onClick={handleLogout}
-                className="hidden sm:flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
-              >
-                {mobileMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
-              </button>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Mobile Nav */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white">
-            <nav className="px-4 py-3 space-y-1">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-blue-50 text-blue-700"
-              >
-                <Home className="h-5 w-5" />
-                Home
-              </Link>
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium ${
-                      isActive
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <div className="pt-3 mt-3 border-t border-gray-200">
-                <div className="px-4 py-2 text-sm text-gray-500">
-                  {customer?.companyName}
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
-                >
-                  <LogOut className="h-5 w-5" />
-                  Logout
-                </button>
-              </div>
-            </nav>
-          </div>
-        )}
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
-    </div>
+        {/* Main Content */}
+        <main className={pathname.startsWith("/customer/oms") ? "" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"}>
+          {children}
+        </main>
+      </div>
+    </ServiceContext.Provider>
   );
 }

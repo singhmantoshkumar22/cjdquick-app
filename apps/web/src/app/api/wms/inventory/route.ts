@@ -154,14 +154,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate SKU
-    const existing = await prisma.inventoryItem.findUnique({
+    // Check for duplicate SKU (using legacy clientId/warehouseId or new locationId)
+    const existing = await prisma.inventoryItem.findFirst({
       where: {
-        clientId_warehouseId_sku: {
-          clientId,
-          warehouseId,
-          sku,
-        },
+        OR: [
+          { clientId, warehouseId, sku },
+          { locationId: warehouseId, sku },
+        ],
       },
     });
 

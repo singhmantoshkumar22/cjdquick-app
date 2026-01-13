@@ -1,0 +1,25 @@
+{
+  "name": "oms",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "db:generate": "turbo run db:generate",
+    "db:push": "turbo run db:push",
+    "db:studio": "cd packages/database && npx prisma studio",
+    "db:seed": "cd packages/database && npm run db:seed"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "embedded-postgres": "^18.1.0-beta.15",
+    "pg-mem": "^3.0.5",
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

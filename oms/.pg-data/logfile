@@ -1,0 +1,56 @@
+2026-01-07 19:51:53.052 IST [96638] LOG:  starting PostgreSQL 18.1 on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit
+2026-01-07 19:51:53.053 IST [96638] LOG:  listening on IPv6 address "::1", port 5432
+2026-01-07 19:51:53.053 IST [96638] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2026-01-07 19:51:53.054 IST [96638] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2026-01-07 19:51:53.056 IST [96644] LOG:  database system was interrupted; last known up at 2026-01-07 00:12:05 IST
+2026-01-07 19:51:53.092 IST [96644] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-01-07 19:51:53.093 IST [96644] LOG:  redo starts at 0/1EFF450
+2026-01-07 19:51:53.093 IST [96644] LOG:  invalid record length at 0/1EFF558: expected at least 24, got 0
+2026-01-07 19:51:53.093 IST [96644] LOG:  redo done at 0/1EFF520 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-01-07 19:51:53.094 IST [96642] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-01-07 19:51:53.095 IST [96642] LOG:  checkpoint complete: wrote 0 buffers (0.0%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.001 s; sync files=2, longest=0.001 s, average=0.001 s; distance=0 kB, estimate=0 kB; lsn=0/1EFF558, redo lsn=0/1EFF558
+2026-01-07 19:51:53.096 IST [96638] LOG:  database system is ready to accept connections
+2026-01-08 12:13:52.833 IST [5021] LOG:  starting PostgreSQL 18.1 on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit
+2026-01-08 12:13:52.833 IST [5021] LOG:  listening on IPv6 address "::1", port 5432
+2026-01-08 12:13:52.833 IST [5021] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2026-01-08 12:13:52.834 IST [5021] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2026-01-08 12:13:52.836 IST [5027] LOG:  database system was interrupted; last known up at 2026-01-07 19:51:53 IST
+2026-01-08 12:13:52.878 IST [5027] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-01-08 12:13:52.878 IST [5027] LOG:  redo starts at 0/1EFF5D0
+2026-01-08 12:13:52.878 IST [5027] LOG:  invalid record length at 0/1EFF608: expected at least 24, got 0
+2026-01-08 12:13:52.878 IST [5027] LOG:  redo done at 0/1EFF5D0 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-01-08 12:13:52.880 IST [5025] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-01-08 12:13:52.880 IST [5025] LOG:  checkpoint complete: wrote 0 buffers (0.0%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.001 s; sync files=2, longest=0.001 s, average=0.001 s; distance=0 kB, estimate=0 kB; lsn=0/1EFF608, redo lsn=0/1EFF608
+2026-01-08 12:13:52.881 IST [5021] LOG:  database system is ready to accept connections
+2026-01-08 12:19:06.406 IST [5025] LOG:  checkpoint starting: time
+2026-01-08 12:37:23.905 IST [1874] LOG:  starting PostgreSQL 18.1 on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit
+2026-01-08 12:37:23.905 IST [1874] LOG:  listening on IPv6 address "::1", port 5432
+2026-01-08 12:37:23.905 IST [1874] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2026-01-08 12:37:23.905 IST [1874] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2026-01-08 12:37:23.907 IST [1880] LOG:  database system was interrupted; last known up at 2026-01-08 12:13:52 IST
+2026-01-08 12:37:23.937 IST [1880] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-01-08 12:37:23.937 IST [1880] LOG:  redo starts at 0/1EFF680
+2026-01-08 12:37:23.938 IST [1880] LOG:  invalid record length at 0/1F26288: expected at least 24, got 0
+2026-01-08 12:37:23.938 IST [1880] LOG:  redo done at 0/1F26250 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-01-08 12:37:23.939 IST [1878] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-01-08 12:37:23.941 IST [1878] LOG:  checkpoint complete: wrote 24 buffers (0.1%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.002 s, sync=0.001 s, total=0.003 s; sync files=10, longest=0.001 s, average=0.001 s; distance=155 kB, estimate=155 kB; lsn=0/1F26288, redo lsn=0/1F26288
+2026-01-08 12:37:23.942 IST [1874] LOG:  database system is ready to accept connections
+2026-01-08 12:42:24.202 IST [1878] LOG:  checkpoint starting: time
+2026-01-09 14:56:23.444 IST [29602] LOG:  starting PostgreSQL 18.1 on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit
+2026-01-09 14:56:23.445 IST [29602] LOG:  listening on IPv6 address "::1", port 5432
+2026-01-09 14:56:23.445 IST [29602] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2026-01-09 14:56:23.445 IST [29602] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2026-01-09 14:56:23.447 IST [29608] LOG:  database system was interrupted; last known up at 2026-01-08 12:37:23 IST
+2026-01-09 14:56:23.486 IST [29608] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-01-09 14:56:23.487 IST [29608] LOG:  redo starts at 0/1F26300
+2026-01-09 14:56:23.495 IST [29608] LOG:  invalid record length at 0/20A8648: expected at least 24, got 0
+2026-01-09 14:56:23.495 IST [29608] LOG:  redo done at 0/20A8610 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-01-09 14:56:23.496 IST [29606] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-01-09 14:56:23.498 IST [29606] LOG:  checkpoint complete: wrote 135 buffers (0.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 1 recycled; write=0.002 s, sync=0.001 s, total=0.003 s; sync files=28, longest=0.001 s, average=0.001 s; distance=1544 kB, estimate=1544 kB; lsn=0/20A8648, redo lsn=0/20A8648
+2026-01-09 14:56:23.499 IST [29602] LOG:  database system is ready to accept connections
+2026-01-09 15:05:35.503 IST [29606] LOG:  checkpoint starting: time
+2026-01-09 15:05:59.121 IST [29606] LOG:  checkpoint complete: wrote 233 buffers (1.4%), wrote 2 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=23.614 s, sync=0.002 s, total=23.618 s; sync files=37, longest=0.001 s, average=0.001 s; distance=2312 kB, estimate=2312 kB; lsn=0/22EA788, redo lsn=0/22EA6F8
+2026-01-09 15:57:05.407 IST [29606] LOG:  checkpoint starting: time
+2026-01-09 15:57:07.032 IST [29606] LOG:  checkpoint complete: wrote 16 buffers (0.1%), wrote 0 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=1.623 s, sync=0.001 s, total=1.627 s; sync files=3, longest=0.001 s, average=0.001 s; distance=118 kB, estimate=2092 kB; lsn=0/2308278, redo lsn=0/23081E8
+2026-01-09 16:04:40.235 IST [29606] LOG:  checkpoint starting: time
+2026-01-09 16:04:40.340 IST [29606] LOG:  checkpoint complete: wrote 1 buffers (0.0%), wrote 0 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.102 s, sync=0.001 s, total=0.106 s; sync files=1, longest=0.001 s, average=0.001 s; distance=5 kB, estimate=1884 kB; lsn=0/23096B8, redo lsn=0/2309660

@@ -8,7 +8,1345 @@ datasource db {
 }
 
 // ============================================
-// USER & AUTHENTICATION
+// MULTI-TENANT: COMPANY (3PL OPERATOR)
+// ============================================
+// Company represents the 3PL operator (e.g., CJ Darcl Quick)
+// This is the root of the multi-tenant hierarchy
+
+model Company {
+  id              String    @id @default(cuid())
+  code            String    @unique // e.g., "CJDQ"
+  name            String    // "CJ Darcl Quick Logistics"
+  legalName       String?   @map("legal_name")
+  gst             String?
+  pan             String?
+  cin             String?
+  logo            String?
+  email           String?
+  phone           String?
+  address         String?   // JSON stored as string for SQLite
+  settings        String?   // JSON stored as string for SQLite
+
+  status          String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  isActive        Boolean   @default(true) @map("is_active")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  locations       Location[]
+  brands          Brand[]
+  users           User[]
+  skus            SKUMaster[]
+  vendors         VendorMaster[]
+  channels        ChannelConfig[]
+  transporters    TransporterConfig[]
+
+  @@map("companies")
+}
+
+// ============================================
+// LOCATION (UNIFIED: WAREHOUSE/HUB/STORE)
+// ============================================
+// Unifies Warehouse, Hub, and Store into a single model
+// Replaces separate Warehouse and Hub models
+
+model Location {
+  id              String       @id @default(cuid())
+  code            String       // Unique within company
+  name            String
+  type            String       @default("WAREHOUSE") // WAREHOUSE, HUB, STORE, VIRTUAL, DARK_STORE
+
+  // Address
+  address         String
+  landmark        String?
+  pincode         String
+  city            String
+  state           String
+  country         String       @default("India")
+  latitude        Float?
+  longitude       Float?
+
+  // Contact
+  contactPerson   String?      @map("contact_person")
+  contactPhone    String?      @map("contact_phone")
+  contactEmail    String?      @map("contact_email")
+
+  gst             String?      // Location-specific GST
+
+  // Capacity (for Hub/Warehouse)
+  capacityCbm     Float?       @map("capacity_cbm")
+  capacityParcels Int?         @map("capacity_parcels")
+
+  isActive        Boolean      @default(true) @map("is_active")
+  settings        String?      // JSON: operational settings
+
+  companyId       String       @map("company_id")
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Hub hierarchy (for network topology)
+  parentId        String?      @map("parent_id")
+  parent          Location?    @relation("LocationHierarchy", fields: [parentId], references: [id])
+  children        Location[]   @relation("LocationHierarchy")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // WMS Relations
+  zones           WarehouseZone[]
+  inventoryItems  InventoryItem[]
+  inbounds        ReceivingOrder[]
+  stockAdjustments StockAdjustment[]
+  cycleCounts     CycleCount[]
+  brandAssignments BrandWarehouseAssignment[]  // Brands assigned to this warehouse for fulfillment
+
+  // TMS Relations
+  originRoutes    Route[]      @relation("RouteOrigin")
+  destRoutes      Route[]      @relation("RouteDest")
+  vehicles        Vehicle[]
+  drivers         Driver[]
+  trips           Trip[]
+
+  // Order Relations
+  orders          UnifiedOrder[] @relation("OrderLocation")
+  pickupOrders    UnifiedOrder[] @relation("PickupLocation")
+
+  // Manifest Relations
+  manifests       ManifestNew[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([type])
+  @@index([pincode])
+  @@map("locations")
+}
+
+// ============================================
+// BRAND (B2B CLIENTS / B2C SELLERS)
+// ============================================
+// Unifies Client and B2CSeller - represents customers of the 3PL
+// Both B2B enterprise clients and B2C individual sellers
+
+model Brand {
+  id              String    @id @default(cuid())
+  code            String    @unique // e.g., "ACME", "SELLER123"
+  name            String
+  type            String    @default("B2B") // B2B, B2C
+
+  // Business Info
+  businessName    String?   @map("business_name")
+  legalName       String?   @map("legal_name")
+  gst             String?
+  pan             String?
+  logo            String?
+  description     String?
+  website         String?
+
+  // Contact
+  contactPerson   String?   @map("contact_person")
+  contactEmail    String?   @map("contact_email")
+  contactPhone    String?   @map("contact_phone")
+  address         String?   // JSON: full address
+
+  // B2B Settings
+  creditLimit     Float     @default(0) @map("credit_limit")
+  currentBalance  Float     @default(0) @map("current_balance")
+  paymentTermsDays Int      @default(15) @map("payment_terms_days")
+
+  // API Integration
+  apiKey          String?   @unique @map("api_key")
+  webhookUrl      String?   @map("webhook_url")
+  webhookSecret   String?   @map("webhook_secret")
+
+  // KYC Status (for B2C sellers)
+  kycStatus       String    @default("PENDING") @map("kyc_status") // PENDING, SUBMITTED, VERIFIED, REJECTED
+  kycVerifiedAt   DateTime? @map("kyc_verified_at")
+
+  // Service Model Configuration
+  // SHIPPING = Model 1 (Pickup from client's warehouse, transport only)
+  // FULFILLMENT = Model 2 (Inventory stored at CJD Quick warehouse, full OMS/WMS)
+  // HYBRID = Both models (some SKUs at client warehouse, some at CJD Quick)
+  serviceModel    String    @default("SHIPPING") @map("service_model")
+
+  // Preferences (JSON)
+  settings        String?   // JSON: notification prefs, dashboard config
+  shippingPreferences String? @map("shipping_preferences") // JSON: weight preferences for partner selection
+  metadata        String?   // JSON: additional metadata for migration
+
+  status          String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  isActive        Boolean   @default(true) @map("is_active")
+
+  companyId       String    @map("company_id")
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  users           BrandUser[]
+  orders          UnifiedOrder[]
+  invoices        InvoiceNew[]
+  pickupLocations BrandPickupLocation[]
+  bankAccounts    BrandBankAccount[]
+  supportTickets  BrandSupportTicket[]
+  skuMappings     BrandSKU[]
+  warehouseAssignments BrandWarehouseAssignment[]
+  inventoryItems  InventoryItem[] @relation("BrandInventory")
+  receivingOrders ReceivingOrder[] @relation("BrandReceiving")
+  shipmentClaims  ShipmentClaim[]
+
+  @@index([companyId])
+  @@index([serviceModel])
+  @@index([type])
+  @@map("brands")
+}
+
+// ============================================
+// BRAND USER (PORTAL ACCESS)
+// ============================================
+// Users who access brand portal (B2B client users or B2C seller users)
+
+model BrandUser {
+  id              String    @id @default(cuid())
+  email           String
+  passwordHash    String    @map("password_hash")
+  name            String
+  phone           String?
+  role            String    @default("VIEWER") // OWNER, ADMIN, MANAGER, OPERATIONS, VIEWER
+
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  isActive        Boolean   @default(true) @map("is_active")
+  lastLoginAt     DateTime? @map("last_login_at")
+
+  dashboardConfig String?   @map("dashboard_config") // JSON
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  sessions        BrandUserSession[]
+
+  @@unique([brandId, email])
+  @@index([brandId])
+  @@map("brand_users")
+}
+
+model BrandUserSession {
+  id              String    @id @default(cuid())
+  token           String    @unique
+  brandUserId     String    @map("brand_user_id")
+  user            BrandUser @relation(fields: [brandUserId], references: [id], onDelete: Cascade)
+
+  deviceId        String?   @map("device_id")
+  deviceName      String?   @map("device_name")
+  ipAddress       String?   @map("ip_address")
+
+  isActive        Boolean   @default(true) @map("is_active")
+  expiresAt       DateTime  @map("expires_at")
+  lastUsedAt      DateTime? @map("last_used_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([brandUserId])
+  @@map("brand_user_sessions")
+}
+
+// ============================================
+// BRAND PICKUP LOCATIONS
+// ============================================
+
+model BrandPickupLocation {
+  id              String    @id @default(cuid())
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  name            String
+  contactPerson   String?   @map("contact_person")
+  phone           String
+  address         String
+  landmark        String?
+  pincode         String
+  city            String
+  state           String
+
+  isDefault       Boolean   @default(false) @map("is_default")
+  isActive        Boolean   @default(true) @map("is_active")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  orders          UnifiedOrder[] @relation("BrandPickup")
+
+  @@index([brandId])
+  @@map("brand_pickup_locations")
+}
+
+// ============================================
+// BRAND BANK ACCOUNTS (FOR COD REMITTANCE)
+// ============================================
+
+model BrandBankAccount {
+  id              String    @id @default(cuid())
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  accountName     String    @map("account_name")
+  accountNumber   String    @map("account_number")
+  bankName        String    @map("bank_name")
+  ifscCode        String    @map("ifsc_code")
+  branchName      String?   @map("branch_name")
+  accountType     String    @default("CURRENT") @map("account_type") // SAVINGS, CURRENT
+
+  isDefault       Boolean   @default(false) @map("is_default")
+  isVerified      Boolean   @default(false) @map("is_verified")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([brandId])
+  @@map("brand_bank_accounts")
+}
+
+// ============================================
+// BRAND WAREHOUSE ASSIGNMENT (FOR FULFILLMENT MODEL)
+// ============================================
+// Links which brands can store inventory at which CJD Quick warehouses
+// Only applicable when brand.serviceModel = FULFILLMENT or HYBRID
+
+model BrandWarehouseAssignment {
+  id              String    @id @default(cuid())
+
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  locationId      String    @map("location_id")  // CJD Quick warehouse
+  location        Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // Service configuration
+  isActive        Boolean   @default(true) @map("is_active")
+  isPrimary       Boolean   @default(false) @map("is_primary")  // Primary fulfillment center for this brand
+
+  // Capacity allocation for this brand at this location
+  allocatedCapacityCbm    Float?   @map("allocated_capacity_cbm")
+  allocatedBins           Int?     @map("allocated_bins")
+
+  // Billing rates for this brand at this location
+  storageRatePerCbm       Float?   @map("storage_rate_per_cbm")
+  handlingRatePerUnit     Float?   @map("handling_rate_per_unit")
+  pickPackRate            Float?   @map("pick_pack_rate")
+
+  // SLA Configuration
+  slaPickingHours         Int?     @map("sla_picking_hours")  // Hours to pick after order received
+  slaPackingHours         Int?     @map("sla_packing_hours")  // Hours to pack after picking
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([brandId, locationId])
+  @@index([brandId])
+  @@index([locationId])
+  @@map("brand_warehouse_assignments")
+}
+
+// ============================================
+// CHANNEL CONFIGURATION (MARKETPLACE INTEGRATIONS)
+// ============================================
+
+model ChannelConfig {
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  channel         String    // AMAZON, FLIPKART, MYNTRA, SHOPIFY, WOOCOMMERCE, MANUAL
+  displayName     String?   @map("display_name")
+  isActive        Boolean   @default(true) @map("is_active")
+
+  credentials     String?   // JSON: API keys, tokens
+  settings        String?   // JSON: sync settings
+  mappingConfig   String?   @map("mapping_config") // JSON: field mappings
+
+  syncFrequency   String    @default("HOURLY") @map("sync_frequency") // REALTIME, HOURLY, DAILY
+  lastSyncAt      DateTime? @map("last_sync_at")
+  lastSyncStatus  String?   @map("last_sync_status")
+  lastErrorMessage String?  @map("last_error_message")
+
+  webhookUrl      String?   @map("webhook_url")
+  webhookSecret   String?   @map("webhook_secret")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  orders          UnifiedOrder[]
+
+  @@unique([companyId, channel])
+  @@index([companyId])
+  @@map("channel_configs")
+}
+
+// ============================================
+// TRANSPORTER MASTER & CONFIGURATION
+// ============================================
+// Global transporter definitions (Delhivery, BlueDart, etc.)
+
+model Transporter {
+  id              String    @id @default(cuid())
+  code            String    @unique // DELHIVERY, BLUEDART, SHIPROCKET
+  name            String
+  type            String    @default("COURIER") // COURIER, SELF, AGGREGATOR
+  logo            String?
+
+  apiEnabled      Boolean   @default(false) @map("api_enabled")
+  apiConfig       String?   @map("api_config") // JSON: base URL, endpoints
+  trackingUrlTemplate String? @map("tracking_url_template")
+
+  supportsCod     Boolean   @default(true) @map("supports_cod")
+  supportsReverse Boolean   @default(false) @map("supports_reverse")
+
+  isActive        Boolean   @default(true) @map("is_active")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  companyConfigs  TransporterConfig[]
+  servicePincodes TransporterServicePincode[]
+  awbPool         TransporterAWB[]
+  deliveries      UnifiedOrder[]
+  manifests       ManifestNew[]
+
+  @@map("transporters")
+}
+
+// Company-specific transporter configuration
+model TransporterConfig {
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  transporterId   String    @map("transporter_id")
+  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+
+  isActive        Boolean   @default(true) @map("is_active")
+  accountCode     String?   @map("account_code")
+  credentials     String?   // JSON: account-specific credentials
+  priority        Int       @default(0) // For auto-selection
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  rateCards       TransporterRateCard[]
+
+  @@unique([companyId, transporterId])
+  @@index([companyId])
+  @@map("transporter_configs")
+}
+
+// Transporter serviceability by pincode
+model TransporterServicePincode {
+  id              String    @id @default(cuid())
+  transporterId   String    @map("transporter_id")
+  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+
+  pincode         String
+  codAvailable    Boolean   @default(true) @map("cod_available")
+  prepaidAvailable Boolean  @default(true) @map("prepaid_available")
+  deliveryDays    Int?      @map("delivery_days")
+
+  @@unique([transporterId, pincode])
+  @@index([pincode])
+  @@map("transporter_service_pincodes")
+}
+
+// AWB Pool management
+model TransporterAWB {
+  id              String    @id @default(cuid())
+  transporterId   String    @map("transporter_id")
+  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+
+  awbNumber       String    @unique @map("awb_number")
+  isUsed          Boolean   @default(false) @map("is_used")
+  usedAt          DateTime? @map("used_at")
+  usedForOrderId  String?   @map("used_for_order_id")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([transporterId, isUsed])
+  @@map("transporter_awbs")
+}
+
+// Rate cards for transporters
+model TransporterRateCard {
+  id              String    @id @default(cuid())
+  configId        String    @map("config_id")
+  config          TransporterConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  name            String
+  type            String    @default("BOTH") // PREPAID, COD, BOTH
+  status          String    @default("ACTIVE") // DRAFT, ACTIVE, ARCHIVED
+
+  effectiveFrom   DateTime  @map("effective_from")
+  effectiveTo     DateTime? @map("effective_to")
+
+  // Base costs
+  baseCost        Float     @map("base_cost")
+  fuelSurchargePercent Float? @map("fuel_surcharge_percent")
+
+  // COD charges
+  codChargePercent Float?   @map("cod_charge_percent")
+  codChargeMin    Float?    @map("cod_charge_min")
+  codChargeCap    Float?    @map("cod_charge_cap")
+
+  // RTO charges
+  rtoChargePercent Float?   @map("rto_charge_percent")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  slabs           TransporterRateCardSlab[]
+
+  @@index([configId])
+  @@map("transporter_rate_cards")
+}
+
+model TransporterRateCardSlab {
+  id              String    @id @default(cuid())
+  rateCardId      String    @map("rate_card_id")
+  rateCard        TransporterRateCard @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+
+  fromWeight      Float     @map("from_weight")
+  toWeight        Float     @map("to_weight")
+  zone            String?   // LOCAL, REGIONAL, METRO, REST_OF_INDIA
+
+  rate            Float
+  additionalWeightRate Float? @map("additional_weight_rate")
+  minCharge       Float?    @map("min_charge")
+
+  @@index([rateCardId])
+  @@map("transporter_rate_card_slabs")
+}
+
+// ============================================
+// SKU MASTER (PRODUCT CATALOG)
+// ============================================
+
+model SKUMaster {
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code            String
+  name            String
+  description     String?
+  category        String?
+  subCategory     String?   @map("sub_category")
+  brand           String?
+  hsn             String?
+
+  // Dimensions
+  weight          Float?    // kg
+  length          Float?    // cm
+  width           Float?    // cm
+  height          Float?    // cm
+
+  // Pricing
+  mrp             Float?
+  costPrice       Float?    @map("cost_price")
+  sellingPrice    Float?    @map("selling_price")
+  taxRate         Float?    @map("tax_rate")
+
+  // Tracking
+  isSerialised    Boolean   @default(false) @map("is_serialised")
+  isBatchTracked  Boolean   @default(false) @map("is_batch_tracked")
+
+  // Inventory
+  reorderLevel    Int?      @map("reorder_level")
+  reorderQty      Int?      @map("reorder_qty")
+
+  barcodes        String?   // JSON array
+  images          String?   // JSON array
+  attributes      String?   // JSON: custom attributes
+
+  isActive        Boolean   @default(true) @map("is_active")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  inventory       InventoryItem[]
+  orderItems      UnifiedOrderItem[]
+  brandMappings   BrandSKU[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([code])
+  @@map("sku_master")
+}
+
+// Brand-specific SKU mappings
+model BrandSKU {
+  id              String    @id @default(cuid())
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  skuId           String    @map("sku_id")
+  sku             SKUMaster @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  brandSkuCode    String?   @map("brand_sku_code") // Brand's own SKU code
+  brandSkuName    String?   @map("brand_sku_name")
+
+  isActive        Boolean   @default(true) @map("is_active")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@unique([brandId, skuId])
+  @@index([brandId])
+  @@map("brand_skus")
+}
+
+// ============================================
+// VENDOR MASTER
+// ============================================
+
+model VendorMaster {
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code            String
+  name            String
+  contactPerson   String?   @map("contact_person")
+  email           String?
+  phone           String?
+  gst             String?
+  pan             String?
+  address         String?   // JSON
+  paymentTerms    String?   @map("payment_terms")
+
+  isActive        Boolean   @default(true) @map("is_active")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  purchaseOrders  PurchaseOrderNew[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("vendor_master")
+}
+
+// ============================================
+// UNIFIED ORDER MODEL
+// ============================================
+// Consolidates B2B orders, B2C orders into single model
+
+model UnifiedOrder {
+  id              String    @id @default(cuid())
+  orderNumber     String    @unique @map("order_number")
+
+  // Source & Type
+  orderType       String    @default("B2C") @map("order_type") // B2B, B2C
+  channel         String    @default("MANUAL") // AMAZON, FLIPKART, SHOPIFY, MANUAL, API
+  externalOrderNo String?   @map("external_order_no")
+
+  // Brand (Client/Seller)
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id])
+
+  // Location (Fulfillment warehouse)
+  locationId      String?   @map("location_id")
+  location        Location? @relation("OrderLocation", fields: [locationId], references: [id])
+
+  // Pickup location (for B2C sellers)
+  pickupLocationId String?  @map("pickup_location_id")
+  pickupLocation  Location? @relation("PickupLocation", fields: [pickupLocationId], references: [id])
+  brandPickupId   String?   @map("brand_pickup_id")
+  brandPickup     BrandPickupLocation? @relation("BrandPickup", fields: [brandPickupId], references: [id])
+
+  // Channel config (if imported from marketplace)
+  channelConfigId String?   @map("channel_config_id")
+  channelConfig   ChannelConfig? @relation(fields: [channelConfigId], references: [id])
+
+  // Customer Info
+  customerName    String    @map("customer_name")
+  customerPhone   String    @map("customer_phone")
+  customerEmail   String?   @map("customer_email")
+
+  // Shipping Address
+  shippingAddress String    @map("shipping_address") // JSON
+  shippingPincode String    @map("shipping_pincode")
+  shippingCity    String    @map("shipping_city")
+  shippingState   String    @map("shipping_state")
+  shippingCountry String    @default("India") @map("shipping_country")
+
+  // Billing Address
+  billingAddress  String?   @map("billing_address") // JSON
+
+  // Origin (pickup/warehouse pincode)
+  originPincode   String    @map("origin_pincode")
+
+  // Package Details
+  totalWeight     Float     @map("total_weight") // kg
+  length          Float?
+  width           Float?
+  height          Float?
+  volumetricWeight Float?   @map("volumetric_weight")
+  chargeableWeight Float?   @map("chargeable_weight")
+  packageCount    Int       @default(1) @map("package_count")
+
+  // Amounts
+  subtotal        Float
+  taxAmount       Float     @default(0) @map("tax_amount")
+  shippingCharges Float     @default(0) @map("shipping_charges")
+  discount        Float     @default(0)
+  totalAmount     Float     @map("total_amount")
+
+  // Payment
+  paymentMode     String    @default("PREPAID") @map("payment_mode") // PREPAID, COD
+  codAmount       Float     @default(0) @map("cod_amount")
+  codCollected    Float     @default(0) @map("cod_collected")
+
+  // Transporter & AWB
+  transporterId   String?   @map("transporter_id")
+  transporter     Transporter? @relation(fields: [transporterId], references: [id])
+  awbNumber       String?   @unique @map("awb_number")
+  labelUrl        String?   @map("label_url")
+  trackingUrl     String?   @map("tracking_url")
+
+  // Pricing (cost to brand)
+  shippingCost    Float     @default(0) @map("shipping_cost")
+  codCharges      Float     @default(0) @map("cod_charges")
+
+  // Status
+  status          String    @default("CREATED") // See OrderStatus enum
+
+  // WMS Status
+  wmsStatus       String    @default("PENDING") @map("wms_status") // PENDING, ALLOCATED, PICKING, PICKED, PACKING, PACKED, READY_TO_SHIP
+
+  // Dates
+  orderDate       DateTime  @default(now()) @map("order_date")
+  shipByDate      DateTime? @map("ship_by_date")
+  promisedDate    DateTime? @map("promised_date")
+
+  pickupScheduledAt DateTime? @map("pickup_scheduled_at")
+  pickedAt        DateTime? @map("picked_at")
+  packedAt        DateTime? @map("packed_at")
+  manifestedAt    DateTime? @map("manifested_at")
+  shippedAt       DateTime? @map("shipped_at")
+  deliveredAt     DateTime? @map("delivered_at")
+
+  // POD (Proof of Delivery)
+  podReceiverName String?   @map("pod_receiver_name")
+  podRelation     String?   @map("pod_relation")
+  podSignature    String?   @map("pod_signature")
+  podPhoto        String?   @map("pod_photo")
+  podOtp          String?   @map("pod_otp")
+  podLatitude     Float?    @map("pod_latitude")
+  podLongitude    Float?    @map("pod_longitude")
+
+  // Invoice
+  invoiceNo       String?   @map("invoice_no")
+  invoiceDate     DateTime? @map("invoice_date")
+  invoiceUrl      String?   @map("invoice_url")
+
+  // Manifest
+  manifestId      String?   @map("manifest_id")
+  manifest        ManifestNew? @relation(fields: [manifestId], references: [id])
+
+  // Priority & Tags
+  priority        Int       @default(0)
+  tags            String?   // JSON array
+  remarks         String?
+
+  // Cancellation
+  cancelledAt     DateTime? @map("cancelled_at")
+  cancelReason    String?   @map("cancel_reason")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  items           UnifiedOrderItem[]
+  events          UnifiedOrderEvent[]
+  ndrCase         UnifiedNdrCase?
+  returns         UnifiedReturn[]
+  picklists       PicklistNew[]
+
+  @@index([brandId, status])
+  @@index([locationId, status])
+  @@index([transporterId, status])
+  @@index([status, createdAt])
+  @@index([shippingPincode])
+  @@index([originPincode])
+  @@index([orderType])
+  @@map("unified_orders")
+}
+
+model UnifiedOrderItem {
+  id              String    @id @default(cuid())
+  orderId         String    @map("order_id")
+  order           UnifiedOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  skuId           String?   @map("sku_id")
+  sku             SKUMaster? @relation(fields: [skuId], references: [id])
+
+  externalItemId  String?   @map("external_item_id")
+  skuCode         String?   @map("sku_code")
+  name            String
+  description     String?
+
+  quantity        Int
+  allocatedQty    Int       @default(0) @map("allocated_qty")
+  pickedQty       Int       @default(0) @map("picked_qty")
+  packedQty       Int       @default(0) @map("packed_qty")
+  shippedQty      Int       @default(0) @map("shipped_qty")
+
+  unitPrice       Float     @map("unit_price")
+  taxAmount       Float     @default(0) @map("tax_amount")
+  discount        Float     @default(0)
+  totalPrice      Float     @map("total_price")
+
+  weight          Float?    // kg
+  hsn             String?
+
+  status          String    @default("PENDING") // PENDING, ALLOCATED, PICKED, PACKED, SHIPPED
+
+  serialNumbers   String?   @map("serial_numbers") // JSON array
+  batchNo         String?   @map("batch_no")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([orderId])
+  @@index([skuId])
+  @@map("unified_order_items")
+}
+
+model UnifiedOrderEvent {
+  id              String    @id @default(cuid())
+  orderId         String    @map("order_id")
+  order           UnifiedOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  status          String
+  statusText      String    @map("status_text")
+  location        String?
+  remarks         String?
+
+  source          String    @default("SYSTEM") // SYSTEM, PARTNER, MANUAL
+  sourceRef       String?   @map("source_ref")
+
+  eventTime       DateTime  @map("event_time")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([orderId, eventTime])
+  @@map("unified_order_events")
+}
+
+// ============================================
+// NDR (NON-DELIVERY REPORT) - UNIFIED
+// ============================================
+
+model UnifiedNdrCase {
+  id              String    @id @default(cuid())
+  orderId         String    @unique @map("order_id")
+  order           UnifiedOrder @relation(fields: [orderId], references: [id])
+
+  reason          String    // CUSTOMER_UNAVAILABLE, ADDRESS_ISSUE, REFUSED, etc.
+  reasonText      String?   @map("reason_text")
+
+  attemptNumber   Int       @default(1) @map("attempt_number")
+  maxAttempts     Int       @default(3) @map("max_attempts")
+
+  action          String    @default("PENDING") // PENDING, REATTEMPT, RTO, ADDRESS_UPDATE
+  actionNotes     String?   @map("action_notes")
+
+  correctedAddress String?  @map("corrected_address")
+  correctedPhone  String?   @map("corrected_phone")
+  rescheduledDate DateTime? @map("rescheduled_date")
+
+  isResolved      Boolean   @default(false) @map("is_resolved")
+  resolvedAt      DateTime? @map("resolved_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("unified_ndr_cases")
+}
+
+// ============================================
+// RETURNS - UNIFIED
+// ============================================
+
+model UnifiedReturn {
+  id              String    @id @default(cuid())
+  returnNumber    String    @unique @map("return_number")
+
+  orderId         String?   @map("order_id")
+  order           UnifiedOrder? @relation(fields: [orderId], references: [id])
+
+  type            String    @default("CUSTOMER_RETURN") // CUSTOMER_RETURN, RTO
+  status          String    @default("INITIATED") // INITIATED, IN_TRANSIT, RECEIVED, QC_PENDING, PROCESSED
+
+  awbNumber       String?   @map("awb_number")
+  reason          String?
+  remarks         String?
+
+  // QC Details
+  qcStatus        String?   @map("qc_status") // PENDING, PASSED, FAILED
+  qcCompletedAt   DateTime? @map("qc_completed_at")
+  qcRemarks       String?   @map("qc_remarks")
+
+  refundAmount    Float?    @map("refund_amount")
+  refundStatus    String?   @map("refund_status")
+
+  initiatedAt     DateTime  @default(now()) @map("initiated_at")
+  receivedAt      DateTime? @map("received_at")
+  processedAt     DateTime? @map("processed_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  items           UnifiedReturnItem[]
+
+  @@index([orderId])
+  @@index([type])
+  @@index([status])
+  @@map("unified_returns")
+}
+
+model UnifiedReturnItem {
+  id              String    @id @default(cuid())
+  returnId        String    @map("return_id")
+  return          UnifiedReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  skuId           String?   @map("sku_id")
+  skuCode         String?   @map("sku_code")
+  name            String?
+
+  quantity        Int
+  receivedQty     Int       @default(0) @map("received_qty")
+
+  qcStatus        String?   @map("qc_status")
+  qcGrade         String?   @map("qc_grade")
+  qcRemarks       String?   @map("qc_remarks")
+
+  action          String?   // RESTOCK, DISPOSE, REPAIR
+  restockedQty    Int       @default(0) @map("restocked_qty")
+  disposedQty     Int       @default(0) @map("disposed_qty")
+
+  @@index([returnId])
+  @@map("unified_return_items")
+}
+
+// ============================================
+// MANIFEST - NEW UNIFIED MODEL
+// ============================================
+
+model ManifestNew {
+  id              String    @id @default(cuid())
+  manifestNumber  String    @unique @map("manifest_number")
+
+  locationId      String    @map("location_id")
+  location        Location  @relation(fields: [locationId], references: [id])
+
+  transporterId   String    @map("transporter_id")
+  transporter     Transporter @relation(fields: [transporterId], references: [id])
+
+  status          String    @default("OPEN") // OPEN, CONFIRMED, CLOSED
+
+  vehicleNo       String?   @map("vehicle_no")
+  driverName      String?   @map("driver_name")
+  driverPhone     String?   @map("driver_phone")
+
+  orderCount      Int       @default(0) @map("order_count")
+  totalWeight     Float     @default(0) @map("total_weight")
+
+  handoverImage   String?   @map("handover_image")
+  confirmedAt     DateTime? @map("confirmed_at")
+  confirmedBy     String?   @map("confirmed_by")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  orders          UnifiedOrder[]
+
+  @@index([locationId])
+  @@index([transporterId])
+  @@index([status])
+  @@map("manifests_new")
+}
+
+// ============================================
+// INVOICE - NEW UNIFIED MODEL
+// ============================================
+
+model InvoiceNew {
+  id              String    @id @default(cuid())
+  invoiceNumber   String    @unique @map("invoice_number")
+
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id])
+
+  // Period
+  periodStart     DateTime? @map("period_start")
+  periodEnd       DateTime? @map("period_end")
+  invoiceDate     DateTime  @map("invoice_date")
+  dueDate         DateTime  @map("due_date")
+
+  // Counts
+  totalShipments  Int       @default(0) @map("total_shipments")
+  deliveredCount  Int       @default(0) @map("delivered_count")
+  rtoCount        Int       @default(0) @map("rto_count")
+
+  // Amounts
+  freightCharges  Float     @default(0) @map("freight_charges")
+  codCharges      Float     @default(0) @map("cod_charges")
+  otherCharges    Float     @default(0) @map("other_charges")
+  subtotal        Float     @default(0)
+  taxAmount       Float     @default(0) @map("tax_amount")
+  totalAmount     Float     @default(0) @map("total_amount")
+
+  // Payment
+  paidAmount      Float     @default(0) @map("paid_amount")
+  balanceAmount   Float     @default(0) @map("balance_amount")
+  status          String    @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE, CANCELLED
+
+  pdfUrl          String?   @map("pdf_url")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([brandId])
+  @@index([status])
+  @@map("invoices_new")
+}
+
+// ============================================
+// BRAND SUPPORT TICKETS
+// ============================================
+
+model BrandSupportTicket {
+  id              String    @id @default(cuid())
+  ticketNumber    String    @unique @map("ticket_number")
+
+  brandId         String    @map("brand_id")
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  // Reference
+  orderId         String?   @map("order_id")
+  awbNumber       String?   @map("awb_number")
+
+  category        String    // DELIVERY_ISSUE, NDR, WEIGHT_DISPUTE, PAYMENT, PICKUP, DAMAGE, OTHER
+  subject         String
+  description     String
+  priority        String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status          String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+
+  resolution      String?
+  resolvedAt      DateTime? @map("resolved_at")
+  closedAt        DateTime? @map("closed_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  comments        BrandTicketComment[]
+
+  @@index([brandId])
+  @@index([status])
+  @@map("brand_support_tickets")
+}
+
+model BrandTicketComment {
+  id              String    @id @default(cuid())
+  ticketId        String    @map("ticket_id")
+  ticket          BrandSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  message         String
+  isFromBrand     Boolean   @default(true) @map("is_from_brand")
+  senderName      String?   @map("sender_name")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("brand_ticket_comments")
+}
+
+// ============================================
+// WMS: PICK LIST - NEW
+// ============================================
+
+model PicklistNew {
+  id              String    @id @default(cuid())
+  picklistNumber  String    @unique @map("picklist_number")
+
+  status          String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+
+  orderId         String    @map("order_id")
+  order           UnifiedOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  assignedToId    String?   @map("assigned_to_id")
+
+  items           PicklistItemNew[]
+
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([status])
+  @@map("picklists_new")
+}
+
+model PicklistItemNew {
+  id              String    @id @default(cuid())
+  picklistId      String    @map("picklist_id")
+  picklist        PicklistNew @relation(fields: [picklistId], references: [id], onDelete: Cascade)
+
+  skuId           String?   @map("sku_id")
+  binId           String?   @map("bin_id")
+
+  requiredQty     Int       @map("required_qty")
+  pickedQty       Int       @default(0) @map("picked_qty")
+  batchNo         String?   @map("batch_no")
+  serialNumbers   String?   @map("serial_numbers") // JSON array
+
+  pickedAt        DateTime? @map("picked_at")
+
+  @@index([picklistId])
+  @@map("picklist_items_new")
+}
+
+// ============================================
+// WMS: PURCHASE ORDER - NEW
+// ============================================
+
+model PurchaseOrderNew {
+  id              String    @id @default(cuid())
+  poNumber        String    @unique @map("po_number")
+
+  vendorId        String    @map("vendor_id")
+  vendor          VendorMaster @relation(fields: [vendorId], references: [id])
+
+  status          String    @default("DRAFT") // DRAFT, APPROVED, PARTIALLY_RECEIVED, RECEIVED, CANCELLED
+  expectedDate    DateTime? @map("expected_date")
+  remarks         String?
+
+  subtotal        Float     @default(0)
+  taxAmount       Float     @default(0) @map("tax_amount")
+  totalAmount     Float     @default(0) @map("total_amount")
+
+  approvedAt      DateTime? @map("approved_at")
+  approvedBy      String?   @map("approved_by")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  items           PurchaseOrderItemNew[]
+  inbounds        ReceivingOrder[]
+
+  @@index([vendorId])
+  @@index([status])
+  @@map("purchase_orders_new")
+}
+
+model PurchaseOrderItemNew {
+  id              String    @id @default(cuid())
+  poId            String    @map("po_id")
+  po              PurchaseOrderNew @relation(fields: [poId], references: [id], onDelete: Cascade)
+
+  skuId           String    @map("sku_id")
+
+  orderedQty      Int       @map("ordered_qty")
+  receivedQty     Int       @default(0) @map("received_qty")
+  unitPrice       Float     @map("unit_price")
+  taxAmount       Float     @default(0) @map("tax_amount")
+  totalPrice      Float     @map("total_price")
+
+  @@index([poId])
+  @@map("purchase_order_items_new")
+}
+
+// ============================================
+// WMS: RECEIVING (INBOUND)
+// ============================================
+
+model ReceivingOrder {
+  id              String    @id @default(cuid())
+  receivingNumber String    @unique @map("receiving_number")
+
+  type            String    @default("PURCHASE_ORDER") // PURCHASE_ORDER, RETURN, STOCK_TRANSFER
+  status          String    @default("PENDING") // PENDING, IN_PROGRESS, QC_PENDING, COMPLETED
+
+  purchaseOrderId String?   @map("purchase_order_id")
+  purchaseOrder   PurchaseOrderNew? @relation(fields: [purchaseOrderId], references: [id])
+
+  locationId      String    @map("location_id")
+  location        Location  @relation(fields: [locationId], references: [id])
+
+  // Brand ownership - tracks which brand this receiving order belongs to
+  brandId         String?   @map("brand_id")
+  brand           Brand?    @relation("BrandReceiving", fields: [brandId], references: [id])
+
+  receivedById    String?   @map("received_by_id")
+
+  grnNumber       String?   @map("grn_number")
+  remarks         String?
+
+  items           ReceivingItem[]
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  completedAt     DateTime? @map("completed_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([locationId])
+  @@index([brandId])
+  @@index([type])
+  @@index([status])
+  @@map("receiving_orders")
+}
+
+model ReceivingItem {
+  id              String    @id @default(cuid())
+  receivingId     String    @map("receiving_id")
+  receiving       ReceivingOrder @relation(fields: [receivingId], references: [id], onDelete: Cascade)
+
+  skuId           String    @map("sku_id")
+
+  expectedQty     Int?      @map("expected_qty")
+  receivedQty     Int       @map("received_qty")
+  acceptedQty     Int       @default(0) @map("accepted_qty")
+  rejectedQty     Int       @default(0) @map("rejected_qty")
+
+  batchNo         String?   @map("batch_no")
+  expiryDate      DateTime? @map("expiry_date")
+  mfgDate         DateTime? @map("mfg_date")
+  mrp             Float?
+  serialNumbers   String?   @map("serial_numbers") // JSON array
+
+  binId           String?   @map("bin_id")
+  qcStatus        String?   @map("qc_status")
+  qcRemarks       String?   @map("qc_remarks")
+
+  @@index([receivingId])
+  @@map("receiving_items")
+}
+
+// ============================================
+// WMS: STOCK ADJUSTMENT
+// ============================================
+
+model StockAdjustment {
+  id              String    @id @default(cuid())
+  adjustmentNumber String   @unique @map("adjustment_number")
+
+  reason          String    // DAMAGE, EXPIRY, THEFT, FOUND, CYCLE_COUNT, CORRECTION
+  remarks         String?
+
+  locationId      String    @map("location_id")
+  location        Location  @relation(fields: [locationId], references: [id])
+
+  adjustedById    String    @map("adjusted_by_id")
+
+  items           StockAdjustmentItem[]
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  approvedAt      DateTime? @map("approved_at")
+  approvedBy      String?   @map("approved_by")
+
+  @@index([locationId])
+  @@map("stock_adjustments")
+}
+
+model StockAdjustmentItem {
+  id              String    @id @default(cuid())
+  adjustmentId    String    @map("adjustment_id")
+  adjustment      StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+
+  skuId           String    @map("sku_id")
+  binId           String    @map("bin_id")
+  batchNo         String?   @map("batch_no")
+
+  previousQty     Int       @map("previous_qty")
+  adjustedQty     Int       @map("adjusted_qty")
+  newQty          Int       @map("new_qty")
+
+  @@index([adjustmentId])
+  @@map("stock_adjustment_items")
+}
+
+// ============================================
+// WMS: CYCLE COUNT
+// ============================================
+
+model CycleCount {
+  id              String    @id @default(cuid())
+  cycleCountNumber String   @unique @map("cycle_count_number")
+
+  status          String    @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, VERIFIED
+
+  locationId      String    @map("location_id")
+  location        Location  @relation(fields: [locationId], references: [id])
+
+  zoneId          String?   @map("zone_id")
+
+  initiatedById   String    @map("initiated_by_id")
+  verifiedById    String?   @map("verified_by_id")
+
+  scheduledDate   DateTime  @map("scheduled_date")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+
+  varianceFound   Boolean   @default(false) @map("variance_found")
+  varianceValue   Float?    @map("variance_value")
+  remarks         String?
+
+  items           CycleCountItem[]
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([locationId])
+  @@index([status])
+  @@map("cycle_counts")
+}
+
+model CycleCountItem {
+  id              String    @id @default(cuid())
+  cycleCountId    String    @map("cycle_count_id")
+  cycleCount      CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+
+  skuId           String    @map("sku_id")
+  binId           String    @map("bin_id")
+  batchNo         String?   @map("batch_no")
+
+  expectedQty     Int       @map("expected_qty")
+  countedQty      Int       @default(0) @map("counted_qty")
+  varianceQty     Int       @default(0) @map("variance_qty")
+
+  status          String?   // PENDING, COUNTED, VERIFIED
+  countedAt       DateTime? @map("counted_at")
+  countedById     String?   @map("counted_by_id")
+  remarks         String?
+
+  @@index([cycleCountId])
+  @@map("cycle_count_items")
+}
+
+// ============================================
+// SEQUENCE GENERATOR
+// ============================================
+
+model SequenceGenerator {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  prefix          String?
+  currentValue    Int       @default(0) @map("current_value")
+  paddingLength   Int       @default(6) @map("padding_length")
+
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("sequence_generators")
+}
+
+// ============================================
+// USER & AUTHENTICATION (EXISTING - UPDATED)
 // ============================================
 
 model User {
@@ -17,9 +1355,21 @@ model User {
   passwordHash  String    @map("password_hash")
   name          String
   phone         String?
-  role          String    @default("CLIENT") // SUPER_ADMIN, HUB_MANAGER, OPERATOR, ADMIN, CLIENT, PARTNER, WAREHOUSE_STAFF, DRIVER, PICKUP_AGENT, DELIVERY_AGENT, HUB_OPERATOR
+  avatar        String?
+  role          String    @default("OPERATOR") // SUPER_ADMIN, ADMIN, MANAGER, OPERATOR, PICKER, PACKER, DRIVER, VIEWER
   isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+
+  // Multi-tenant: Company association
+  companyId     String?   @map("company_id")
+  company       Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  // Location access (JSON array of location IDs for multi-location access)
+  locationAccess String?  @map("location_access") // JSON array stored as string for SQLite
+
+  // Legacy: Hub assignment (kept for backward compatibility with existing TMS)
   hubId         String?   @map("hub_id") // For agents/operators assigned to a hub
+
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -31,6 +1381,7 @@ model User {
   sessions       Session[]
   tasks          Task[]
 
+  @@index([companyId])
   @@index([hubId])
   @@map("users")
 }
@@ -853,6 +2204,12 @@ model Vehicle {
 
   // Status
   status            String    @default("AVAILABLE") // AVAILABLE, IN_TRANSIT, MAINTENANCE, BREAKDOWN, RETIRED
+
+  // New: Link to unified Location model
+  locationId        String?   @map("location_id")
+  location          Location? @relation(fields: [locationId], references: [id])
+
+  // Legacy: Hub assignment (kept for backward compatibility)
   currentHubId      String?   @map("current_hub_id")
   currentLocation   String?   @map("current_location") // GPS coordinates or location description
 
@@ -875,6 +2232,7 @@ model Vehicle {
   maintenanceLogs   VehicleMaintenance[]
 
   @@index([status])
+  @@index([locationId])
   @@index([currentHubId])
   @@index([type])
   @@map("vehicles")
@@ -934,6 +2292,12 @@ model Driver {
 
   // Status
   status          String    @default("AVAILABLE") // AVAILABLE, ON_TRIP, ON_LEAVE, INACTIVE
+
+  // New: Link to unified Location model
+  locationId      String?   @map("location_id")
+  location        Location? @relation(fields: [locationId], references: [id])
+
+  // Legacy: Hub assignment (kept for backward compatibility)
   currentHubId    String?   @map("current_hub_id")
 
   // Experience & Employment
@@ -957,6 +2321,7 @@ model Driver {
   leaves          DriverLeave[]
 
   @@index([status])
+  @@index([locationId])
   @@index([currentHubId])
   @@map("drivers")
 }
@@ -993,7 +2358,13 @@ model Route {
 
   type                 String   @default("LINE_HAUL") // LINE_HAUL, MILK_RUN_PICKUP, MILK_RUN_DELIVERY, FEEDER
 
-  // Route endpoints
+  // New: Link to unified Location model
+  originLocationId     String?  @map("origin_location_id")
+  originLocation       Location? @relation("RouteOrigin", fields: [originLocationId], references: [id])
+  destLocationId       String?  @map("dest_location_id")
+  destLocation         Location? @relation("RouteDest", fields: [destLocationId], references: [id])
+
+  // Legacy: Hub references (kept for backward compatibility)
   originHubId          String?  @map("origin_hub_id")
   destinationHubId     String?  @map("destination_hub_id")
 
@@ -1024,6 +2395,8 @@ model Route {
   // Relations
   trips                Trip[]
 
+  @@index([originLocationId])
+  @@index([destLocationId])
   @@index([originHubId])
   @@index([destinationHubId])
   @@index([type])
@@ -1040,7 +2413,11 @@ model Trip {
 
   type               String    @default("LINE_HAUL") // LINE_HAUL, MILK_RUN_PICKUP, MILK_RUN_DELIVERY, FEEDER
 
-  // Route overrides (if different from base route)
+  // New: Link to unified Location model
+  locationId         String?   @map("location_id")
+  location           Location? @relation(fields: [locationId], references: [id])
+
+  // Legacy: Hub references (kept for backward compatibility)
   originHubId        String?   @map("origin_hub_id")
   destinationHubId   String?   @map("destination_hub_id")
 
@@ -1096,6 +2473,7 @@ model Trip {
   @@index([routeId])
   @@index([vehicleId])
   @@index([driverId])
+  @@index([locationId])
   @@index([status])
   @@index([scheduledDeparture])
   @@map("trips")
@@ -2863,7 +4241,13 @@ model DeliverySlotBooking {
 // Warehouse Zones - Areas within a warehouse (Receiving, Storage, Picking, Packing, Shipping)
 model WarehouseZone {
   id              String    @id @default(cuid())
-  warehouseId     String    @map("warehouse_id")
+
+  // New: Link to unified Location model
+  locationId      String?   @map("location_id")
+  location        Location? @relation(fields: [locationId], references: [id])
+
+  // Legacy: Keep for backward compatibility
+  warehouseId     String?   @map("warehouse_id")
 
   code            String    // Zone code e.g., "RCV-A", "STG-1", "PCK-01"
   name            String    // Zone name e.g., "Receiving Area A"
@@ -2896,8 +4280,8 @@ model WarehouseZone {
   bins            StorageBin[]
   packStations    PackStation[]
 
-  @@unique([warehouseId, code])
-  @@index([warehouseId, type])
+  @@unique([locationId, code])
+  @@index([locationId, type])
   @@map("warehouse_zones")
 }
 
@@ -2950,11 +4334,25 @@ model StorageBin {
   @@map("storage_bins")
 }
 
-// Inventory Items - SKU master data
+// Inventory Items - SKU master data at specific locations
 model InventoryItem {
   id              String    @id @default(cuid())
-  clientId        String    @map("client_id")
-  warehouseId     String    @map("warehouse_id")
+
+  // New: Link to unified Location model
+  locationId      String?   @map("location_id")
+  location        Location? @relation(fields: [locationId], references: [id])
+
+  // Brand ownership - for fulfillment clients, tracks whose inventory this is
+  brandId         String?   @map("brand_id")
+  ownerBrand      Brand?    @relation("BrandInventory", fields: [brandId], references: [id])
+
+  // New: Link to SKU Master
+  skuMasterId     String?   @map("sku_master_id")
+  skuMaster       SKUMaster? @relation(fields: [skuMasterId], references: [id])
+
+  // Legacy: Keep for backward compatibility
+  clientId        String?   @map("client_id")
+  warehouseId     String?   @map("warehouse_id")
 
   // SKU identification
   sku             String    // Client's SKU code
@@ -2985,6 +4383,11 @@ model InventoryItem {
   reorderQty      Int       @default(0) @map("reorder_qty")
   maxStockLevel   Int?      @map("max_stock_level")
 
+  // Quantity tracking (aggregated from batches)
+  totalQuantity   Int       @default(0) @map("total_quantity")
+  reservedQty     Int       @default(0) @map("reserved_qty")
+  availableQty    Int       @default(0) @map("available_qty")
+
   // Special handling
   isFragile       Boolean   @default(false) @map("is_fragile")
   isHazardous     Boolean   @default(false) @map("is_hazardous")
@@ -2994,6 +4397,9 @@ model InventoryItem {
 
   // Picking method
   pickingMethod   String    @default("PIECE") // PIECE, CASE, PALLET
+
+  // FIFO/FEFO support
+  valuationMethod String    @default("FIFO") @map("valuation_method") // FIFO, LIFO, FEFO, WAC
 
   // Status
   status          String    @default("ACTIVE") // ACTIVE, INACTIVE, DISCONTINUED
@@ -3014,7 +4420,9 @@ model InventoryItem {
   movements       InventoryMovement[]
   pickListItems   PickListItem[]
 
-  @@unique([clientId, warehouseId, sku])
+  @@unique([locationId, sku])
+  @@index([locationId])
+  @@index([brandId])
   @@index([barcode])
   @@index([status])
   @@map("inventory_items")
@@ -3408,15 +4816,15 @@ model ReceivingRecord {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  items           ReceivingItem[]
+  items           ReceivingItemLegacy[]
 
   @@index([warehouseId, status])
   @@index([poNumber])
   @@map("receiving_records")
 }
 
-// Receiving Items - Line items in a receiving record
-model ReceivingItem {
+// Receiving Items - Line items in a receiving record (Legacy)
+model ReceivingItemLegacy {
   id              String    @id @default(cuid())
   receivingId     String    @map("receiving_id")
 
@@ -3458,11 +4866,11 @@ model ReceivingItem {
 
   @@index([receivingId])
   @@index([sku])
-  @@map("receiving_items")
+  @@map("receiving_items_legacy")
 }
 
-// Cycle Count - Inventory verification
-model CycleCount {
+// Cycle Count - Inventory verification (Legacy)
+model CycleCountLegacy {
   id              String    @id @default(cuid())
   warehouseId     String    @map("warehouse_id")
 
@@ -3505,15 +4913,15 @@ model CycleCount {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  countItems      CycleCountItem[]
+  countItems      CycleCountItemLegacy[]
 
   @@index([warehouseId, status])
   @@index([scheduledDate])
-  @@map("cycle_counts")
+  @@map("cycle_counts_legacy")
 }
 
-// Cycle Count Items - Individual count entries
-model CycleCountItem {
+// Cycle Count Items - Individual count entries (Legacy)
+model CycleCountItemLegacy {
   id              String    @id @default(cuid())
   cycleCountId    String    @map("cycle_count_id")
 
@@ -3546,11 +4954,11 @@ model CycleCountItem {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  cycleCount      CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+  cycleCount      CycleCountLegacy @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
 
   @@index([cycleCountId])
   @@index([binId])
-  @@map("cycle_count_items")
+  @@map("cycle_count_items_legacy")
 }
 
 // ============================================
@@ -7593,4 +9001,649 @@ model WeightDispute {
   @@index([clientId, status])
   @@index([orderId])
   @@map("weight_disputes")
+}
+
+// ============================================
+// B2C SELLER PORTAL - SELLER ACCOUNT
+// ============================================
+
+model B2CSeller {
+  id                  String    @id @default(cuid())
+
+  // Business Details
+  businessName        String    @map("business_name")
+  businessType        String    @default("INDIVIDUAL") @map("business_type") // INDIVIDUAL, PROPRIETORSHIP, PARTNERSHIP, PRIVATE_LIMITED, LLP
+  gstNumber           String?   @map("gst_number")
+  panNumber           String?   @map("pan_number")
+
+  // Contact
+  email               String    @unique
+  phone               String
+  alternatePhone      String?   @map("alternate_phone")
+
+  // Address
+  registeredAddress   String    @map("registered_address")
+  city                String
+  state               String
+  pincode             String
+
+  // KYC Status
+  kycStatus           String    @default("PENDING") @map("kyc_status") // PENDING, SUBMITTED, VERIFIED, REJECTED
+  kycSubmittedAt      DateTime? @map("kyc_submitted_at")
+  kycVerifiedAt       DateTime? @map("kyc_verified_at")
+  kycRejectionReason  String?   @map("kyc_rejection_reason")
+
+  // Account Status
+  status              String    @default("ACTIVE") // ACTIVE, SUSPENDED, BLOCKED
+
+  // Billing
+  creditLimit         Float     @default(0) @map("credit_limit")
+  currentBalance      Float     @default(0) @map("current_balance")
+
+  // API Access
+  apiKey              String?   @unique @map("api_key")
+  apiSecret           String?   @map("api_secret")
+  webhookUrl          String?   @map("webhook_url")
+
+  // Settings
+  defaultServiceType  String    @default("STANDARD") @map("default_service_type")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  users               B2CUser[]
+  pickupLocations     B2CPickupLocation[]
+  bankAccounts        B2CBankAccount[]
+  orders              B2COrder[]
+  pickupRequests      B2CPickupRequest[]
+  supportTickets      B2CSupportTicket[]
+  remittances         B2CRemittance[]
+  invoices            B2CInvoice[]
+  scheduledReports    B2CScheduledReport[]
+  services            B2CSellerService[]
+  integrations        B2CChannelIntegration[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@map("b2c_sellers")
+}
+
+// ============================================
+// B2C SELLER PORTAL - USERS
+// ============================================
+
+model B2CUser {
+  id              String    @id @default(cuid())
+  sellerId        String    @map("seller_id")
+
+  email           String    @unique
+  passwordHash    String    @map("password_hash")
+  name            String
+  phone           String?
+
+  role            String    @default("OPERATIONS") // OWNER, ADMIN, OPERATIONS, VIEW_ONLY
+
+  // Permissions (JSON)
+  permissions     String?   // {"orders": ["create", "read", "update"], "billing": ["read"]}
+
+  isActive        Boolean   @default(true) @map("is_active")
+  lastLoginAt     DateTime? @map("last_login_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  seller          B2CSeller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  sessions        B2CUserSession[]
+
+  @@index([sellerId])
+  @@map("b2c_users")
+}
+
+// ============================================
+// B2C SELLER PORTAL - USER SESSIONS
+// ============================================
+
+model B2CUserSession {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  token         String    @unique
+  deviceInfo    String?   @map("device_info")
+  ipAddress     String?   @map("ip_address")
+  expiresAt     DateTime  @map("expires_at")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastUsedAt    DateTime  @default(now()) @map("last_used_at")
+
+  user          B2CUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("b2c_user_sessions")
+}
+
+// ============================================
+// B2C SELLER PORTAL - PICKUP LOCATIONS
+// ============================================
+
+model B2CPickupLocation {
+  id              String    @id @default(cuid())
+  sellerId        String    @map("seller_id")
+
+  name            String
+  contactName     String    @map("contact_name")
+  contactPhone    String    @map("contact_phone")
+  address         String
+  landmark        String?
+  city            String
+  state           String
+  pincode         String
+
+  latitude        Float?
+  longitude       Float?
+
+  isDefault       Boolean   @default(false) @map("is_default")
+  isActive        Boolean   @default(true) @map("is_active")
+
+  // Operating hours
+  openTime        String?   @map("open_time") // HH:MM
+  closeTime       String?   @map("close_time")
+  workingDays     String?   @map("working_days") // JSON: ["MON", "TUE", ...]
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  seller          B2CSeller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  orders          B2COrder[]
+  pickupRequests  B2CPickupRequest[]
+
+  @@index([sellerId])
+  @@index([pincode])
+  @@map("b2c_pickup_locations")
+}
+
+// ============================================
+// B2C SELLER PORTAL - BANK ACCOUNTS
+// ============================================
+
+model B2CBankAccount {
+  id                String    @id @default(cuid())
+  sellerId          String    @map("seller_id")
+
+  accountHolderName String    @map("account_holder_name")
+  accountNumber     String    @map("account_number")
+  ifscCode          String    @map("ifsc_code")
+  bankName          String    @map("bank_name")
+  branchName        String?   @map("branch_name")
+  accountType       String    @default("SAVINGS") @map("account_type")
+
+  isVerified        Boolean   @default(false) @map("is_verified")
+  verifiedAt        DateTime? @map("verified_at")
+  isPrimary         Boolean   @default(false) @map("is_primary")
+  isActive          Boolean   @default(true) @map("is_active")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  seller            B2CSeller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@map("b2c_bank_accounts")
+}
+
+// ============================================
+// B2C SELLER PORTAL - ORDERS
+// ============================================
+
+model B2COrder {
+  id                  String    @id @default(cuid())
+  orderNumber         String    @unique @map("order_number")
+  sellerId            String    @map("seller_id")
+  pickupLocationId    String?   @map("pickup_location_id")
+
+  // Order type
+  orderType           String    @default("FORWARD") @map("order_type") // FORWARD, REVERSE
+
+  // Customer details
+  customerName        String    @map("customer_name")
+  customerPhone       String    @map("customer_phone")
+  customerEmail       String?   @map("customer_email")
+  deliveryAddress     String    @map("delivery_address")
+  deliveryLandmark    String?   @map("delivery_landmark")
+  deliveryPincode     String    @map("delivery_pincode")
+  deliveryCity        String    @map("delivery_city")
+  deliveryState       String    @map("delivery_state")
+
+  // Package details
+  weightKg            Float     @map("weight_kg")
+  lengthCm            Float?    @map("length_cm")
+  widthCm             Float?    @map("width_cm")
+  heightCm            Float?    @map("height_cm")
+  volumetricWeight    Float?    @map("volumetric_weight")
+  chargeableWeight    Float?    @map("chargeable_weight")
+
+  // Product details
+  productName         String    @map("product_name")
+  productSku          String?   @map("product_sku")
+  productQuantity     Int       @default(1) @map("product_quantity")
+  productValue        Float     @map("product_value")
+
+  // Payment
+  paymentMode         String    @default("PREPAID") @map("payment_mode") // PREPAID, COD
+  codAmount           Float     @default(0) @map("cod_amount")
+
+  // Fulfillment
+  awbNumber           String?   @unique @map("awb_number")
+  serviceType         String    @default("STANDARD") @map("service_type") // EXPRESS, STANDARD
+
+  // Status: CREATED, PENDING_AWB, READY_TO_SHIP, PICKUP_SCHEDULED, PICKED, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, DELIVERY_FAILED, RTO_INITIATED, RTO_IN_TRANSIT, RTO_DELIVERED, CANCELLED
+  status              String    @default("CREATED")
+
+  // Pricing
+  freightCharge       Float?    @map("freight_charge")
+  codCharge           Float?    @map("cod_charge")
+  totalCharge         Float?    @map("total_charge")
+
+  // Timestamps
+  manifestedAt        DateTime? @map("manifested_at")
+  pickedAt            DateTime? @map("picked_at")
+  deliveredAt         DateTime? @map("delivered_at")
+  rtoInitiatedAt      DateTime? @map("rto_initiated_at")
+  rtoDeliveredAt      DateTime? @map("rto_delivered_at")
+
+  // Expected dates
+  expectedDeliveryDate DateTime? @map("expected_delivery_date")
+
+  // External refs
+  channelOrderId      String?   @map("channel_order_id") // Shopify/WooCommerce order ID
+  channelName         String?   @map("channel_name")
+
+  // Label & Tracking
+  labelUrl            String?   @map("label_url")
+  trackingUrl         String?   @map("tracking_url")
+
+  // Notes
+  sellerNotes         String?   @map("seller_notes")
+  deliveryInstructions String?  @map("delivery_instructions")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  seller              B2CSeller @relation(fields: [sellerId], references: [id])
+  pickupLocation      B2CPickupLocation? @relation(fields: [pickupLocationId], references: [id])
+  events              B2COrderEvent[]
+  ndrCase             B2CNdrCase?
+
+  @@index([sellerId, status])
+  @@index([awbNumber])
+  @@index([deliveryPincode])
+  @@index([status, createdAt])
+  @@map("b2c_orders")
+}
+
+// ============================================
+// B2C SELLER PORTAL - ORDER EVENTS
+// ============================================
+
+model B2COrderEvent {
+  id            String    @id @default(cuid())
+  orderId       String    @map("order_id")
+
+  status        String
+  statusText    String    @map("status_text")
+  location      String?
+  remarks       String?
+
+  eventTime     DateTime  @map("event_time")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  order         B2COrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, eventTime])
+  @@map("b2c_order_events")
+}
+
+// ============================================
+// B2C SELLER PORTAL - NDR CASES
+// ============================================
+
+model B2CNdrCase {
+  id                String    @id @default(cuid())
+  orderId           String    @unique @map("order_id")
+
+  reason            String    // CUSTOMER_NOT_AVAILABLE, WRONG_ADDRESS, REFUSED, PHONE_UNREACHABLE, COD_NOT_READY, OTHER
+  reasonText        String?   @map("reason_text")
+  attemptNumber     Int       @default(1) @map("attempt_number")
+
+  // Action taken
+  action            String    @default("PENDING") // PENDING, REATTEMPT, RTO, ADDRESS_UPDATED, PHONE_UPDATED
+  actionNotes       String?   @map("action_notes")
+
+  // Corrected details
+  correctedAddress  String?   @map("corrected_address")
+  correctedPhone    String?   @map("corrected_phone")
+  rescheduledDate   DateTime? @map("rescheduled_date")
+  preferredSlot     String?   @map("preferred_slot")
+
+  isResolved        Boolean   @default(false) @map("is_resolved")
+  resolvedAt        DateTime? @map("resolved_at")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  order             B2COrder  @relation(fields: [orderId], references: [id])
+
+  @@map("b2c_ndr_cases")
+}
+
+// ============================================
+// B2C SELLER PORTAL - PICKUP REQUESTS
+// ============================================
+
+model B2CPickupRequest {
+  id                  String    @id @default(cuid())
+  pickupNumber        String    @unique @map("pickup_number")
+  sellerId            String    @map("seller_id")
+  pickupLocationId    String    @map("pickup_location_id")
+
+  requestedDate       DateTime  @map("requested_date")
+  timeSlot            String?   @map("time_slot") // MORNING, AFTERNOON, EVENING
+
+  expectedPackages    Int       @default(0) @map("expected_packages")
+  expectedWeight      Float?    @map("expected_weight")
+
+  pickedPackages      Int       @default(0) @map("picked_packages")
+  pickedWeight        Float?    @map("picked_weight")
+
+  status              String    @default("SCHEDULED") // SCHEDULED, OUT_FOR_PICKUP, PICKED, PARTIALLY_PICKED, CANCELLED, FAILED
+
+  assignedAgentName   String?   @map("assigned_agent_name")
+  assignedAgentPhone  String?   @map("assigned_agent_phone")
+
+  pickedAt            DateTime? @map("picked_at")
+  failedReason        String?   @map("failed_reason")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  seller              B2CSeller @relation(fields: [sellerId], references: [id])
+  pickupLocation      B2CPickupLocation @relation(fields: [pickupLocationId], references: [id])
+
+  @@index([sellerId, status])
+  @@index([requestedDate])
+  @@map("b2c_pickup_requests")
+}
+
+// ============================================
+// B2C SELLER PORTAL - SUPPORT TICKETS
+// ============================================
+
+model B2CSupportTicket {
+  id              String    @id @default(cuid())
+  ticketNumber    String    @unique @map("ticket_number")
+  sellerId        String    @map("seller_id")
+
+  orderId         String?   @map("order_id")
+  awbNumber       String?   @map("awb_number")
+
+  category        String    // DELIVERY_ISSUE, NDR, WEIGHT_DISPUTE, PAYMENT, PICKUP, DAMAGE, OTHER
+  subject         String
+  description     String
+
+  priority        String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status          String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+
+  resolution      String?
+  resolvedAt      DateTime? @map("resolved_at")
+  closedAt        DateTime? @map("closed_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  seller          B2CSeller @relation(fields: [sellerId], references: [id])
+  comments        B2CTicketComment[]
+
+  @@index([sellerId, status])
+  @@index([category])
+  @@map("b2c_support_tickets")
+}
+
+// ============================================
+// B2C SELLER PORTAL - TICKET COMMENTS
+// ============================================
+
+model B2CTicketComment {
+  id              String    @id @default(cuid())
+  ticketId        String    @map("ticket_id")
+
+  authorType      String    @map("author_type") // SELLER, SUPPORT
+  authorName      String    @map("author_name")
+  content         String
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  ticket          B2CSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("b2c_ticket_comments")
+}
+
+// ============================================
+// B2C SELLER PORTAL - COD REMITTANCES
+// ============================================
+
+model B2CRemittance {
+  id                String    @id @default(cuid())
+  remittanceNumber  String    @unique @map("remittance_number")
+  sellerId          String    @map("seller_id")
+
+  periodStart       DateTime  @map("period_start")
+  periodEnd         DateTime  @map("period_end")
+
+  grossCodCollected Float     @map("gross_cod_collected")
+  freightDeduction  Float     @default(0) @map("freight_deduction")
+  codFeeDeduction   Float     @default(0) @map("cod_fee_deduction")
+  otherDeductions   Float     @default(0) @map("other_deductions")
+  netRemittance     Float     @map("net_remittance")
+
+  orderCount        Int       @map("order_count")
+
+  status            String    @default("PENDING") // PENDING, PROCESSING, PAID, FAILED
+
+  paymentMode       String?   @map("payment_mode")
+  utrNumber         String?   @map("utr_number")
+  paidAt            DateTime? @map("paid_at")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  seller            B2CSeller @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId, status])
+  @@map("b2c_remittances")
+}
+
+// ============================================
+// B2C SELLER PORTAL - INVOICES
+// ============================================
+
+model B2CInvoice {
+  id              String    @id @default(cuid())
+  invoiceNumber   String    @unique @map("invoice_number")
+  sellerId        String    @map("seller_id")
+
+  periodStart     DateTime  @map("period_start")
+  periodEnd       DateTime  @map("period_end")
+  invoiceDate     DateTime  @map("invoice_date")
+  dueDate         DateTime  @map("due_date")
+
+  totalShipments  Int       @map("total_shipments")
+  freightCharges  Float     @map("freight_charges")
+  codCharges      Float     @default(0) @map("cod_charges")
+  otherCharges    Float     @default(0) @map("other_charges")
+
+  subtotal        Float
+  gstAmount       Float     @default(0) @map("gst_amount")
+  totalAmount     Float     @map("total_amount")
+
+  status          String    @default("PENDING") // PENDING, PAID, OVERDUE
+
+  pdfUrl          String?   @map("pdf_url")
+  paidAt          DateTime? @map("paid_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  seller          B2CSeller @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId, status])
+  @@map("b2c_invoices")
+}
+
+// ============================================
+// B2C SELLER PORTAL - SCHEDULED REPORTS
+// ============================================
+
+model B2CScheduledReport {
+  id              String    @id @default(cuid())
+  sellerId        String    @map("seller_id")
+
+  name            String
+  reportType      String    @map("report_type") // DAILY_MIS, PERFORMANCE, LOST_CLAIMS, COD_SUMMARY
+
+  frequency       String    @default("DAILY") // DAILY, WEEKLY, MONTHLY
+
+  recipients      String    // JSON array of emails
+
+  isActive        Boolean   @default(true) @map("is_active")
+  lastRunAt       DateTime? @map("last_run_at")
+  nextRunAt       DateTime? @map("next_run_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  seller          B2CSeller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@map("b2c_scheduled_reports")
+}
+
+// ============================================
+// B2C SELLER PORTAL - VALUE ADDED SERVICES
+// ============================================
+
+model B2CSellerService {
+  id              String    @id @default(cuid())
+  sellerId        String    @map("seller_id")
+
+  serviceCode     String    @map("service_code") // PROTECT, RTO_PREDICTOR, PRIORITY_DELIVERY, COMMUNICATIONS
+
+  isActive        Boolean   @default(false) @map("is_active")
+  activatedAt     DateTime? @map("activated_at")
+
+  config          String?   // JSON configuration
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  seller          B2CSeller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerId, serviceCode])
+  @@map("b2c_seller_services")
+}
+
+// ============================================
+// B2C SELLER PORTAL - CHANNEL INTEGRATIONS
+// ============================================
+
+model B2CChannelIntegration {
+  id              String    @id @default(cuid())
+  sellerId        String    @map("seller_id")
+
+  channel         String    // SHOPIFY, WOOCOMMERCE, MAGENTO, CUSTOM_API
+
+  // Credentials (encrypted)
+  storeUrl        String?   @map("store_url")
+  apiKey          String?   @map("api_key")
+  apiSecret       String?   @map("api_secret")
+  accessToken     String?   @map("access_token")
+
+  // Status
+  isActive        Boolean   @default(false) @map("is_active")
+  lastSyncAt      DateTime? @map("last_sync_at")
+  syncStatus      String    @default("PENDING") @map("sync_status") // PENDING, SYNCING, SUCCESS, FAILED
+  syncError       String?   @map("sync_error")
+
+  // Settings
+  autoSync        Boolean   @default(true) @map("auto_sync")
+  syncOrders      Boolean   @default(true) @map("sync_orders")
+  updateTracking  Boolean   @default(true) @map("update_tracking")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  seller          B2CSeller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerId, channel])
+  @@map("b2c_channel_integrations")
+}
+
+// ============================================
+// PORTAL - SHIPMENT CLAIMS
+// ============================================
+
+// Shipment Claim (for portal users - lost/damaged claims)
+model ShipmentClaim {
+  id              String    @id @default(cuid())
+  claimNumber     String    @unique @map("claim_number")
+
+  // Brand/Client
+  brandId         String    @map("brand_id")
+
+  // Order Reference
+  orderId         String?   @map("order_id")
+  orderNumber     String    @map("order_number")
+  awbNumber       String    @map("awb_number")
+
+  // Claim Details
+  claimType       String    @map("claim_type") // LOST, DAMAGED, SHORT_DELIVERY, WRONG_DELIVERY
+  reason          String
+  description     String?
+
+  // Amount
+  declaredValue   Float     @map("declared_value")
+  claimAmount     Float     @map("claim_amount")
+  approvedAmount  Float?    @map("approved_amount")
+
+  // Evidence
+  photos          String?   // JSON array of photo URLs
+  documents       String?   // JSON array of document URLs
+
+  // Status
+  status          String    @default("UNDER_REVIEW") // UNDER_REVIEW, ADDITIONAL_INFO_REQUIRED, APPROVED, REJECTED, SETTLED
+
+  // Processing
+  filedBy         String    @map("filed_by")
+  filedAt         DateTime  @default(now()) @map("filed_at")
+  reviewedBy      String?   @map("reviewed_by")
+  reviewedAt      DateTime? @map("reviewed_at")
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  settledAt       DateTime? @map("settled_at")
+
+  // Rejection
+  rejectionReason String?   @map("rejection_reason")
+
+  // Settlement
+  settlementRef   String?   @map("settlement_ref")
+  settlementMode  String?   @map("settlement_mode") // CREDIT_NOTE, BANK_TRANSFER, WALLET
+
+  remarks         String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  brand           Brand     @relation(fields: [brandId], references: [id])
+
+  @@index([brandId, status])
+  @@index([orderNumber])
+  @@index([awbNumber])
+  @@index([status])
+  @@map("shipment_claims")
 }

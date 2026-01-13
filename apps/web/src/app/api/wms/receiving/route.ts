@@ -230,10 +230,10 @@ export async function PATCH(request: NextRequest) {
         where: { id: itemId },
         data: {
           receivedQty: receivedQty || 0,
-          damagedQty: damagedQty || 0,
-          putawayBinId,
+          rejectedQty: damagedQty || 0,
+          acceptedQty: (receivedQty || 0) - (damagedQty || 0),
+          binId: putawayBinId,
           qcStatus: qcStatus || "PASSED",
-          status: "RECEIVED",
         },
       });
 
@@ -250,12 +250,12 @@ export async function PATCH(request: NextRequest) {
         where: { receivingId: id },
       });
 
-      const allReceived = allItems.every((i) => i.status === "RECEIVED");
+      const allReceived = allItems.every((i) => i.qcStatus === "PASSED" || i.qcStatus === "FAILED");
 
       // Update totals
-      const receivedItems = allItems.filter((i) => i.status === "RECEIVED").length;
+      const receivedItems = allItems.filter((i) => i.receivedQty > 0).length;
       const receivedUnits = allItems.reduce((sum, i) => sum + i.receivedQty, 0);
-      const damagedItems = allItems.filter((i) => i.damagedQty > 0).length;
+      const damagedItems = allItems.filter((i) => i.rejectedQty > 0).length;
 
       await prisma.receivingRecord.update({
         where: { id },
@@ -309,9 +309,8 @@ export async function PATCH(request: NextRequest) {
       const item = await prisma.receivingItem.update({
         where: { id: itemId },
         data: {
-          status: "RECEIVED",
           qcStatus: "FAILED",
-          qcNotes: notes,
+          qcRemarks: notes,
         },
       });
 
@@ -373,10 +372,10 @@ export async function PUT(request: NextRequest) {
           where: { id: item.id },
           data: {
             receivedQty: item.receivedQty,
-            damagedQty: item.damagedQty || 0,
-            putawayBinId: item.putawayBinId,
+            rejectedQty: item.damagedQty || 0,
+            acceptedQty: (item.receivedQty || 0) - (item.damagedQty || 0),
+            binId: item.putawayBinId,
             qcStatus: item.qcStatus || "PASSED",
-            status: "RECEIVED",
           },
         })
       )
@@ -387,8 +386,8 @@ export async function PUT(request: NextRequest) {
       where: { receivingId },
     });
 
-    const allReceived = allItems.every((i) => i.status === "RECEIVED");
-    const receivedItems = allItems.filter((i) => i.status === "RECEIVED").length;
+    const allReceived = allItems.every((i) => i.qcStatus === "PASSED" || i.qcStatus === "FAILED");
+    const receivedItems = allItems.filter((i) => i.receivedQty > 0).length;
     const receivedUnits = allItems.reduce((sum, i) => sum + i.receivedQty, 0);
 
     await prisma.receivingRecord.update({

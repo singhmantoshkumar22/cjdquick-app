@@ -132,13 +132,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate code
-    const existing = await prisma.warehouseZone.findUnique({
+    // Check for duplicate code (using legacy warehouseId or new locationId)
+    const existing = await prisma.warehouseZone.findFirst({
       where: {
-        warehouseId_code: {
-          warehouseId,
-          code,
-        },
+        OR: [
+          { warehouseId, code },
+          { locationId: warehouseId, code },
+        ],
       },
     });
 

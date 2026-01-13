@@ -1,0 +1,1 @@
+/Users/mantosh/CJDQuickApp/oms/node_modules/@embedded-postgres/darwin-arm64/native/bin/postgres "-D" "/Users/mantosh/CJDQuickApp/oms/.pg-data" "-p" "5432"

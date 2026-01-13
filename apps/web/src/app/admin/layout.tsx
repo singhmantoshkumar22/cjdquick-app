@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -31,16 +31,19 @@ import {
   ShoppingCart,
   FileText,
   PackageCheck,
-  PackageX,
   Send,
   ClipboardCheck,
   Briefcase,
+  CreditCard,
+  HeadphonesIcon,
+  UserPlus,
 } from "lucide-react";
 import { AdminAuthGuard } from "@/components/admin/AdminAuthGuard";
 import { HubSelector } from "@/components/admin/HubSelector";
 import { UserMenu } from "@/components/admin/UserMenu";
 
-const navigation = [
+// Super Admin Navigation
+const superAdminNavigation = [
   {
     name: "Dashboard",
     href: "/admin",
@@ -108,17 +111,54 @@ const navigation = [
     ],
   },
   {
-    name: "Client Management",
-    items: [
-      { name: "Clients", href: "/admin/clients", icon: Briefcase },
-    ],
-  },
-  {
     name: "Settings",
     href: "/admin/settings",
     icon: Settings,
   },
 ];
+
+// B2B Client Admin Navigation
+const b2bClientAdminNavigation = [
+  {
+    name: "Dashboard",
+    href: "/admin/clients",
+    icon: LayoutDashboard,
+  },
+  {
+    name: "Client Management",
+    items: [
+      { name: "All Clients", href: "/admin/clients", icon: Briefcase },
+      { name: "Add New Client", href: "/admin/clients/new", icon: UserPlus },
+    ],
+  },
+  {
+    name: "Orders",
+    items: [
+      { name: "All Client Orders", href: "/admin/clients/orders", icon: ShoppingCart },
+      { name: "Pickup Requests", href: "/admin/clients/pickups", icon: Truck },
+    ],
+  },
+  {
+    name: "Billing",
+    items: [
+      { name: "Invoices", href: "/admin/clients/invoices", icon: FileText },
+      { name: "COD Remittance", href: "/admin/clients/cod", icon: CreditCard },
+    ],
+  },
+  {
+    name: "Support",
+    items: [
+      { name: "Support Tickets", href: "/admin/clients/tickets", icon: HeadphonesIcon },
+    ],
+  },
+  {
+    name: "Settings",
+    href: "/admin/clients/settings",
+    icon: Settings,
+  },
+];
+
+type PanelType = "super-admin" | "b2b-client-admin";
 
 export default function AdminLayout({
   children,
@@ -126,7 +166,26 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [activePanel, setActivePanel] = useState<PanelType>("super-admin");
   const pathname = usePathname();
+
+  // Auto-detect panel based on URL
+  useEffect(() => {
+    if (pathname?.startsWith("/admin/clients")) {
+      setActivePanel("b2b-client-admin");
+    } else if (pathname === "/admin" || pathname?.startsWith("/admin/")) {
+      // Check if it's a super admin route
+      const superAdminRoutes = ["/admin/hubs", "/admin/vehicles", "/admin/drivers", "/admin/routes", "/admin/trips", "/admin/shipments", "/admin/consignments", "/admin/journeys", "/admin/orders", "/admin/scanning", "/admin/handovers", "/admin/partner-zones", "/admin/pincodes", "/admin/settings"];
+      const isSuperAdminRoute = pathname === "/admin" || superAdminRoutes.some(route => pathname?.startsWith(route));
+      if (isSuperAdminRoute) {
+        setActivePanel("super-admin");
+      }
+    }
+  }, [pathname]);
+
+  const navigation = activePanel === "super-admin" ? superAdminNavigation : b2bClientAdminNavigation;
+  const panelTitle = activePanel === "super-admin" ? "Super Admin" : "B2B Client Admin";
+  const homeHref = activePanel === "super-admin" ? "/admin" : "/admin/clients";
 
   return (
     <AdminAuthGuard>
@@ -140,9 +199,12 @@ export default function AdminLayout({
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800">
           {!collapsed && (
-            <div className="flex items-center gap-2">
-              <Package className="h-8 w-8 text-primary-500" />
-              <span className="font-bold text-lg">CJDarcl Quick</span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <Package className="h-7 w-7 text-primary-500" />
+                <span className="font-bold text-lg">CJDarcl Quick</span>
+              </div>
+              <span className="text-xs text-gray-400 ml-9">Super Admin</span>
             </div>
           )}
           {collapsed && <Package className="h-8 w-8 text-primary-500 mx-auto" />}
@@ -157,25 +219,6 @@ export default function AdminLayout({
             )}
           </button>
         </div>
-
-        {/* Panel Switcher */}
-        {!collapsed && (
-          <div className="px-3 py-3 border-b border-gray-800">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">
-                <Settings className="h-4 w-4" />
-                <span>Super Admin</span>
-              </div>
-              <Link
-                href="/admin/clients"
-                className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                <Building2 className="h-4 w-4" />
-                <span>B2B Client Admin</span>
-              </Link>
-            </div>
-          </div>
-        )}
 
         {/* Navigation */}
         <nav className="flex-1 py-4 overflow-y-auto">
@@ -224,7 +267,6 @@ export default function AdminLayout({
         <div className="p-4 border-t border-gray-800">
           {!collapsed && (
             <div className="text-xs text-gray-500">
-              <p>Admin Panel</p>
               <p>v1.0.0</p>
             </div>
           )}
@@ -236,16 +278,16 @@ export default function AdminLayout({
         {/* Top Bar */}
         <header className="h-16 bg-white border-b flex items-center justify-between px-6">
           <div className="flex items-center gap-6">
-            {pathname !== "/admin" && (
+            {pathname !== homeHref && (
               <Link
-                href="/admin"
+                href={homeHref}
                 className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
               >
                 <LayoutDashboard className="h-4 w-4" />
                 <span className="font-medium">Home</span>
               </Link>
             )}
-            <HubSelector />
+            {activePanel === "super-admin" && <HubSelector />}
           </div>
           <div className="flex items-center gap-4">
             <Link

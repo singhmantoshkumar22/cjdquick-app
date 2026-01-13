@@ -8,14 +8,20 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   ArrowRight,
   RefreshCw,
   CreditCard,
-  Target,
-  Calendar,
+  PlusCircle,
+  Search,
+  FileText,
+  BarChart3,
+  Users,
+  Warehouse,
+  ClipboardList,
+  Settings,
 } from "lucide-react";
+import { useService } from "../layout";
 
 interface DashboardData {
   overview: {
@@ -31,21 +37,6 @@ interface DashboardData {
     averageTat: string;
     targetSla: number;
   };
-  statusBreakdown: Record<string, number>;
-  recentActivity: Array<{
-    id: string;
-    awbNumber: string;
-    status: string;
-    origin: string;
-    destination: string;
-    updatedAt: string;
-    expectedDeliveryDate: string | null;
-  }>;
-  monthlyTrends: Array<{
-    month: string;
-    booked: number;
-    delivered: number;
-  }>;
   billing: {
     creditLimit: number;
     currentBalance: number;
@@ -54,33 +45,31 @@ interface DashboardData {
 }
 
 export default function CustomerDashboard() {
+  const { selectedService } = useService();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const fetchDashboard = async () => {
-    const token = localStorage.getItem("customer_token");
-    if (!token) return;
-
-    try {
-      setLoading(true);
-      const res = await fetch("/api/customer/dashboard", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const result = await res.json();
-      if (result.success) {
-        setData(result.data);
-      } else {
-        setError(result.error);
-      }
-    } catch {
-      setError("Failed to load dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
+    const fetchDashboard = async () => {
+      const token = localStorage.getItem("customer_token");
+      if (!token) return;
+
+      try {
+        setLoading(true);
+        const res = await fetch("/api/customer/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        if (result.success) {
+          setData(result.data);
+        }
+      } catch {
+        // Handle error silently
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchDashboard();
   }, []);
 
@@ -93,322 +82,112 @@ export default function CustomerDashboard() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-        <p className="text-gray-600">{error}</p>
-        <button
-          onClick={fetchDashboard}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Retry
-        </button>
-      </div>
-    );
+  // Render different dashboards based on selected service
+  switch (selectedService) {
+    case "b2b":
+      return <B2BDashboard data={data} />;
+    case "b2c":
+      return <B2CDashboard data={data} />;
+    case "oms":
+      return <OMSDashboard data={data} />;
+    default:
+      return <B2BDashboard data={data} />;
   }
+}
 
-  if (!data) return null;
-
-  const slaStatus = data.sla.adherencePercentage >= data.sla.targetSla ? "good" : "warning";
-
+// B2B Dashboard Component
+function B2BDashboard({ data }: { data: DashboardData | null }) {
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500">Overview of your shipments and SLA performance</p>
+          <h1 className="text-2xl font-bold text-gray-900">B2B Dashboard</h1>
+          <p className="text-gray-500">Business to Business logistics management</p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={fetchDashboard}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
           <Link
-            href="/customer/book"
+            href="/customer/b2b/book"
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            <Package className="h-4 w-4" />
-            Book Consignment
+            <PlusCircle className="h-4 w-4" />
+            Book Shipment
           </Link>
         </div>
       </div>
 
-      {/* Overview Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Shipments"
-          value={data.overview.totalShipments}
+          value={data?.overview.totalShipments || 0}
           icon={Package}
           color="blue"
         />
         <StatCard
-          title="Active Shipments"
-          value={data.overview.activeShipments}
+          title="In Transit"
+          value={data?.overview.activeShipments || 0}
           icon={Truck}
           color="amber"
-          subtitle="In transit"
         />
         <StatCard
           title="Delivered"
-          value={data.overview.deliveredShipments}
+          value={data?.overview.deliveredShipments || 0}
           icon={CheckCircle}
           color="green"
         />
         <StatCard
           title="Pending Pickup"
-          value={data.overview.pendingPickup}
+          value={data?.overview.pendingPickup || 0}
           icon={Clock}
           color="purple"
         />
       </div>
 
-      {/* SLA Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* SLA Adherence Card */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">SLA Performance</h2>
-              <p className="text-sm text-gray-500">Last 30 days delivery performance</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-gray-400" />
-              <span className="text-sm text-gray-500">Target: {data.sla.targetSla}%</span>
-            </div>
-          </div>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <QuickAction href="/customer/b2b/shipments" icon={Package} label="My Shipments" color="blue" />
+        <QuickAction href="/customer/b2b/track" icon={Search} label="Track Shipment" color="green" />
+        <QuickAction href="/customer/b2b/invoices" icon={FileText} label="Invoices" color="purple" />
+        <QuickAction href="/customer/b2b/reports" icon={BarChart3} label="Reports" color="amber" />
+      </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div
-                className={`text-3xl font-bold ${
-                  slaStatus === "good" ? "text-green-600" : "text-amber-600"
-                }`}
-              >
-                {data.sla.adherencePercentage}%
-              </div>
-              <p className="text-sm text-gray-500 mt-1">SLA Adherence</p>
-              <div className="flex items-center justify-center gap-1 mt-2">
-                {slaStatus === "good" ? (
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-amber-500" />
-                )}
-                <span
-                  className={`text-xs ${
-                    slaStatus === "good" ? "text-green-600" : "text-amber-600"
-                  }`}
-                >
-                  {slaStatus === "good" ? "On Target" : "Below Target"}
-                </span>
-              </div>
-            </div>
-
+      {/* SLA & Billing Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* SLA Performance */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">SLA Performance</h2>
+          <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-3xl font-bold text-green-600">
-                {data.sla.onTimeDeliveries}
+                {data?.sla.adherencePercentage || 0}%
               </div>
-              <p className="text-sm text-gray-500 mt-1">On-Time</p>
+              <p className="text-sm text-gray-500 mt-1">SLA Adherence</p>
             </div>
-
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <div className="text-3xl font-bold text-red-600">
-                {data.sla.lateDeliveries}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">Late</p>
-            </div>
-
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-3xl font-bold text-blue-600">
-                {data.sla.averageTat}
+                {data?.sla.averageTat || "0"}
               </div>
               <p className="text-sm text-gray-500 mt-1">Avg TAT (Days)</p>
-            </div>
-          </div>
-
-          {/* SLA Progress Bar */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-gray-600">Current SLA</span>
-              <span className="font-medium">{data.sla.adherencePercentage}%</span>
-            </div>
-            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  slaStatus === "good" ? "bg-green-500" : "bg-amber-500"
-                }`}
-                style={{ width: `${data.sla.adherencePercentage}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>0%</span>
-              <span className="text-gray-600">Target: {data.sla.targetSla}%</span>
-              <span>100%</span>
             </div>
           </div>
         </div>
 
         {/* Billing Summary */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <CreditCard className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900">Billing</h2>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Billing Summary</h2>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-gray-600">Credit Limit</span>
-              <span className="font-semibold text-gray-900">
-                ₹{(data.billing.creditLimit || 0).toLocaleString()}
-              </span>
+              <span className="font-semibold">₹{(data?.billing.creditLimit || 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <span className="text-gray-600">Current Balance</span>
-              <span className="font-semibold text-red-600">
-                ₹{(data.billing.currentBalance || 0).toLocaleString()}
-              </span>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Used</span>
+              <span className="font-semibold text-red-600">₹{(data?.billing.currentBalance || 0).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center py-3">
-              <span className="text-gray-600">Available Credit</span>
-              <span className="font-semibold text-green-600">
-                ₹{(data.billing.availableCredit || 0).toLocaleString()}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-500 rounded-full"
-                style={{
-                  width: `${
-                    data.billing.creditLimit
-                      ? (data.billing.currentBalance / data.billing.creditLimit) * 100
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              {data.billing.creditLimit
-                ? Math.round((data.billing.currentBalance / data.billing.creditLimit) * 100)
-                : 0}
-              % credit utilized
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity & Monthly Trends */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Shipments */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Shipments</h2>
-            <Link
-              href="/customer/shipments"
-              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              View all <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          {data.recentActivity.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No shipments yet</p>
-              <Link
-                href="/customer/book"
-                className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-              >
-                Book your first consignment
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {data.recentActivity.slice(0, 5).map((shipment) => (
-                <Link
-                  key={shipment.id}
-                  href={`/customer/tracking?awb=${shipment.awbNumber}`}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">
-                      {shipment.awbNumber}
-                    </p>
-                    <p className="text-sm text-gray-500 truncate">
-                      {shipment.origin} → {shipment.destination}
-                    </p>
-                  </div>
-                  <StatusBadge status={shipment.status} />
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Monthly Trends */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-gray-900">Monthly Trends</h2>
-          </div>
-
-          <div className="space-y-4">
-            {data.monthlyTrends.map((month) => (
-              <div key={month.month} className="flex items-center gap-4">
-                <span className="w-12 text-sm text-gray-500">{month.month}</span>
-                <div className="flex-1">
-                  <div className="flex gap-1 h-6">
-                    <div
-                      className="bg-blue-500 rounded"
-                      style={{
-                        width: `${
-                          month.booked
-                            ? (month.booked /
-                                Math.max(...data.monthlyTrends.map((m) => m.booked || 1))) *
-                              100
-                            : 0
-                        }%`,
-                      }}
-                      title={`Booked: ${month.booked}`}
-                    />
-                    <div
-                      className="bg-green-500 rounded"
-                      style={{
-                        width: `${
-                          month.delivered
-                            ? (month.delivered /
-                                Math.max(...data.monthlyTrends.map((m) => m.booked || 1))) *
-                              100
-                            : 0
-                        }%`,
-                      }}
-                      title={`Delivered: ${month.delivered}`}
-                    />
-                  </div>
-                </div>
-                <div className="w-24 text-right">
-                  <span className="text-sm font-medium text-gray-900">{month.booked}</span>
-                  <span className="text-sm text-gray-400"> / </span>
-                  <span className="text-sm text-green-600">{month.delivered}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded" />
-              <span className="text-gray-600">Booked</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded" />
-              <span className="text-gray-600">Delivered</span>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600">Available</span>
+              <span className="font-semibold text-green-600">₹{(data?.billing.availableCredit || 0).toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -417,24 +196,226 @@ export default function CustomerDashboard() {
   );
 }
 
+// B2C Dashboard Component
+function B2CDashboard({ data }: { data: DashboardData | null }) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">B2C Dashboard</h1>
+          <p className="text-gray-500">E-commerce & retail delivery management</p>
+        </div>
+        <div className="flex gap-3">
+          <Link
+            href="/customer/b2c/orders/new"
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Create Order
+          </Link>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Orders"
+          value={data?.overview.totalShipments || 0}
+          icon={Package}
+          color="green"
+        />
+        <StatCard
+          title="In Transit"
+          value={data?.overview.activeShipments || 0}
+          icon={Truck}
+          color="amber"
+        />
+        <StatCard
+          title="Delivered"
+          value={data?.overview.deliveredShipments || 0}
+          icon={CheckCircle}
+          color="blue"
+        />
+        <StatCard
+          title="Returns"
+          value={0}
+          icon={RefreshCw}
+          color="purple"
+        />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <QuickAction href="/customer/b2c/orders" icon={ClipboardList} label="All Orders" color="green" />
+        <QuickAction href="/customer/b2c/track" icon={Search} label="Track Order" color="blue" />
+        <QuickAction href="/customer/b2c/ndr" icon={AlertTriangle} label="NDR Management" color="red" />
+        <QuickAction href="/customer/b2c/cod" icon={CreditCard} label="COD Remittance" color="purple" />
+      </div>
+
+      {/* Performance & COD Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Delivery Performance */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Delivery Performance</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {data?.sla.onTimeDeliveries || 0}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">On-Time</p>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">
+                {data?.sla.lateDeliveries || 0}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Delayed</p>
+            </div>
+            <div className="text-center p-4 bg-amber-50 rounded-lg">
+              <div className="text-2xl font-bold text-amber-600">0</div>
+              <p className="text-xs text-gray-500 mt-1">RTO</p>
+            </div>
+          </div>
+        </div>
+
+        {/* COD Summary */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">COD Summary</h2>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Collected</span>
+              <span className="font-semibold text-green-600">₹0</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Pending</span>
+              <span className="font-semibold text-amber-600">₹0</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600">Remitted</span>
+              <span className="font-semibold text-blue-600">₹0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// OMS Dashboard Component
+function OMSDashboard({ data }: { data: DashboardData | null }) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">OMS Dashboard</h1>
+          <p className="text-gray-500">Order Management System for fulfillment</p>
+        </div>
+        <div className="flex gap-3">
+          <Link
+            href="/customer/oms/orders/new"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            <PlusCircle className="h-4 w-4" />
+            New Order
+          </Link>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Orders"
+          value={data?.overview.totalShipments || 0}
+          icon={ClipboardList}
+          color="purple"
+        />
+        <StatCard
+          title="Processing"
+          value={data?.overview.pendingPickup || 0}
+          icon={Clock}
+          color="amber"
+        />
+        <StatCard
+          title="Shipped"
+          value={data?.overview.activeShipments || 0}
+          icon={Truck}
+          color="blue"
+        />
+        <StatCard
+          title="Completed"
+          value={data?.overview.deliveredShipments || 0}
+          icon={CheckCircle}
+          color="green"
+        />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <QuickAction href="/customer/oms/orders" icon={ClipboardList} label="All Orders" color="purple" />
+        <QuickAction href="/customer/oms/inventory" icon={Warehouse} label="Inventory" color="blue" />
+        <QuickAction href="/customer/oms/channels" icon={Users} label="Channels" color="green" />
+        <QuickAction href="/customer/oms/settings" icon={Settings} label="Settings" color="gray" />
+      </div>
+
+      {/* Order Pipeline & Inventory */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Order Pipeline */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Pipeline</h2>
+          <div className="space-y-4">
+            <PipelineItem label="New Orders" count={0} color="blue" />
+            <PipelineItem label="Confirmed" count={0} color="green" />
+            <PipelineItem label="Packing" count={0} color="amber" />
+            <PipelineItem label="Ready to Ship" count={0} color="purple" />
+          </div>
+        </div>
+
+        {/* Channel Summary */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Channel Summary</h2>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Amazon</span>
+              <span className="font-semibold">0 orders</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Flipkart</span>
+              <span className="font-semibold">0 orders</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Shopify</span>
+              <span className="font-semibold">0 orders</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600">Manual</span>
+              <span className="font-semibold">0 orders</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Reusable Components
 function StatCard({
   title,
   value,
   icon: Icon,
   color,
-  subtitle,
 }: {
   title: string;
   value: number;
   icon: any;
-  color: "blue" | "green" | "amber" | "purple";
-  subtitle?: string;
+  color: "blue" | "green" | "amber" | "purple" | "red";
 }) {
   const colors = {
     blue: "bg-blue-50 text-blue-600",
     green: "bg-green-50 text-green-600",
     amber: "bg-amber-50 text-amber-600",
     purple: "bg-purple-50 text-purple-600",
+    red: "bg-red-50 text-red-600",
   };
 
   return (
@@ -443,7 +424,6 @@ function StatCard({
         <div>
           <p className="text-sm text-gray-500">{title}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
         </div>
         <div className={`p-3 rounded-full ${colors[color]}`}>
           <Icon className="h-5 w-5" />
@@ -453,22 +433,60 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-    BOOKED: { bg: "bg-gray-100", text: "text-gray-700", label: "Booked" },
-    IN_HUB: { bg: "bg-blue-100", text: "text-blue-700", label: "In Hub" },
-    IN_TRANSIT: { bg: "bg-amber-100", text: "text-amber-700", label: "In Transit" },
-    OUT_FOR_DELIVERY: { bg: "bg-purple-100", text: "text-purple-700", label: "Out for Delivery" },
-    DELIVERED: { bg: "bg-green-100", text: "text-green-700", label: "Delivered" },
-    WITH_PARTNER: { bg: "bg-cyan-100", text: "text-cyan-700", label: "With Partner" },
-    FAILED: { bg: "bg-red-100", text: "text-red-700", label: "Failed" },
+function QuickAction({
+  href,
+  icon: Icon,
+  label,
+  color,
+}: {
+  href: string;
+  icon: any;
+  label: string;
+  color: "blue" | "green" | "amber" | "purple" | "red" | "gray";
+}) {
+  const colors = {
+    blue: "bg-blue-50 text-blue-600 hover:bg-blue-100",
+    green: "bg-green-50 text-green-600 hover:bg-green-100",
+    amber: "bg-amber-50 text-amber-600 hover:bg-amber-100",
+    purple: "bg-purple-50 text-purple-600 hover:bg-purple-100",
+    red: "bg-red-50 text-red-600 hover:bg-red-100",
+    gray: "bg-gray-50 text-gray-600 hover:bg-gray-100",
   };
 
-  const config = statusConfig[status] || statusConfig.BOOKED;
+  return (
+    <Link
+      href={href}
+      className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-colors ${colors[color]}`}
+    >
+      <Icon className="h-6 w-6" />
+      <span className="text-sm font-medium">{label}</span>
+    </Link>
+  );
+}
+
+function PipelineItem({
+  label,
+  count,
+  color,
+}: {
+  label: string;
+  count: number;
+  color: "blue" | "green" | "amber" | "purple";
+}) {
+  const colors = {
+    blue: "bg-blue-500",
+    green: "bg-green-500",
+    amber: "bg-amber-500",
+    purple: "bg-purple-500",
+  };
 
   return (
-    <span className={`px-2 py-1 rounded text-xs font-medium ${config.bg} ${config.text}`}>
-      {config.label}
-    </span>
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className={`w-2 h-2 rounded-full ${colors[color]}`} />
+        <span className="text-gray-600">{label}</span>
+      </div>
+      <span className="font-semibold text-gray-900">{count}</span>
+    </div>
   );
 }
