@@ -19,6 +19,10 @@ import {
   MapPin,
   LogOut,
   ChevronDown,
+  Layers,
+  ClipboardCheck,
+  FileText,
+  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -68,10 +72,13 @@ const navigation = [
     title: "WMS",
     icon: Warehouse,
     items: [
+      { title: "Wave Picking", href: "/wms/waves" },
       { title: "Picklist", href: "/wms/picklist" },
       { title: "Packing", href: "/wms/packing" },
       { title: "Shipping", href: "/wms/delivery-shipping" },
       { title: "Manifest", href: "/wms/manifest" },
+      { title: "QC Templates", href: "/wms/qc/templates" },
+      { title: "QC Queue", href: "/wms/qc/executions" },
     ],
   },
   {
@@ -111,6 +118,14 @@ const navigation = [
     title: "Reports",
     icon: BarChart3,
     href: "/reports",
+  },
+  {
+    title: "B2B",
+    icon: Building2,
+    items: [
+      { title: "Customers", href: "/b2b/customers" },
+      { title: "Quotations", href: "/b2b/quotations" },
+    ],
   },
 ];
 
