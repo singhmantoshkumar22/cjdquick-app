@@ -18,7 +18,7 @@
     "db:push": "turbo run db:push",
     "db:studio": "cd packages/database && npx prisma studio",
     "db:seed": "cd packages/database && npm run db:seed",
-    "render-build": "cd packages/database && npx prisma generate && cd ../.. && npm run build",
+    "render-build": "cd packages/database && npx prisma generate && npm run build && cd ../.. && cd apps/web && npm run build",
     "start": "cd apps/web && npm start"
   },
   "devDependencies": {
@@ -29,7 +29,6 @@
     "turbo": "^2.0.0",
     "vitest": "^4.0.17"
   },
-  "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=20.0.0"
   }
