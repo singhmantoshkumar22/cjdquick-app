@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Plus,
@@ -13,14 +15,17 @@ import {
   Edit,
   Trash2,
   UserPlus,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -39,102 +44,220 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
-// Mock data for brands/clients
-const brands = [
-  {
-    id: "1",
-    code: "DEMO-BRAND",
-    name: "Demo Brand",
-    company: "Demo Company",
-    companyCode: "DEMO",
-    contactPerson: "John Doe",
-    contactEmail: "john@demobrand.com",
-    users: 3,
-    skus: 45,
-    orders: 456,
-    status: "active",
-    createdAt: "2024-01-20",
-  },
-  {
-    id: "2",
-    code: "FASHION-X",
-    name: "Fashion X",
-    company: "Demo Company",
-    companyCode: "DEMO",
-    contactPerson: "Jane Smith",
-    contactEmail: "jane@fashionx.com",
-    users: 2,
-    skus: 120,
-    orders: 892,
-    status: "active",
-    createdAt: "2024-02-15",
-  },
-  {
-    id: "3",
-    code: "TECH-GADGETS",
-    name: "Tech Gadgets",
-    company: "ABC Corporation",
-    companyCode: "ABC",
-    contactPerson: "Mike Wilson",
-    contactEmail: "mike@techgadgets.com",
-    users: 4,
-    skus: 78,
-    orders: 234,
-    status: "active",
-    createdAt: "2024-03-01",
-  },
-  {
-    id: "4",
-    code: "HOME-DECOR",
-    name: "Home Decor Plus",
-    company: "XYZ Industries",
-    companyCode: "XYZ",
-    contactPerson: "Sarah Johnson",
-    contactEmail: "sarah@homedecor.com",
-    users: 2,
-    skus: 200,
-    orders: 567,
-    status: "active",
-    createdAt: "2024-03-15",
-  },
-  {
-    id: "5",
-    code: "SPORTS-GEAR",
-    name: "Sports Gear Pro",
-    company: "Global Retail",
-    companyCode: "GLOBAL",
-    contactPerson: "David Brown",
-    contactEmail: "david@sportsgear.com",
-    users: 1,
-    skus: 56,
-    orders: 123,
-    status: "inactive",
-    createdAt: "2024-04-10",
-  },
-];
+interface Brand {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  logo: string | null;
+  website: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  isActive: boolean;
+  companyId: string;
+  createdAt: string;
+  company?: {
+    id: string;
+    name: string;
+  };
+  _count?: {
+    skus: number;
+    orders: number;
+  };
+}
 
-const stats = [
-  { label: "Total Brands", value: "48", icon: Users, color: "blue" },
-  { label: "Active Brands", value: "42", icon: Users, color: "green" },
-  { label: "Total SKUs", value: "2,456", icon: Package, color: "purple" },
-  { label: "Total Orders", value: "12,456", icon: ShoppingCart, color: "orange" },
-];
-
-const companies = ["All Companies", "Demo Company", "ABC Corporation", "XYZ Industries", "Global Retail"];
+interface Company {
+  id: string;
+  code: string;
+  name: string;
+}
 
 export default function BrandsPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCompany, setSelectedCompany] = useState("All Companies");
+  const [selectedCompany, setSelectedCompany] = useState("all");
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    code: "",
+    companyId: "",
+    description: "",
+    website: "",
+    contactEmail: "",
+    contactPhone: "",
+    isActive: true,
+  });
+
+  const canManageBrands = session?.user?.role === "SUPER_ADMIN";
+
+  useEffect(() => {
+    fetchBrands();
+    fetchCompanies();
+  }, [selectedCompany]);
+
+  async function fetchBrands() {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (selectedCompany && selectedCompany !== "all") {
+        params.append("companyId", selectedCompany);
+      }
+      const response = await fetch(`/api/brands?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch brands");
+      const data = await response.json();
+      setBrands(data.data || []);
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+      toast.error("Failed to load brands");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function fetchCompanies() {
+    try {
+      const response = await fetch("/api/companies");
+      if (!response.ok) throw new Error("Failed to fetch companies");
+      const data = await response.json();
+      setCompanies(data);
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    }
+  }
 
   const filteredBrands = brands.filter((brand) => {
     const matchesSearch =
       brand.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       brand.code.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCompany =
-      selectedCompany === "All Companies" || brand.company === selectedCompany;
-    return matchesSearch && matchesCompany;
+    return matchesSearch;
   });
+
+  const stats = [
+    { label: "Total Brands", value: brands.length.toString(), icon: Users, color: "blue" },
+    { label: "Active Brands", value: brands.filter(b => b.isActive).length.toString(), icon: Users, color: "green" },
+    { label: "Total SKUs", value: brands.reduce((acc, b) => acc + (b._count?.skus || 0), 0).toLocaleString(), icon: Package, color: "purple" },
+    { label: "Total Orders", value: brands.reduce((acc, b) => acc + (b._count?.orders || 0), 0).toLocaleString(), icon: ShoppingCart, color: "orange" },
+  ];
+
+  function openCreateDialog() {
+    setEditingBrand(null);
+    setFormData({
+      name: "",
+      code: "",
+      companyId: companies[0]?.id || "",
+      description: "",
+      website: "",
+      contactEmail: "",
+      contactPhone: "",
+      isActive: true,
+    });
+    setIsDialogOpen(true);
+  }
+
+  function openEditDialog(brand: Brand) {
+    setEditingBrand(brand);
+    setFormData({
+      name: brand.name,
+      code: brand.code,
+      companyId: brand.companyId,
+      description: brand.description || "",
+      website: brand.website || "",
+      contactEmail: brand.contactEmail || "",
+      contactPhone: brand.contactPhone || "",
+      isActive: brand.isActive,
+    });
+    setIsDialogOpen(true);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formData.name || !formData.companyId) {
+      toast.error("Name and company are required");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const url = editingBrand ? `/api/brands/${editingBrand.id}` : "/api/brands";
+      const method = editingBrand ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save brand");
+      }
+
+      toast.success(editingBrand ? "Brand updated" : "Brand created");
+      setIsDialogOpen(false);
+      fetchBrands();
+    } catch (error) {
+      console.error("Error saving brand:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save brand");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleToggleActive(brand: Brand) {
+    try {
+      const response = await fetch(`/api/brands/${brand.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !brand.isActive }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update brand");
+
+      toast.success(brand.isActive ? "Brand deactivated" : "Brand activated");
+      fetchBrands();
+    } catch (error) {
+      console.error("Error toggling brand status:", error);
+      toast.error("Failed to update brand status");
+    }
+  }
+
+  async function handleDelete(brand: Brand) {
+    if (!confirm(`Are you sure you want to delete ${brand.name}?`)) return;
+
+    try {
+      const response = await fetch(`/api/brands/${brand.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete brand");
+      }
+
+      toast.success("Brand deleted");
+      fetchBrands();
+    } catch (error) {
+      console.error("Error deleting brand:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete brand");
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -148,10 +271,12 @@ export default function BrandsPage() {
             Manage all brands and clients across companies in the OMS Master Panel
           </p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Brand/Client
-        </Button>
+        {canManageBrands && (
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Brand/Client
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
@@ -160,7 +285,7 @@ export default function BrandsPage() {
           <Card key={stat.label}>
             <CardContent className="flex items-center gap-4 p-4">
               <div
-                className={`rounded-lg p-3`}
+                className="rounded-lg p-3"
                 style={{
                   backgroundColor:
                     stat.color === "blue"
@@ -173,7 +298,7 @@ export default function BrandsPage() {
                 }}
               >
                 <stat.icon
-                  className={`h-5 w-5`}
+                  className="h-5 w-5"
                   style={{
                     color:
                       stat.color === "blue"
@@ -206,9 +331,10 @@ export default function BrandsPage() {
                   <SelectValue placeholder="Filter by company" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Companies</SelectItem>
                   {companies.map((company) => (
-                    <SelectItem key={company} value={company}>
-                      {company}
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -226,116 +352,245 @@ export default function BrandsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Brand/Client</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead className="text-center">Users</TableHead>
-                <TableHead className="text-center">SKUs</TableHead>
-                <TableHead className="text-center">Orders</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredBrands.map((brand) => (
-                <TableRow key={brand.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
-                        <Users className="h-5 w-5 text-purple-600" />
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredBrands.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-muted-foreground">No brands found</p>
+              {canManageBrands && (
+                <Button variant="link" onClick={openCreateDialog}>
+                  Add your first brand
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Brand/Client</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead className="text-center">SKUs</TableHead>
+                  <TableHead className="text-center">Orders</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBrands.map((brand) => (
+                  <TableRow key={brand.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+                          <Users className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{brand.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {brand.code}
+                          </p>
+                        </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <span>{brand.company?.name || "-"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <div>
-                        <p className="font-medium">{brand.name}</p>
+                        <p className="text-sm">{brand.contactEmail || "-"}</p>
                         <p className="text-sm text-muted-foreground">
-                          {brand.code}
+                          {brand.contactPhone || "-"}
                         </p>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span>{brand.company}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="text-sm">{brand.contactPerson}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {brand.contactEmail}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline">{brand.users}</Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      {brand.skus}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center font-medium">
-                    {brand.orders.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        brand.status === "active" ? "default" : "secondary"
-                      }
-                      className={
-                        brand.status === "active"
-                          ? "bg-green-100 text-green-700"
-                          : ""
-                      }
-                    >
-                      {brand.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Brand
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Add Brand User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Package className="mr-2 h-4 w-4" />
-                          Manage SKUs
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <ShoppingCart className="mr-2 h-4 w-4" />
-                          View Orders
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Brand
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        {brand._count?.skus || 0}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center font-medium">
+                      {(brand._count?.orders || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={brand.isActive ? "default" : "secondary"}
+                        className={brand.isActive ? "bg-green-100 text-green-700" : ""}
+                      >
+                        {brand.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/master/brands/${brand.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          {canManageBrands && (
+                            <>
+                              <DropdownMenuItem onClick={() => openEditDialog(brand)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Brand
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleActive(brand)}>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                {brand.isActive ? "Deactivate" : "Activate"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push(`/settings/skus?brandId=${brand.id}`)}>
+                                <Package className="mr-2 h-4 w-4" />
+                                Manage SKUs
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => router.push(`/orders?brandId=${brand.id}`)}>
+                                <ShoppingCart className="mr-2 h-4 w-4" />
+                                View Orders
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(brand)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Brand
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      {/* Brand Form Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingBrand ? "Edit Brand" : "Create Brand"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingBrand
+                ? "Update the brand details below."
+                : "Fill in the details to create a new brand/client."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Brand Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="code">Brand Code</Label>
+                  <Input
+                    id="code"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                    placeholder="Auto-generated if empty"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company">Company *</Label>
+                <Select
+                  value={formData.companyId}
+                  onValueChange={(value) => setFormData({ ...formData, companyId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={2}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="contactEmail">Contact Email</Label>
+                  <Input
+                    id="contactEmail"
+                    type="email"
+                    value={formData.contactEmail}
+                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="contactPhone">Contact Phone</Label>
+                  <Input
+                    id="contactPhone"
+                    value={formData.contactPhone}
+                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="https://"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : editingBrand ? (
+                  "Update"
+                ) : (
+                  "Create"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
