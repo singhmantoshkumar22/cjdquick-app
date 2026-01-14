@@ -77,6 +77,7 @@ const navigation = [
       { title: "Packing", href: "/wms/packing" },
       { title: "Shipping", href: "/wms/delivery-shipping" },
       { title: "Manifest", href: "/wms/manifest" },
+      { title: "Gate Pass", href: "/wms/gate-pass" },
       { title: "QC Templates", href: "/wms/qc/templates" },
       { title: "QC Queue", href: "/wms/qc/executions" },
     ],
@@ -164,6 +165,11 @@ const settingsNav = [
     href: "/settings/skus",
   },
   {
+    title: "Rate Cards",
+    icon: CreditCard,
+    href: "/settings/rate-cards",
+  },
+  {
     title: "Integrations",
     icon: Settings,
     href: "/settings/integrations",
@@ -172,6 +178,14 @@ const settingsNav = [
     title: "Shipping Rules",
     icon: Truck,
     href: "/settings/shipping-rules",
+  },
+];
+
+const financeNav = [
+  {
+    title: "COD Reconciliation",
+    icon: CreditCard,
+    href: "/finance/cod-reconciliation",
   },
 ];
 
@@ -271,6 +285,27 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 )
               )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Finance</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {financeNav.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                  >
+                    <Link href={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
