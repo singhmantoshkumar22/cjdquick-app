@@ -30,7 +30,17 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
 
-    if not verify_password(request.password, user.password):
+    try:
+        password_valid = verify_password(request.password, user.password)
+    except Exception as e:
+        print(f"Password verification error: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Password verification error: {str(e)}"
+        )
+
+    if not password_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -42,14 +52,31 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="User account is disabled"
         )
 
-    access_token = create_access_token(
-        data={"sub": user.id, "email": user.email, "role": user.role}
-    )
+    try:
+        access_token = create_access_token(
+            data={"sub": user.id, "email": user.email, "role": user.role}
+        )
+    except Exception as e:
+        print(f"Token creation error: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Token creation error: {str(e)}"
+        )
 
-    return LoginResponse(
-        user=UserResponse.model_validate(user),
-        token=access_token
-    )
+    try:
+        response = LoginResponse(
+            user=UserResponse.model_validate(user),
+            token=access_token
+        )
+        return response
+    except Exception as e:
+        print(f"Response creation error: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Response creation error: {str(e)}"
+        )
 
 
 @router.get("/me", response_model=UserResponse)
