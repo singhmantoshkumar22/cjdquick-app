@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
+import traceback
 
 from ...core.database import get_db
 from ...core.security import verify_password, create_access_token
@@ -13,7 +14,15 @@ router = APIRouter()
 
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email).first()
+    try:
+        user = db.query(User).filter(User.email == request.email).first()
+    except Exception as e:
+        print(f"Database query error: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
 
     if not user:
         raise HTTPException(
