@@ -18,17 +18,6 @@ interface ShiprocketAuthResponse {
   expires_at?: string;
 }
 
-interface ShiprocketOrderResponse {
-  order_id: number;
-  shipment_id: number;
-  status: string;
-  status_code: number;
-  onboarding_completed_now: number;
-  awb_code: string;
-  courier_company_id: number;
-  courier_name: string;
-}
-
 interface ShiprocketTrackingResponse {
   tracking_data: {
     track_status: number;
@@ -314,7 +303,7 @@ export class ShiprocketIntegration implements ITransporterIntegration {
         estimatedDays: couriers[0]?.etd ? parseInt(couriers[0].etd) : undefined,
         courierCodes: couriers.map((c) => c.name),
       };
-    } catch (error) {
+    } catch {
       return {
         pincode,
         serviceable: false,
@@ -374,9 +363,6 @@ export class ShiprocketIntegration implements ITransporterIntegration {
   async generateLabel(awbNo: string): Promise<{ success: boolean; labelUrl?: string; error?: string }> {
     try {
       await this.ensureAuthenticated();
-
-      // First get shipment ID from AWB
-      const trackResponse = await this.trackShipment(awbNo);
 
       const response = await this.client.post<{ label_url?: string; label_created: number }>(
         '/courier/generate/label',

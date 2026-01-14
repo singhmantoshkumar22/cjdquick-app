@@ -272,7 +272,7 @@ export class DelhiveryIntegration implements ITransporterIntegration {
         codAvailable: data.cod === 'Y' || data.cash === 'Y',
         prepaidAvailable: data.pre_paid === 'Y',
       };
-    } catch (error) {
+    } catch {
       return {
         pincode,
         serviceable: false,

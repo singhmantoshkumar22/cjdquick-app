@@ -73,7 +73,6 @@ export async function generatePicklistPDF(data: PicklistData): Promise<Buffer> {
 
       const pageWidth = doc.page.width - 80;
       const leftMargin = 40;
-      const rightMargin = doc.page.width - 40;
 
       // Sort items by zone and bin for efficient picking
       const sortedItems = [...data.items].sort((a, b) => {
