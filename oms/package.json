@@ -17,7 +17,9 @@
     "db:generate": "turbo run db:generate",
     "db:push": "turbo run db:push",
     "db:studio": "cd packages/database && npx prisma studio",
-    "db:seed": "cd packages/database && npm run db:seed"
+    "db:seed": "cd packages/database && npm run db:seed",
+    "render-build": "cd packages/database && npx prisma generate && cd ../.. && npm run build",
+    "start": "cd apps/web && npm start"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.14",
@@ -27,5 +29,8 @@
     "turbo": "^2.0.0",
     "vitest": "^4.0.17"
   },
-  "packageManager": "npm@10.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
 }
