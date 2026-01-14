@@ -34,7 +34,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
         )
 
     access_token = create_access_token(
-        data={"sub": user.id, "email": user.email, "role": user.role.value}
+        data={"sub": user.id, "email": user.email, "role": user.role}
     )
 
     return LoginResponse(
