@@ -41,9 +41,10 @@ interface Product {
   brand: string;
   price: number;
   mrp: number;
-  minOrderQty: number;
-  stock: number;
-  image?: string;
+  minOrderQty?: number;
+  availableStock: number;
+  inStock: boolean;
+  imageUrl?: string;
 }
 
 interface CartItem extends Product {
@@ -82,12 +83,12 @@ export default function B2BCatalogPage() {
 
   // Mock products for demonstration
   const mockProducts: Product[] = products.length > 0 ? products : [
-    { id: "1", code: "SKU-001", name: "Premium Cotton T-Shirt", category: "Apparel", brand: "StyleCraft", price: 450, mrp: 599, minOrderQty: 10, stock: 500 },
-    { id: "2", code: "SKU-002", name: "Denim Jeans Classic", category: "Apparel", brand: "DenimCo", price: 1200, mrp: 1499, minOrderQty: 5, stock: 250 },
-    { id: "3", code: "SKU-003", name: "Running Shoes Pro", category: "Footwear", brand: "SportMax", price: 2500, mrp: 3499, minOrderQty: 3, stock: 120 },
-    { id: "4", code: "SKU-004", name: "Leather Belt Premium", category: "Accessories", brand: "LeatherCraft", price: 800, mrp: 999, minOrderQty: 12, stock: 800 },
-    { id: "5", code: "SKU-005", name: "Formal Shirt White", category: "Apparel", brand: "StyleCraft", price: 850, mrp: 1099, minOrderQty: 6, stock: 350 },
-    { id: "6", code: "SKU-006", name: "Sports Cap", category: "Accessories", brand: "SportMax", price: 250, mrp: 349, minOrderQty: 24, stock: 1000 },
+    { id: "1", code: "SKU-001", name: "Premium Cotton T-Shirt", category: "Apparel", brand: "StyleCraft", price: 450, mrp: 599, minOrderQty: 10, availableStock: 500, inStock: true },
+    { id: "2", code: "SKU-002", name: "Denim Jeans Classic", category: "Apparel", brand: "DenimCo", price: 1200, mrp: 1499, minOrderQty: 5, availableStock: 250, inStock: true },
+    { id: "3", code: "SKU-003", name: "Running Shoes Pro", category: "Footwear", brand: "SportMax", price: 2500, mrp: 3499, minOrderQty: 3, availableStock: 120, inStock: true },
+    { id: "4", code: "SKU-004", name: "Leather Belt Premium", category: "Accessories", brand: "LeatherCraft", price: 800, mrp: 999, minOrderQty: 12, availableStock: 800, inStock: true },
+    { id: "5", code: "SKU-005", name: "Formal Shirt White", category: "Apparel", brand: "StyleCraft", price: 850, mrp: 1099, minOrderQty: 6, availableStock: 350, inStock: true },
+    { id: "6", code: "SKU-006", name: "Sports Cap", category: "Accessories", brand: "SportMax", price: 250, mrp: 349, minOrderQty: 24, availableStock: 1000, inStock: true },
   ];
 
   const categories = ["all", ...new Set(mockProducts.map((p) => p.category))];
@@ -100,16 +101,17 @@ export default function B2BCatalogPage() {
   });
 
   const addToCart = (product: Product) => {
+    const minQty = product.minOrderQty || 1;
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
         return prev.map((item) =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + product.minOrderQty }
+            ? { ...item, quantity: item.quantity + minQty }
             : item
         );
       }
-      return [...prev, { ...product, quantity: product.minOrderQty }];
+      return [...prev, { ...product, quantity: minQty }];
     });
     toast.success(`Added ${product.name} to cart`);
   };
@@ -119,8 +121,9 @@ export default function B2BCatalogPage() {
       prev
         .map((item) => {
           if (item.id === productId) {
+            const minQty = item.minOrderQty || 1;
             const newQty = item.quantity + delta;
-            if (newQty < item.minOrderQty) return item;
+            if (newQty < minQty) return item;
             return { ...item, quantity: newQty };
           }
           return item;
@@ -211,7 +214,7 @@ export default function B2BCatalogPage() {
                             variant="outline"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => updateCartQuantity(item.id, -item.minOrderQty)}
+                            onClick={() => updateCartQuantity(item.id, -(item.minOrderQty || 1))}
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
@@ -220,7 +223,7 @@ export default function B2BCatalogPage() {
                             variant="outline"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => updateCartQuantity(item.id, item.minOrderQty)}
+                            onClick={() => updateCartQuantity(item.id, item.minOrderQty || 1)}
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
@@ -344,9 +347,14 @@ export default function B2BCatalogPage() {
                       <p className="text-xs text-gray-500">{product.code}</p>
                       <CardTitle className="text-base">{product.name}</CardTitle>
                     </div>
-                    {product.stock < 50 && (
+                    {product.availableStock < 50 && product.availableStock > 0 && (
                       <Badge variant="destructive" className="text-xs">
                         Low Stock
+                      </Badge>
+                    )}
+                    {!product.inStock && (
+                      <Badge variant="secondary" className="text-xs">
+                        Out of Stock
                       </Badge>
                     )}
                   </div>
@@ -372,14 +380,14 @@ export default function B2BCatalogPage() {
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Min. Order: {product.minOrderQty} units
+                    Min. Order: {product.minOrderQty || 1} units | Stock: {product.availableStock}
                   </p>
                 </CardContent>
                 <CardFooter>
                   <Button
                     className="w-full"
                     onClick={() => addToCart(product)}
-                    disabled={product.stock === 0}
+                    disabled={!product.inStock}
                   >
                     <ShoppingCart className="h-4 w-4 mr-2" />
                     Add to Cart

@@ -35,7 +35,7 @@ import {
 
 interface Quotation {
   id: string;
-  quotationNumber: string;
+  quotationNo: string;
   status: string;
   totalAmount: number;
   itemCount: number;
@@ -84,7 +84,7 @@ export default function B2BQuotationsPage() {
   const mockQuotations: Quotation[] = quotations.length > 0 ? quotations : [
     {
       id: "1",
-      quotationNumber: "QT-2024-0089",
+      quotationNo: "QT-2024-0089",
       status: "APPROVED",
       totalAmount: 125000,
       itemCount: 15,
@@ -94,7 +94,7 @@ export default function B2BQuotationsPage() {
     },
     {
       id: "2",
-      quotationNumber: "QT-2024-0088",
+      quotationNo: "QT-2024-0088",
       status: "PENDING_APPROVAL",
       totalAmount: 85000,
       itemCount: 10,
@@ -104,7 +104,7 @@ export default function B2BQuotationsPage() {
     },
     {
       id: "3",
-      quotationNumber: "QT-2024-0087",
+      quotationNo: "QT-2024-0087",
       status: "CONVERTED",
       totalAmount: 200000,
       itemCount: 25,
@@ -114,7 +114,7 @@ export default function B2BQuotationsPage() {
     },
     {
       id: "4",
-      quotationNumber: "QT-2024-0086",
+      quotationNo: "QT-2024-0086",
       status: "EXPIRED",
       totalAmount: 45000,
       itemCount: 5,
@@ -125,7 +125,7 @@ export default function B2BQuotationsPage() {
   ];
 
   const filteredQuotations = mockQuotations.filter((quote) => {
-    const matchesSearch = quote.quotationNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = quote.quotationNo.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
@@ -267,7 +267,7 @@ export default function B2BQuotationsPage() {
                         href={`/portal/quotations/${quote.id}`}
                         className="text-blue-600 hover:underline"
                       >
-                        {quote.quotationNumber}
+                        {quote.quotationNo}
                       </Link>
                     </TableCell>
                     <TableCell>{quote.createdAt}</TableCell>

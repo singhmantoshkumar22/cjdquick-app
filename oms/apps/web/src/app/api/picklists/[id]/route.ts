@@ -45,6 +45,7 @@ export async function GET(
                 name: true,
                 barcodes: true,
                 weight: true,
+                isSerialised: true,
               },
             },
             bin: {

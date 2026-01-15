@@ -35,13 +35,13 @@ import {
 
 interface Order {
   id: string;
-  orderNumber: string;
+  orderNo: string;
   status: string;
   totalAmount: number;
   itemCount: number;
   createdAt: string;
   expectedDelivery?: string;
-  trackingNumber?: string;
+  awbNumber?: string;
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -84,17 +84,17 @@ export default function B2BOrdersPage() {
   const mockOrders: Order[] = orders.length > 0 ? orders : [
     {
       id: "1",
-      orderNumber: "B2B-2024-0156",
+      orderNo: "B2B-2024-0156",
       status: "SHIPPED",
       totalAmount: 145000,
       itemCount: 12,
       createdAt: "2024-01-14",
       expectedDelivery: "2024-01-18",
-      trackingNumber: "DTDC12345678",
+      awbNumber: "DTDC12345678",
     },
     {
       id: "2",
-      orderNumber: "B2B-2024-0155",
+      orderNo: "B2B-2024-0155",
       status: "DELIVERED",
       totalAmount: 272000,
       itemCount: 24,
@@ -102,7 +102,7 @@ export default function B2BOrdersPage() {
     },
     {
       id: "3",
-      orderNumber: "B2B-2024-0154",
+      orderNo: "B2B-2024-0154",
       status: "PROCESSING",
       totalAmount: 88500,
       itemCount: 8,
@@ -111,7 +111,7 @@ export default function B2BOrdersPage() {
     },
     {
       id: "4",
-      orderNumber: "B2B-2024-0153",
+      orderNo: "B2B-2024-0153",
       status: "PENDING",
       totalAmount: 56000,
       itemCount: 5,
@@ -119,7 +119,7 @@ export default function B2BOrdersPage() {
     },
     {
       id: "5",
-      orderNumber: "B2B-2024-0152",
+      orderNo: "B2B-2024-0152",
       status: "DELIVERED",
       totalAmount: 189000,
       itemCount: 18,
@@ -128,7 +128,7 @@ export default function B2BOrdersPage() {
   ];
 
   const filteredOrders = mockOrders.filter((order) => {
-    const matchesSearch = order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = order.orderNo.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
@@ -269,7 +269,7 @@ export default function B2BOrdersPage() {
                         href={`/portal/orders/${order.id}`}
                         className="text-blue-600 hover:underline"
                       >
-                        {order.orderNumber}
+                        {order.orderNo}
                       </Link>
                     </TableCell>
                     <TableCell>{order.createdAt}</TableCell>
