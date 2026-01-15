@@ -214,12 +214,8 @@ const reportsNav = [
   },
 ];
 
+// Master Panel - Only Clients/Brands (Companies rarely needed, accessible via direct URL)
 const masterPanelNav = [
-  {
-    title: "Companies",
-    icon: Building2,
-    href: "/master/companies",
-  },
   {
     title: "Clients/Brands",
     icon: Users,
