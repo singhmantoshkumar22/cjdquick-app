@@ -116,12 +116,15 @@ const inventoryNav = [
   },
 ];
 
-// WMS Section - Warehouse Operations
+// WMS Section - Warehouse Operations (includes Locations, SKU Master, Bundles)
 const wmsNav = [
   {
     title: "WMS",
     icon: Warehouse,
     items: [
+      { title: "Locations/Warehouses", href: "/settings/locations" },
+      { title: "SKU Master", href: "/settings/skus" },
+      { title: "SKU Bundles", href: "/settings/bundles" },
       { title: "Wave Picking", href: "/wms/waves" },
       { title: "Picklist", href: "/wms/picklist" },
       { title: "Packing", href: "/wms/packing" },
@@ -133,7 +136,7 @@ const wmsNav = [
   },
 ];
 
-// Logistics Section - Expanded (Industry Standard)
+// Logistics Section - Expanded (Industry Standard) - Includes Integrations
 const logisticsNav = [
   {
     title: "Logistics",
@@ -147,6 +150,7 @@ const logisticsNav = [
       { title: "Allocation Rules", href: "/logistics/allocation-rules" },
       { title: "Service Pincodes", href: "/logistics/pincodes" },
       { title: "Tracking", href: "/logistics/tracking" },
+      { title: "Integrations", href: "/settings/integrations" },
     ],
   },
 ];
@@ -223,7 +227,7 @@ const masterPanelNav = [
   },
 ];
 
-// Configuration Section - Slimmed (logistics items moved)
+// Configuration Section - Slimmed (only Company Profile and User Management)
 const settingsNav = [
   {
     title: "Company Profile",
@@ -231,29 +235,9 @@ const settingsNav = [
     href: "/settings/company",
   },
   {
-    title: "Locations/Warehouses",
-    icon: MapPin,
-    href: "/settings/locations",
-  },
-  {
     title: "User Management",
     icon: Users,
     href: "/settings/users",
-  },
-  {
-    title: "SKU Master",
-    icon: Package,
-    href: "/settings/skus",
-  },
-  {
-    title: "SKU Bundles",
-    icon: Layers,
-    href: "/settings/bundles",
-  },
-  {
-    title: "Integrations",
-    icon: Settings,
-    href: "/settings/integrations",
   },
 ];
 
