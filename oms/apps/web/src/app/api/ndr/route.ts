@@ -232,6 +232,42 @@ export async function GET(request: NextRequest) {
       _count: { _all: true },
     });
 
+    // Compute average resolution time from resolved NDRs
+    const resolvedNDRs = await prisma.nDR.findMany({
+      where: {
+        ...(companyFilter ? { companyId: companyFilter as string } : {}),
+        status: "RESOLVED",
+        resolvedAt: { not: null },
+      },
+      select: {
+        createdAt: true,
+        resolvedAt: true,
+      },
+    });
+
+    let avgResolutionHours = 0;
+    if (resolvedNDRs.length > 0) {
+      const totalHours = resolvedNDRs.reduce((sum, ndr) => {
+        if (ndr.resolvedAt) {
+          const diffMs = new Date(ndr.resolvedAt).getTime() - new Date(ndr.createdAt).getTime();
+          return sum + (diffMs / (1000 * 60 * 60));
+        }
+        return sum;
+      }, 0);
+      avgResolutionHours = totalHours / resolvedNDRs.length;
+    }
+
+    // Compute outreach success rate
+    const outreachStats = await prisma.nDROutreach.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    });
+    const totalOutreach = outreachStats.reduce((sum, s) => sum + s._count._all, 0);
+    const successfulOutreach = outreachStats
+      .filter(s => ["DELIVERED", "READ", "RESPONDED"].includes(s.status))
+      .reduce((sum, s) => sum + s._count._all, 0);
+    const outreachSuccessRate = totalOutreach > 0 ? Math.round((successfulOutreach / totalOutreach) * 100) : 0;
+
     return NextResponse.json({
       ndrs,
       total,
@@ -250,6 +286,8 @@ export async function GET(request: NextRequest) {
         acc[item.reason] = item._count._all;
         return acc;
       }, {} as Record<string, number>),
+      avgResolutionHours: Math.round(avgResolutionHours * 10) / 10,
+      outreachSuccessRate,
     });
   } catch (error) {
     console.error("Error fetching NDRs:", error);

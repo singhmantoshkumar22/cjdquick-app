@@ -103,6 +103,8 @@ interface NDRStats {
   statusCounts: Record<string, number>;
   priorityCounts: Record<string, number>;
   reasonCounts: Record<string, number>;
+  avgResolutionHours: number;
+  outreachSuccessRate: number;
 }
 
 export default function NDRCommandCenterPage() {
@@ -114,6 +116,8 @@ export default function NDRCommandCenterPage() {
     statusCounts: {},
     priorityCounts: {},
     reasonCounts: {},
+    avgResolutionHours: 0,
+    outreachSuccessRate: 0,
   });
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -148,6 +152,8 @@ export default function NDRCommandCenterPage() {
           statusCounts: data.statusCounts || {},
           priorityCounts: data.priorityCounts || {},
           reasonCounts: data.reasonCounts || {},
+          avgResolutionHours: data.avgResolutionHours || 0,
+          outreachSuccessRate: data.outreachSuccessRate || 0,
         });
       }
       setLastRefresh(new Date());
@@ -332,7 +338,7 @@ export default function NDRCommandCenterPage() {
               </div>
               <Progress value={resolutionRate} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Target: 54% (Industry benchmark)
+                {resolvedNDRs} of {totalNDRs} NDRs resolved
               </p>
             </div>
           </CardContent>
@@ -373,12 +379,18 @@ export default function NDRCommandCenterPage() {
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-2xl font-bold">2.4h</span>
-                <TrendingDown className="h-5 w-5 text-green-500" />
+                <span className="text-2xl font-bold">
+                  {stats.avgResolutionHours > 0 ? `${stats.avgResolutionHours}h` : "N/A"}
+                </span>
+                {stats.avgResolutionHours > 0 && stats.avgResolutionHours < 4 ? (
+                  <TrendingDown className="h-5 w-5 text-green-500" />
+                ) : (
+                  <TrendingUp className="h-5 w-5 text-amber-500" />
+                )}
               </div>
-              <Progress value={65} className="h-2" />
+              <Progress value={stats.avgResolutionHours > 0 ? Math.min(100, (4 / stats.avgResolutionHours) * 100) : 0} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Industry avg: 4-6 hours
+                Based on {resolvedNDRs} resolved cases
               </p>
             </div>
           </CardContent>

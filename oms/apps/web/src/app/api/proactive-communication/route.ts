@@ -109,6 +109,28 @@ export async function GET(request: NextRequest) {
       _count: { _all: true },
     });
 
+    // Compute delivery rates per channel
+    const channels = ["WHATSAPP", "SMS", "EMAIL", "AI_VOICE", "IVR"];
+    const channelDeliveryRates: Record<string, number> = {};
+
+    for (const channel of channels) {
+      const channelStats = await prisma.proactiveCommunication.groupBy({
+        by: ["status"],
+        where: {
+          ...(companyFilter ? { companyId: companyFilter as string } : {}),
+          channel: channel as "WHATSAPP" | "SMS" | "EMAIL" | "AI_VOICE" | "IVR" | "MANUAL_CALL",
+        },
+        _count: { _all: true },
+      });
+
+      const totalSent = channelStats.reduce((sum, s) => sum + s._count._all, 0);
+      const delivered = channelStats
+        .filter(s => ["DELIVERED", "READ", "RESPONDED"].includes(s.status))
+        .reduce((sum, s) => sum + s._count._all, 0);
+
+      channelDeliveryRates[channel] = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0;
+    }
+
     return NextResponse.json({
       communications,
       total,
@@ -127,6 +149,7 @@ export async function GET(request: NextRequest) {
         acc[item.channel] = item._count._all;
         return acc;
       }, {} as Record<string, number>),
+      channelDeliveryRates,
     });
   } catch (error) {
     console.error("Error fetching proactive communications:", error);

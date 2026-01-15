@@ -69,6 +69,7 @@ interface CommStats {
   statusCounts: Record<string, number>;
   triggerCounts: Record<string, number>;
   channelCounts: Record<string, number>;
+  channelDeliveryRates: Record<string, number>;
 }
 
 const TRIGGER_CONFIG = [
@@ -90,6 +91,7 @@ export default function ProactiveCommunicationPage() {
     statusCounts: {},
     triggerCounts: {},
     channelCounts: {},
+    channelDeliveryRates: {},
   });
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -119,6 +121,7 @@ export default function ProactiveCommunicationPage() {
           statusCounts: data.statusCounts || {},
           triggerCounts: data.triggerCounts || {},
           channelCounts: data.channelCounts || {},
+          channelDeliveryRates: data.channelDeliveryRates || {},
         });
       }
       setLastRefresh(new Date());
@@ -337,11 +340,13 @@ export default function ProactiveCommunicationPage() {
                 <span className="text-2xl font-bold">
                   {stats.channelCounts.WHATSAPP || 0}
                 </span>
-                <Badge className="bg-green-100 text-green-700">98% delivery</Badge>
+                <Badge className="bg-green-100 text-green-700">
+                  {stats.channelDeliveryRates.WHATSAPP || 0}% delivery
+                </Badge>
               </div>
-              <Progress value={98} className="h-2" />
+              <Progress value={stats.channelDeliveryRates.WHATSAPP || 0} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Highest engagement rate
+                {stats.channelCounts.WHATSAPP || 0} messages sent
               </p>
             </div>
           </CardContent>
@@ -360,11 +365,13 @@ export default function ProactiveCommunicationPage() {
                 <span className="text-2xl font-bold">
                   {stats.channelCounts.SMS || 0}
                 </span>
-                <Badge className="bg-blue-100 text-blue-700">95% delivery</Badge>
+                <Badge className="bg-blue-100 text-blue-700">
+                  {stats.channelDeliveryRates.SMS || 0}% delivery
+                </Badge>
               </div>
-              <Progress value={95} className="h-2" />
+              <Progress value={stats.channelDeliveryRates.SMS || 0} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Reliable fallback
+                {stats.channelCounts.SMS || 0} messages sent
               </p>
             </div>
           </CardContent>
@@ -383,11 +390,13 @@ export default function ProactiveCommunicationPage() {
                 <span className="text-2xl font-bold">
                   {stats.channelCounts.EMAIL || 0}
                 </span>
-                <Badge className="bg-purple-100 text-purple-700">85% delivery</Badge>
+                <Badge className="bg-purple-100 text-purple-700">
+                  {stats.channelDeliveryRates.EMAIL || 0}% delivery
+                </Badge>
               </div>
-              <Progress value={85} className="h-2" />
+              <Progress value={stats.channelDeliveryRates.EMAIL || 0} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Best for detailed info
+                {stats.channelCounts.EMAIL || 0} messages sent
               </p>
             </div>
           </CardContent>
