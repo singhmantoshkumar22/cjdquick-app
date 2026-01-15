@@ -19,6 +19,7 @@ import {
   Search,
   Menu,
   X,
+  Gauge,
 } from "lucide-react";
 
 interface NavItem {
@@ -30,6 +31,7 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: "Dashboard", href: "/client", icon: LayoutDashboard },
+  { name: "Control Tower", href: "/client/control-tower", icon: Gauge },
   {
     name: "Sales",
     href: "/client/sales",
