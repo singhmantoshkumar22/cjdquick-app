@@ -6,7 +6,7 @@ from .api.routes import api_router
 app = FastAPI(
     title=settings.APP_NAME,
     description="CJDQuick Order Management System API",
-    version="1.0.0",
+    version="1.1.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -35,7 +35,7 @@ app.include_router(api_router, prefix="/api")
 async def root():
     return {
         "message": "CJDQuick OMS API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "docs": "/docs"
     }
 
