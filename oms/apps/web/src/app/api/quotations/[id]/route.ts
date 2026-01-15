@@ -18,25 +18,19 @@ export async function GET(
     const quotation = await prisma.quotation.findUnique({
       where: { id },
       include: {
-        customer: {
+        Customer: {
           include: {
-            customerGroup: true,
+            CustomerGroup: true,
           },
         },
-        items: {
+        QuotationItem: {
           include: {
-            sku: {
-              select: { id: true, code: true, name: true, barcode: true },
+            SKU: {
+              select: { id: true, code: true, name: true, barcodes: true },
             },
           },
         },
-        createdByUser: {
-          select: { id: true, name: true, email: true },
-        },
-        approvedByUser: {
-          select: { id: true, name: true, email: true },
-        },
-        convertedOrder: {
+        Order: {
           select: { id: true, orderNo: true, status: true },
         },
       },
@@ -75,7 +69,7 @@ export async function PATCH(
 
     const quotation = await prisma.quotation.findUnique({
       where: { id },
-      include: { customer: true },
+      include: { Customer: true },
     });
 
     if (!quotation) {
@@ -83,7 +77,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { action, validUntil, notes, terms, rejectionReason, items } = body;
+    const { action, validUntil, remarks, specialTerms, rejectionReason, items } = body;
 
     // Handle status transitions
     if (action) {
@@ -99,7 +93,7 @@ export async function PATCH(
           const submittedQuotation = await prisma.quotation.update({
             where: { id },
             data: { status: "PENDING_APPROVAL" },
-            include: { customer: true, items: { include: { sku: true } } },
+            include: { Customer: true, QuotationItem: { include: { SKU: true } } },
           });
           return NextResponse.json(submittedQuotation);
 
@@ -115,10 +109,10 @@ export async function PATCH(
             where: { id },
             data: {
               status: "APPROVED",
-              approvedBy: session.user.id,
+              approvedById: session.user.id,
               approvedAt: new Date(),
             },
-            include: { customer: true, items: { include: { sku: true } } },
+            include: { Customer: true, QuotationItem: { include: { SKU: true } } },
           });
           return NextResponse.json(approvedQuotation);
 
@@ -136,7 +130,7 @@ export async function PATCH(
               status: "REJECTED",
               rejectionReason,
             },
-            include: { customer: true, items: { include: { sku: true } } },
+            include: { Customer: true, QuotationItem: { include: { SKU: true } } },
           });
           return NextResponse.json(rejectedQuotation);
 
@@ -149,7 +143,7 @@ export async function PATCH(
           }
 
           // Check if already converted
-          if (quotation.convertedToOrderId) {
+          if (quotation.convertedOrderId) {
             return NextResponse.json(
               { error: "Quotation already converted to order" },
               { status: 400 }
@@ -169,7 +163,7 @@ export async function PATCH(
             // Get quotation items
             const quotationItems = await tx.quotationItem.findMany({
               where: { quotationId: id },
-              include: { sku: true },
+              include: { SKU: true },
             });
 
             // Create order
@@ -180,17 +174,22 @@ export async function PATCH(
                 status: "CONFIRMED",
                 paymentMode: "CREDIT",
                 customerId: quotation.customerId,
-                paymentTermType: quotation.paymentTermType,
-                paymentTermDays: quotation.paymentTermDays,
+                customerName: quotation.Customer.name,
+                customerPhone: quotation.Customer.phone,
+                shippingAddress: quotation.Customer.billingAddress,
+                orderDate: new Date(),
+                locationId: quotation.Customer.companyId, // Default to company's main location
+                paymentTermType: quotation.Customer.paymentTermType,
+                paymentTermDays: quotation.Customer.paymentTermDays,
                 subtotal: quotation.subtotal,
                 taxAmount: quotation.taxAmount,
                 discount: quotation.discountAmount,
                 totalAmount: quotation.totalAmount,
-                items: {
+                OrderItem: {
                   create: quotationItems.map((item) => ({
                     skuId: item.skuId,
-                    skuCode: item.sku.code,
-                    skuName: item.sku.name,
+                    skuCode: item.SKU.code,
+                    skuName: item.SKU.name,
                     quantity: item.quantity,
                     unitPrice: item.unitPrice,
                     discount: item.discountAmount,
@@ -206,13 +205,13 @@ export async function PATCH(
               where: { id },
               data: {
                 status: "CONVERTED",
-                convertedToOrderId: order.id,
+                convertedOrderId: order.id,
                 convertedAt: new Date(),
               },
             });
 
             // Update customer credit if credit is enabled
-            if (quotation.customer.creditEnabled) {
+            if (quotation.Customer.creditEnabled) {
               await tx.customer.update({
                 where: { id: quotation.customerId },
                 data: {
@@ -221,18 +220,18 @@ export async function PATCH(
               });
 
               // Create credit transaction
-              await tx.creditTransaction.create({
+              await tx.b2BCreditTransaction.create({
                 data: {
                   customerId: quotation.customerId,
-                  type: "UTILIZATION",
+                  type: "ORDER_DEBIT",
                   amount: quotation.totalAmount,
-                  balanceBefore: quotation.customer.creditLimit.minus(quotation.customer.creditUsed),
-                  balanceAfter: quotation.customer.creditLimit.minus(quotation.customer.creditUsed).minus(quotation.totalAmount),
+                  balanceBefore: quotation.Customer.creditLimit.minus(quotation.Customer.creditUsed),
+                  balanceAfter: quotation.Customer.creditLimit.minus(quotation.Customer.creditUsed).minus(quotation.totalAmount),
                   referenceType: "ORDER",
                   referenceId: order.id,
                   referenceNo: orderNo,
                   description: `Order created from quotation ${quotation.quotationNo}`,
-                  createdBy: session.user.id,
+                  createdById: session.user.id,
                 },
               });
             }
@@ -257,7 +256,7 @@ export async function PATCH(
           const cancelledQuotation = await prisma.quotation.update({
             where: { id },
             data: { status: "CANCELLED" },
-            include: { customer: true, items: { include: { sku: true } } },
+            include: { Customer: true, QuotationItem: { include: { SKU: true } } },
           });
           return NextResponse.json(cancelledQuotation);
 
@@ -280,8 +279,8 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {};
 
     if (validUntil !== undefined) updateData.validUntil = new Date(validUntil);
-    if (notes !== undefined) updateData.notes = notes;
-    if (terms !== undefined) updateData.terms = terms;
+    if (remarks !== undefined) updateData.remarks = remarks;
+    if (specialTerms !== undefined) updateData.specialTerms = specialTerms;
 
     // Update items if provided
     if (items && Array.isArray(items)) {
@@ -309,10 +308,11 @@ export async function PATCH(
               quotationId: id,
               skuId: item.skuId,
               quantity: item.quantity,
+              listPrice: item.unitPrice,
               unitPrice: item.unitPrice,
               discountPercent: item.discountPercent || 0,
               discountAmount: lineDiscount,
-              taxRate: item.taxRate || 18,
+              taxPercent: item.taxRate || 18,
               taxAmount: lineTax,
               totalPrice: lineTaxable + lineTax,
             },
@@ -330,9 +330,9 @@ export async function PATCH(
       where: { id },
       data: updateData,
       include: {
-        customer: true,
-        items: {
-          include: { sku: { select: { id: true, code: true, name: true } } },
+        Customer: true,
+        QuotationItem: {
+          include: { SKU: { select: { id: true, code: true, name: true } } },
         },
       },
     });

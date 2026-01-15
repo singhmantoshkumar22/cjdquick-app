@@ -19,7 +19,7 @@ export async function GET(
     const vendor = await prisma.vendor.findUnique({
       where: { id },
       include: {
-        purchaseOrders: {
+        PurchaseOrder: {
           orderBy: { createdAt: "desc" },
           take: 10,
           select: {
@@ -32,7 +32,7 @@ export async function GET(
         },
         _count: {
           select: {
-            purchaseOrders: true,
+            PurchaseOrder: true,
           },
         },
       },

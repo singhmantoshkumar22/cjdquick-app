@@ -18,19 +18,13 @@ export async function GET(
     const customer = await prisma.customer.findUnique({
       where: { id },
       include: {
-        customerGroup: true,
-        priceList: {
+        CustomerGroup: true,
+        PriceList: {
           include: {
-            items: {
-              include: {
-                sku: {
-                  select: { id: true, code: true, name: true },
-                },
-              },
-            },
+            PriceListItem: true,
           },
         },
-        orders: {
+        Order: {
           orderBy: { createdAt: "desc" },
           take: 10,
           select: {
@@ -41,7 +35,7 @@ export async function GET(
             createdAt: true,
           },
         },
-        quotations: {
+        Quotation: {
           orderBy: { createdAt: "desc" },
           take: 10,
           select: {
@@ -52,12 +46,12 @@ export async function GET(
             createdAt: true,
           },
         },
-        creditTransactions: {
+        B2BCreditTransaction: {
           orderBy: { createdAt: "desc" },
           take: 20,
         },
         _count: {
-          select: { orders: true, quotations: true, creditTransactions: true },
+          select: { Order: true, Quotation: true, B2BCreditTransaction: true },
         },
       },
     });
@@ -119,10 +113,10 @@ export async function PATCH(
       status,
       email,
       phone,
-      gstin,
+      gst,
       pan,
       billingAddress,
-      shippingAddress,
+      shippingAddresses,
       customerGroupId,
       priceListId,
       creditEnabled,
@@ -130,8 +124,6 @@ export async function PATCH(
       creditStatus,
       paymentTermType,
       paymentTermDays,
-      taxExempt,
-      notes,
       dunningLevel,
     } = body;
 
@@ -142,10 +134,10 @@ export async function PATCH(
     if (status !== undefined) updateData.status = status;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
-    if (gstin !== undefined) updateData.gstin = gstin;
+    if (gst !== undefined) updateData.gst = gst;
     if (pan !== undefined) updateData.pan = pan;
     if (billingAddress !== undefined) updateData.billingAddress = billingAddress;
-    if (shippingAddress !== undefined) updateData.shippingAddress = shippingAddress;
+    if (shippingAddresses !== undefined) updateData.shippingAddresses = shippingAddresses;
     if (customerGroupId !== undefined) updateData.customerGroupId = customerGroupId;
     if (priceListId !== undefined) updateData.priceListId = priceListId;
     if (creditEnabled !== undefined) updateData.creditEnabled = creditEnabled;
@@ -153,16 +145,14 @@ export async function PATCH(
     if (creditStatus !== undefined) updateData.creditStatus = creditStatus;
     if (paymentTermType !== undefined) updateData.paymentTermType = paymentTermType;
     if (paymentTermDays !== undefined) updateData.paymentTermDays = paymentTermDays;
-    if (taxExempt !== undefined) updateData.taxExempt = taxExempt;
-    if (notes !== undefined) updateData.notes = notes;
     if (dunningLevel !== undefined) updateData.dunningLevel = dunningLevel;
 
     const updatedCustomer = await prisma.customer.update({
       where: { id },
       data: updateData,
       include: {
-        customerGroup: true,
-        priceList: true,
+        CustomerGroup: true,
+        PriceList: true,
       },
     });
 
@@ -219,7 +209,7 @@ export async function DELETE(
 
     // Hard delete if no orders
     await prisma.$transaction(async (tx) => {
-      await tx.creditTransaction.deleteMany({ where: { customerId: id } });
+      await tx.b2BCreditTransaction.deleteMany({ where: { customerId: id } });
       await tx.quotation.deleteMany({ where: { customerId: id } });
       await tx.customer.delete({ where: { id } });
     });

@@ -63,20 +63,14 @@ export async function GET(request: NextRequest) {
       prisma.qCExecution.findMany({
         where,
         include: {
-          template: {
+          QCTemplate: {
             select: { id: true, name: true, type: true },
           },
-          location: {
+          SKU: {
             select: { id: true, code: true, name: true },
-          },
-          sku: {
-            select: { id: true, code: true, name: true },
-          },
-          executedByUser: {
-            select: { id: true, name: true },
           },
           _count: {
-            select: { results: true, defects: true },
+            select: { QCResult: true, QCDefect: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -153,7 +147,7 @@ export async function POST(request: NextRequest) {
     const template = await prisma.qCTemplate.findUnique({
       where: { id: templateId },
       include: {
-        parameters: {
+        QCParameter: {
           orderBy: { sequence: "asc" },
         },
       },
@@ -176,32 +170,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Location not found" }, { status: 404 });
     }
 
-    const qcNo = await generateQCNumber();
+    const executionNo = await generateQCNumber();
 
     // Create execution
     const execution = await prisma.qCExecution.create({
       data: {
-        qcNo,
+        executionNo,
         templateId,
         locationId,
         skuId,
         status: "PENDING",
-        referenceType,
-        referenceId,
-        referenceNo,
-        inspectionQuantity: inspectionQuantity || 0,
-        sampleSize: sampleSize || inspectionQuantity || 1,
+        referenceType: referenceType || "MANUAL",
+        referenceId: referenceId || skuId,
+        sampleQty: inspectionQuantity || sampleSize || 1,
+        performedById: session.user.id,
       },
       include: {
-        template: {
+        QCTemplate: {
           include: {
-            parameters: {
+            QCParameter: {
               orderBy: { sequence: "asc" },
             },
           },
         },
-        location: true,
-        sku: true,
+        SKU: true,
       },
     });
 

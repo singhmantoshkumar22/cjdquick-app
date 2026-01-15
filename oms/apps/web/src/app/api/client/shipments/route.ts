@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Get client's company
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { company: true },
+      include: { Company: true },
     });
 
     if (!user?.companyId) {
@@ -30,13 +30,13 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: Record<string, unknown> = {
-      order: { companyId: user.companyId },
+      Order: { Location: { companyId: user.companyId } },
     };
 
     if (search) {
       where.OR = [
-        { awbNumber: { contains: search, mode: "insensitive" } },
-        { order: { orderNo: { contains: search, mode: "insensitive" } } },
+        { awbNo: { contains: search, mode: "insensitive" } },
+        { Order: { orderNo: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -44,35 +44,33 @@ export async function GET(request: NextRequest) {
       where.status = status.toUpperCase();
     }
 
-    const [shipments, total] = await Promise.all([
-      prisma.shipment.findMany({
+    const [deliveries, total] = await Promise.all([
+      prisma.delivery.findMany({
         where,
         include: {
-          order: {
+          Order: {
             select: {
               id: true,
               orderNo: true,
               shippingAddress: true,
+              Location: { select: { name: true } },
             },
           },
-          transporter: {
-            select: { name: true, trackingUrlPattern: true },
-          },
-          location: {
-            select: { name: true, city: true },
+          Transporter: {
+            select: { name: true, trackingUrlTemplate: true },
           },
         },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
-      prisma.shipment.count({ where }),
+      prisma.delivery.count({ where }),
     ]);
 
     // Get status counts
-    const statusCounts = await prisma.shipment.groupBy({
+    const statusCounts = await prisma.delivery.groupBy({
       by: ["status"],
-      where: { order: { companyId: user.companyId } },
+      where: { Order: { Location: { companyId: user.companyId } } },
       _count: { _all: true },
     });
 
@@ -87,42 +85,48 @@ export async function GET(request: NextRequest) {
 
     // Map status to frontend format
     const statusMapping: Record<string, string> = {
-      CREATED: "pending",
-      PICKED_UP: "in_transit",
+      PENDING: "pending",
+      PACKED: "pending",
+      MANIFESTED: "pending",
+      SHIPPED: "in_transit",
       IN_TRANSIT: "in_transit",
       OUT_FOR_DELIVERY: "out_for_delivery",
       DELIVERED: "delivered",
-      FAILED: "exception",
       RTO_INITIATED: "exception",
+      RTO_IN_TRANSIT: "exception",
       RTO_DELIVERED: "exception",
+      CANCELLED: "exception",
     };
 
     return NextResponse.json({
-      shipments: shipments.map((s) => ({
-        id: s.id,
-        awb: s.awbNumber || "Pending",
-        orderNumber: s.order.orderNo,
-        transporter: s.transporter?.name || "Not Assigned",
-        status: statusMapping[s.status] || "pending",
-        origin: s.location?.city || "N/A",
-        destination: (s.order.shippingAddress as Record<string, string>)?.city || "N/A",
-        estimatedDelivery: s.expectedDelivery?.toISOString().split("T")[0] || "TBD",
-        actualDelivery: s.deliveredAt?.toISOString().split("T")[0],
-        weight: Number(s.weight || 0),
-        createdAt: s.createdAt.toISOString().split("T")[0],
-        trackingUrl: s.transporter?.trackingUrlPattern?.replace("{awb}", s.awbNumber || ""),
-      })),
+      shipments: deliveries.map((d) => {
+        const shippingAddr = d.Order.shippingAddress as Record<string, string> | null;
+        return {
+          id: d.id,
+          awb: d.awbNo || "Pending",
+          orderNumber: d.Order.orderNo,
+          transporter: d.Transporter?.name || "Not Assigned",
+          status: statusMapping[d.status] || "pending",
+          origin: d.Order.Location?.name || "N/A",
+          destination: shippingAddr?.city || "N/A",
+          estimatedDelivery: d.shipDate ? new Date(d.shipDate.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0] : "TBD",
+          actualDelivery: d.deliveryDate?.toISOString().split("T")[0],
+          weight: Number(d.weight || 0),
+          createdAt: d.createdAt.toISOString().split("T")[0],
+          trackingUrl: d.Transporter?.trackingUrlTemplate?.replace("{awb}", d.awbNo || ""),
+        };
+      }),
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
       statusCounts: {
         all: total,
-        pending: (statusCountMap.created || 0),
-        in_transit: (statusCountMap.in_transit || 0) + (statusCountMap.picked_up || 0),
+        pending: (statusCountMap.pending || 0) + (statusCountMap.packed || 0) + (statusCountMap.manifested || 0),
+        in_transit: (statusCountMap.in_transit || 0) + (statusCountMap.shipped || 0),
         out_for_delivery: statusCountMap.out_for_delivery || 0,
         delivered: statusCountMap.delivered || 0,
-        exception: (statusCountMap.failed || 0) + (statusCountMap.rto_initiated || 0) + (statusCountMap.rto_delivered || 0),
+        exception: (statusCountMap.rto_initiated || 0) + (statusCountMap.rto_in_transit || 0) + (statusCountMap.rto_delivered || 0) + (statusCountMap.cancelled || 0),
       },
     });
   } catch (error) {

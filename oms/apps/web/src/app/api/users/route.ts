@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         isActive: true,
         locationAccess: true,
         createdAt: true,
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,

@@ -28,7 +28,7 @@ export async function GET(
         isActive: true,
         locationAccess: true,
         createdAt: true,
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,

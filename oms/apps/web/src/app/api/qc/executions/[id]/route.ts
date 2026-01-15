@@ -18,27 +18,20 @@ export async function GET(
     const execution = await prisma.qCExecution.findUnique({
       where: { id },
       include: {
-        template: {
+        QCTemplate: {
           include: {
-            parameters: {
+            QCParameter: {
               orderBy: { sequence: "asc" },
             },
           },
         },
-        location: true,
-        sku: true,
-        executedByUser: {
-          select: { id: true, name: true, email: true },
-        },
-        results: {
+        SKU: true,
+        QCResult: {
           include: {
-            parameter: true,
+            QCParameter: true,
           },
-          orderBy: { createdAt: "asc" },
         },
-        defects: {
-          orderBy: { createdAt: "asc" },
-        },
+        QCDefect: true,
       },
     });
 
@@ -76,9 +69,9 @@ export async function PATCH(
     const execution = await prisma.qCExecution.findUnique({
       where: { id },
       include: {
-        template: {
+        QCTemplate: {
           include: {
-            parameters: true,
+            QCParameter: true,
           },
         },
       },
@@ -88,7 +81,7 @@ export async function PATCH(
       return NextResponse.json({ error: "QC execution not found" }, { status: 404 });
     }
 
-    if (execution.status === "COMPLETED") {
+    if (["PASSED", "FAILED", "CONDITIONAL"].includes(execution.status)) {
       return NextResponse.json(
         { error: "QC execution already completed" },
         { status: 400 }
@@ -111,15 +104,14 @@ export async function PATCH(
         where: { id },
         data: {
           status: "IN_PROGRESS",
-          startedAt: new Date(),
-          executedBy: session.user.id,
+          performedAt: new Date(),
+          performedById: session.user.id,
         },
         include: {
-          template: {
-            include: { parameters: true },
+          QCTemplate: {
+            include: { QCParameter: true },
           },
-          location: true,
-          sku: true,
+          SKU: true,
         },
       });
 
@@ -132,31 +124,31 @@ export async function PATCH(
         where: { executionId: id },
       });
 
-      const allPassed = allResults.every((r) => r.passed);
+      const allPassed = allResults.every((r) => r.isPassed);
       const hasMandatoryFails = allResults.some(
-        (r) => !r.passed && execution.template.parameters.find((p) => p.id === r.parameterId)?.isMandatory
+        (r) => !r.isPassed && execution.QCTemplate.QCParameter.find((p) => p.id === r.parameterId)?.isMandatory
       );
 
-      const overallResult = hasMandatoryFails ? "FAIL" : allPassed ? "PASS" : "CONDITIONAL";
+      const finalStatus = hasMandatoryFails ? "FAILED" : allPassed ? "PASSED" : "CONDITIONAL";
+      const overallGrade = hasMandatoryFails ? "FAIL" : allPassed ? "PASS" : "CONDITIONAL";
 
       const updatedExecution = await prisma.qCExecution.update({
         where: { id },
         data: {
-          status: "COMPLETED",
+          status: finalStatus,
           completedAt: new Date(),
-          overallResult,
-          passedQuantity: passedQuantity || execution.inspectionQuantity,
-          failedQuantity: failedQuantity || 0,
+          overallGrade,
+          passedQty: passedQuantity || execution.sampleQty,
+          failedQty: failedQuantity || 0,
           remarks,
         },
         include: {
-          template: true,
-          location: true,
-          sku: true,
-          results: {
-            include: { parameter: true },
+          QCTemplate: true,
+          SKU: true,
+          QCResult: {
+            include: { QCParameter: true },
           },
-          defects: true,
+          QCDefect: true,
         },
       });
 
@@ -181,9 +173,9 @@ export async function PATCH(
               data: {
                 value: result.value,
                 numericValue: result.numericValue,
-                passed: result.passed,
+                isPassed: result.passed,
                 remarks: result.remarks,
-                photoUrl: result.photoUrl,
+                photos: result.photos || [],
               },
             });
           } else {
@@ -193,9 +185,9 @@ export async function PATCH(
                 parameterId: result.parameterId,
                 value: result.value,
                 numericValue: result.numericValue,
-                passed: result.passed,
+                isPassed: result.passed,
                 remarks: result.remarks,
-                photoUrl: result.photoUrl,
+                photos: result.photos || [],
               },
             });
           }
@@ -210,11 +202,12 @@ export async function PATCH(
           await tx.qCDefect.create({
             data: {
               executionId: id,
-              defectType: defect.defectType,
+              defectCode: defect.defectCode || defect.defectType || "DEF",
+              defectName: defect.defectName || defect.defectType || "Defect",
               description: defect.description,
               severity: defect.severity,
               quantity: defect.quantity || 1,
-              photoUrls: defect.photoUrls || [],
+              photos: defect.photos || [],
             },
           });
         }
@@ -225,15 +218,14 @@ export async function PATCH(
     const updatedExecution = await prisma.qCExecution.findUnique({
       where: { id },
       include: {
-        template: {
-          include: { parameters: true },
+        QCTemplate: {
+          include: { QCParameter: true },
         },
-        location: true,
-        sku: true,
-        results: {
-          include: { parameter: true },
+        SKU: true,
+        QCResult: {
+          include: { QCParameter: true },
         },
-        defects: true,
+        QCDefect: true,
       },
     });
 
@@ -270,7 +262,7 @@ export async function DELETE(
       return NextResponse.json({ error: "QC execution not found" }, { status: 404 });
     }
 
-    if (execution.status === "COMPLETED") {
+    if (["PASSED", "FAILED", "CONDITIONAL"].includes(execution.status)) {
       return NextResponse.json(
         { error: "Cannot delete completed QC execution" },
         { status: 400 }

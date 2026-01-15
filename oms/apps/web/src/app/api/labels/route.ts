@@ -171,9 +171,9 @@ export async function POST(request: NextRequest) {
           ? { id: deliveryId }
           : { orderId, status: { not: "CANCELLED" } },
         include: {
-          transporter: true,
-          order: {
-            include: { location: true, items: true },
+          Transporter: true,
+          Order: {
+            include: { Location: true, OrderItem: true },
           },
         },
       });

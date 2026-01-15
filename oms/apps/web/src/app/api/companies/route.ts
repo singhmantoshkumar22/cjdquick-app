@@ -22,8 +22,8 @@ export async function GET() {
       include: {
         _count: {
           select: {
-            locations: true,
-            users: true,
+            Location: true,
+            User: true,
           },
         },
       },

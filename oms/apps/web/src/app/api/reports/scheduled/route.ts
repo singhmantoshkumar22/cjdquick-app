@@ -28,11 +28,8 @@ export async function GET(request: NextRequest) {
       prisma.scheduledReport.findMany({
         where,
         include: {
-          createdByUser: {
-            select: { id: true, name: true, email: true },
-          },
           _count: {
-            select: { executions: true },
+            select: { ReportExecution: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -81,6 +78,9 @@ export async function POST(request: NextRequest) {
       format = "EXCEL",
       recipients,
       filters,
+      time = "09:00",
+      dayOfWeek,
+      dayOfMonth,
       isActive = true,
     } = body;
 
@@ -103,15 +103,13 @@ export async function POST(request: NextRequest) {
         frequency,
         format,
         recipients: recipients || [],
-        filters: filters || {},
+        reportConfig: filters || {},
+        time,
+        dayOfWeek,
+        dayOfMonth,
         isActive,
         nextRunAt,
-        createdBy: session.user.id,
-      },
-      include: {
-        createdByUser: {
-          select: { id: true, name: true, email: true },
-        },
+        createdById: session.user.id,
       },
     });
 

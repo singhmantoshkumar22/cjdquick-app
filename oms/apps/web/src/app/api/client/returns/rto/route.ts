@@ -21,23 +21,23 @@ export async function GET(request: NextRequest) {
     // Get client's company
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { company: true },
+      include: { Company: true },
     });
 
     if (!user?.companyId) {
       return NextResponse.json({ rtoShipments: [], total: 0 });
     }
 
-    // Build where clause for RTO shipments
+    // Build where clause for RTO deliveries
     const where: Record<string, unknown> = {
-      order: { companyId: user.companyId },
-      status: { in: ["RTO_INITIATED", "RTO_IN_TRANSIT", "RTO_DELIVERED", "FAILED"] },
+      Order: { Location: { companyId: user.companyId } },
+      status: { in: ["RTO_INITIATED", "RTO_IN_TRANSIT", "RTO_DELIVERED"] },
     };
 
     if (search) {
       where.OR = [
-        { awbNumber: { contains: search, mode: "insensitive" } },
-        { order: { orderNo: { contains: search, mode: "insensitive" } } },
+        { awbNo: { contains: search, mode: "insensitive" } },
+        { Order: { orderNo: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -45,33 +45,31 @@ export async function GET(request: NextRequest) {
       where.status = status.toUpperCase();
     }
 
-    const [shipments, total] = await Promise.all([
-      prisma.shipment.findMany({
+    const [deliveries, total] = await Promise.all([
+      prisma.delivery.findMany({
         where,
         include: {
-          order: {
+          Order: {
             select: {
               id: true,
               orderNo: true,
               totalAmount: true,
               shippingAddress: true,
+              Location: { select: { name: true } },
             },
           },
-          transporter: {
+          Transporter: {
             select: { name: true },
-          },
-          location: {
-            select: { name: true, city: true },
           },
         },
         orderBy: { updatedAt: "desc" },
         skip,
         take: limit,
       }),
-      prisma.shipment.count({ where }),
+      prisma.delivery.count({ where }),
     ]);
 
-    // Get RTO reason stats (simulated from shipment data)
+    // Get RTO reason stats (simulated from delivery data)
     const reasonStats = {
       "Customer Unavailable": 35,
       "Address Not Found": 25,
@@ -82,26 +80,29 @@ export async function GET(request: NextRequest) {
 
     // Calculate RTO metrics
     const totalOrders = await prisma.order.count({
-      where: { companyId: user.companyId },
+      where: { Location: { companyId: user.companyId } },
     });
     const rtoRate = totalOrders > 0 ? (total / totalOrders) * 100 : 0;
-    const rtoValue = shipments.reduce((sum, s) => sum + Number(s.order.totalAmount), 0);
+    const rtoValue = deliveries.reduce((sum, d) => sum + Number(d.Order.totalAmount), 0);
 
     return NextResponse.json({
-      rtoShipments: shipments.map((s) => ({
-        id: s.id,
-        awb: s.awbNumber || "N/A",
-        orderNumber: s.order.orderNo,
-        orderValue: Number(s.order.totalAmount),
-        transporter: s.transporter?.name || "Not Assigned",
-        status: s.status.toLowerCase().replace(/_/g, "_"),
-        rtoReason: s.rtoReason || "Unspecified",
-        origin: (s.order.shippingAddress as Record<string, string>)?.city || "N/A",
-        destination: s.location?.city || "Warehouse",
-        rtoInitiatedAt: s.rtoInitiatedAt?.toISOString().split("T")[0],
-        rtoDeliveredAt: s.rtoDeliveredAt?.toISOString().split("T")[0],
-        createdAt: s.createdAt.toISOString().split("T")[0],
-      })),
+      rtoShipments: deliveries.map((d) => {
+        const shippingAddr = d.Order.shippingAddress as Record<string, string> | null;
+        return {
+          id: d.id,
+          awb: d.awbNo || "N/A",
+          orderNumber: d.Order.orderNo,
+          orderValue: Number(d.Order.totalAmount),
+          transporter: d.Transporter?.name || "Not Assigned",
+          status: d.status.toLowerCase().replace(/_/g, "_"),
+          rtoReason: d.remarks || "Unspecified",
+          origin: shippingAddr?.city || "N/A",
+          destination: d.Order.Location?.name || "Warehouse",
+          rtoInitiatedAt: d.updatedAt?.toISOString().split("T")[0],
+          rtoDeliveredAt: d.deliveryDate?.toISOString().split("T")[0],
+          createdAt: d.createdAt.toISOString().split("T")[0],
+        };
+      }),
       total,
       page,
       limit,
@@ -111,8 +112,8 @@ export async function GET(request: NextRequest) {
         rtoRate: Math.round(rtoRate * 10) / 10,
         rtoValue,
         avgRTOTime: 5, // days - would be calculated from actual data
-        pendingRTO: shipments.filter((s) => s.status !== "RTO_DELIVERED").length,
-        completedRTO: shipments.filter((s) => s.status === "RTO_DELIVERED").length,
+        pendingRTO: deliveries.filter((d) => d.status !== "RTO_DELIVERED").length,
+        completedRTO: deliveries.filter((d) => d.status === "RTO_DELIVERED").length,
       },
       reasonStats,
     });

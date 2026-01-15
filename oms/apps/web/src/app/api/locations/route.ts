@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const locations = await prisma.location.findMany({
       where: companyId ? { companyId } : undefined,
       include: {
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            zones: true,
+            Zone: true,
           },
         },
       },

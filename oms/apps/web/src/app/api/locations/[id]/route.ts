@@ -19,18 +19,18 @@ export async function GET(
     const location = await prisma.location.findUnique({
       where: { id },
       include: {
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,
             code: true,
           },
         },
-        zones: {
+        Zone: {
           include: {
             _count: {
               select: {
-                bins: true,
+                Bin: true,
               },
             },
           },

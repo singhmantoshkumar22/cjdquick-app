@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { quotationNo: { contains: search, mode: "insensitive" } },
-        { customer: { name: { contains: search, mode: "insensitive" } } },
-        { customer: { code: { contains: search, mode: "insensitive" } } },
+        { Customer: { name: { contains: search, mode: "insensitive" } } },
+        { Customer: { code: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -54,14 +54,11 @@ export async function GET(request: NextRequest) {
       prisma.quotation.findMany({
         where,
         include: {
-          customer: {
+          Customer: {
             select: { id: true, code: true, name: true, email: true },
           },
-          createdByUser: {
-            select: { id: true, name: true },
-          },
           _count: {
-            select: { items: true },
+            select: { QuotationItem: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -136,7 +133,7 @@ export async function POST(request: NextRequest) {
     // Validate customer exists
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
-      include: { priceList: { include: { items: true } } },
+      include: { PriceList: { include: { PriceListItem: true } } },
     });
 
     if (!customer) {
@@ -162,11 +159,11 @@ export async function POST(request: NextRequest) {
 
         // Get price from price list or use provided price
         let unitPrice = item.unitPrice;
-        if (!unitPrice && customer.priceList) {
-          const priceListItem = customer.priceList.items.find(
+        if (!unitPrice && customer.PriceList) {
+          const priceListItem = customer.PriceList.PriceListItem.find(
             (pli) => pli.skuId === item.skuId
           );
-          unitPrice = priceListItem ? Number(priceListItem.price) : Number(sku.sellingPrice);
+          unitPrice = priceListItem ? Number(priceListItem.fixedPrice) : Number(sku.sellingPrice);
         }
         if (!unitPrice) {
           unitPrice = Number(sku.sellingPrice);
@@ -184,10 +181,11 @@ export async function POST(request: NextRequest) {
         return {
           skuId: item.skuId,
           quantity: item.quantity,
+          listPrice: unitPrice,
           unitPrice,
           discountPercent: item.discountPercent || 0,
           discountAmount: lineDiscount,
-          taxRate: item.taxRate || 18,
+          taxPercent: item.taxRate || 18,
           taxAmount: lineTax,
           totalPrice: lineTaxable + lineTax,
         };
@@ -207,24 +205,28 @@ export async function POST(request: NextRequest) {
         customerId,
         status: "DRAFT",
         validUntil: validUntil ? new Date(validUntil) : defaultValidUntil,
-        paymentTermType: paymentTermType || customer.paymentTermType,
-        paymentTermDays: paymentTermDays || customer.paymentTermDays,
+        shippingAddress: customer.billingAddress,
+        billingAddress: customer.billingAddress,
+        companyId: customer.companyId,
+        locationId: customer.companyId, // Will be updated with actual location
         subtotal,
         discountAmount,
         taxAmount,
         totalAmount,
-        notes,
-        terms,
-        createdBy: session.user.id,
-        items: {
+        paymentTermType: paymentTermType || customer.paymentTermType,
+        paymentTermDays: paymentTermDays || customer.paymentTermDays,
+        remarks: notes,
+        specialTerms: terms,
+        createdById: session.user.id,
+        QuotationItem: {
           create: processedItems,
         },
       },
       include: {
-        customer: true,
-        items: {
+        Customer: true,
+        QuotationItem: {
           include: {
-            sku: {
+            SKU: {
               select: { id: true, code: true, name: true },
             },
           },

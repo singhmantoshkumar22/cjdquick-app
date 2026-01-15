@@ -19,11 +19,11 @@ export async function GET(
     const company = await prisma.company.findUnique({
       where: { id },
       include: {
-        locations: true,
+        Location: true,
         _count: {
           select: {
-            users: true,
-            locations: true,
+            User: true,
+            Location: true,
           },
         },
       },

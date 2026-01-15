@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
         isActive: true,
         _count: {
           select: {
-            deliveries: true,
-            awbPool: {
+            Delivery: true,
+            AWB: {
               where: { isUsed: false },
             },
           },
