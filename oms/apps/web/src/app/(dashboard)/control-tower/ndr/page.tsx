@@ -334,7 +334,7 @@ export default function NDRCommandCenterPage() {
                   className={`rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
                     reasonFilter === key ? "ring-2 ring-primary" : ""
                   }`}
-                  onClick={() => setReasonFilter(reasonFilter === key ? "" : key)}
+                  onClick={() => setReasonFilter(reasonFilter === key ? "" : key as NDRReason)}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <div className={`h-3 w-3 rounded-full ${color}`} />
@@ -370,7 +370,7 @@ export default function NDRCommandCenterPage() {
                 />
               </div>
             </div>
-            <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+            <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v as NDRStatus)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -384,7 +384,7 @@ export default function NDRCommandCenterPage() {
                 <SelectItem value="RTO_PENDING">RTO Pending</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={priorityFilter || "all"} onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v)}>
+            <Select value={priorityFilter || "all"} onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v as NDRPriority)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
@@ -432,7 +432,7 @@ export default function NDRCommandCenterPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{ndr.order.orderNo}</div>
+                          <div className="font-medium">{ndr.order?.orderNo || "-"}</div>
                           <div className="text-xs text-muted-foreground">
                             {ndr.delivery?.awbNo || "-"}
                           </div>
@@ -440,9 +440,9 @@ export default function NDRCommandCenterPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{ndr.order.customerName}</div>
+                          <div className="font-medium">{ndr.order?.customerName || "-"}</div>
                           <div className="text-xs text-muted-foreground">
-                            {ndr.order.customerPhone}
+                            {ndr.order?.customerPhone || "-"}
                           </div>
                         </div>
                       </TableCell>
@@ -499,7 +499,7 @@ export default function NDRCommandCenterPage() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Badge variant="outline" className="text-xs">
-                            {ndr._count.outreachAttempts} attempts
+                            {(ndr as any)._count?.outreachAttempts || 0} attempts
                           </Badge>
                         </div>
                       </TableCell>
@@ -518,7 +518,7 @@ export default function NDRCommandCenterPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(`/orders/${ndr.order.id}`, "_blank")}
+                            onClick={() => ndr.order?.id && window.open(`/orders/${ndr.order.id}`, "_blank")}
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
@@ -576,15 +576,15 @@ export default function NDRCommandCenterPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">Order:</span>{" "}
-                    <span className="font-medium">{selectedNDR.order.orderNo}</span>
+                    <span className="font-medium">{selectedNDR.order?.orderNo || "-"}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Customer:</span>{" "}
-                    <span className="font-medium">{selectedNDR.order.customerName}</span>
+                    <span className="font-medium">{selectedNDR.order?.customerName || "-"}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Phone:</span>{" "}
-                    <span className="font-medium">{selectedNDR.order.customerPhone}</span>
+                    <span className="font-medium">{selectedNDR.order?.customerPhone || "-"}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Reason:</span>{" "}
@@ -609,7 +609,7 @@ export default function NDRCommandCenterPage() {
                       <PhoneCall className="h-4 w-4" />
                       AI Call
                     </TabsTrigger>
-                    <TabsTrigger value="EMAIL" className="flex items-center gap-2" disabled={!selectedNDR.order.customerEmail}>
+                    <TabsTrigger value="EMAIL" className="flex items-center gap-2" disabled={!selectedNDR.order?.customerEmail}>
                       <Mail className="h-4 w-4" />
                       Email
                     </TabsTrigger>

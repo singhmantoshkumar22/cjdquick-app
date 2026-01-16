@@ -32,7 +32,7 @@ interface LocationRTO {
 
 export default function RTOAnalysisPage() {
   const [rtoReasons, setRtoReasons] = useState<RTOAnalysis[]>([]);
-  const [locationRTODataData, setLocationRTOData] = useState<LocationRTO[]>([]);
+  const [locationRTOData, setLocationRTOData] = useState<LocationRTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("7days");
@@ -59,7 +59,7 @@ export default function RTOAnalysisPage() {
   }, [fetchData]);
 
   const totalRTO = rtoReasons.reduce((sum, r) => sum + r.count, 0);
-  const totalOrders = locationRTODataData.reduce((sum, l) => sum + l.totalOrders, 0);
+  const totalOrders = locationRTOData.reduce((sum, l) => sum + l.totalOrders, 0);
   const overallRTORate = totalOrders > 0 ? ((totalRTO / totalOrders) * 100).toFixed(1) : "0";
 
   if (loading) {

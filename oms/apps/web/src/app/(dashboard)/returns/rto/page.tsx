@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -25,50 +26,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Search, RotateCcw, Package, AlertTriangle, Clock, TrendingDown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Search,
+  RotateCcw,
+  Package,
+  AlertTriangle,
+  Clock,
+  TrendingDown,
+  RefreshCw,
+} from "lucide-react";
+import { useReturnList, useReturnSummary } from "@/hooks";
+import type { ReturnStatus, ReturnType } from "@/lib/api/client";
+
+// Type for summary data (since API returns unknown)
+interface ReturnSummaryData {
+  totalReturns?: number;
+  byStatus?: Record<string, number>;
+  byReason?: Record<string, number>;
+  rtoRate?: number;
+}
 
 export default function RTOManagementPage() {
-  const rtoOrders = [
-    {
-      id: "RTO001",
-      orderId: "ORD-2024-1234",
-      awb: "DEL123456789",
-      courier: "Delhivery",
-      reason: "Customer Refused",
-      attempts: 3,
-      status: "IN_TRANSIT",
-      initiatedDate: "2024-01-12",
-    },
-    {
-      id: "RTO002",
-      orderId: "ORD-2024-1235",
-      awb: "BLU987654321",
-      courier: "BlueDart",
-      reason: "Address Incorrect",
-      attempts: 2,
-      status: "RECEIVED",
-      initiatedDate: "2024-01-10",
-    },
-    {
-      id: "RTO003",
-      orderId: "ORD-2024-1236",
-      awb: "DTC456789123",
-      courier: "DTDC",
-      reason: "Customer Not Available",
-      attempts: 3,
-      status: "QC_PENDING",
-      initiatedDate: "2024-01-08",
-    },
-  ];
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const limit = 25;
+
+  // Fetch returns with RTO type filter
+  const {
+    data: returnsData,
+    isLoading: isLoadingReturns,
+    refetch,
+  } = useReturnList({
+    skip: (page - 1) * limit,
+    limit,
+    returnType: "RTO" as ReturnType,
+    ...(statusFilter !== "all" && { status: statusFilter as ReturnStatus }),
+  });
+
+  // Fetch return summary for stats - cast to expected type
+  const { data: rawSummaryData, isLoading: isLoadingSummary } = useReturnSummary();
+  const summaryData = rawSummaryData as ReturnSummaryData | undefined;
 
   const statusColors: Record<string, string> = {
     INITIATED: "bg-yellow-100 text-yellow-800",
     IN_TRANSIT: "bg-purple-100 text-purple-800",
     RECEIVED: "bg-blue-100 text-blue-800",
     QC_PENDING: "bg-orange-100 text-orange-800",
+    QC_PASSED: "bg-green-100 text-green-800",
+    QC_FAILED: "bg-red-100 text-red-800",
     RESTOCKED: "bg-green-100 text-green-800",
-    DAMAGED: "bg-red-100 text-red-800",
+    DISPOSED: "bg-gray-100 text-gray-800",
   };
+
+  // Extract returns from response
+  const returns = Array.isArray(returnsData) ? returnsData : [];
 
   return (
     <div className="space-y-6">
@@ -79,54 +92,82 @@ export default function RTOManagementPage() {
             Track and manage return to origin shipments
           </p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-2xl font-bold">156</p>
-                <p className="text-sm text-muted-foreground">Active RTOs</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-orange-600" />
-              <div>
-                <p className="text-2xl font-bold">45</p>
-                <p className="text-sm text-muted-foreground">QC Pending</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-2xl font-bold">89</p>
-                <p className="text-sm text-muted-foreground">Restocked</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-red-600" />
-              <div>
-                <p className="text-2xl font-bold">8.5%</p>
-                <p className="text-sm text-muted-foreground">RTO Rate</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {isLoadingSummary ? (
+          <>
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="pt-6">
+                  <Skeleton className="h-12 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : (
+          <>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <RotateCcw className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {summaryData?.totalReturns || 0}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Active RTOs</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {summaryData?.byStatus?.QC_PENDING || 0}
+                    </p>
+                    <p className="text-sm text-muted-foreground">QC Pending</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {summaryData?.byStatus?.RESTOCKED || 0}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Restocked</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="h-5 w-5 text-red-600" />
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {summaryData?.rtoRate
+                        ? `${(summaryData.rtoRate * 100).toFixed(1)}%`
+                        : "0%"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">RTO Rate</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* RTO Reasons Breakdown */}
@@ -136,30 +177,43 @@ export default function RTOManagementPage() {
           <CardDescription>Top reasons for return to origin</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {[
-              { reason: "Customer Refused", count: 45, percent: 35 },
-              { reason: "Address Incorrect", count: 32, percent: 25 },
-              { reason: "Customer Not Available", count: 28, percent: 22 },
-              { reason: "Fake/Incomplete Address", count: 15, percent: 12 },
-              { reason: "Other", count: 8, percent: 6 },
-            ].map((item) => (
-              <div key={item.reason} className="flex items-center gap-4">
-                <div className="w-40 text-sm">{item.reason}</div>
-                <div className="flex-1">
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-red-500 rounded-full"
-                      style={{ width: `${item.percent}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="w-20 text-right text-sm text-muted-foreground">
-                  {item.count} ({item.percent}%)
-                </div>
-              </div>
-            ))}
-          </div>
+          {isLoadingSummary ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-6 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {summaryData?.byReason &&
+                Object.entries(summaryData.byReason).map(([reason, count]) => {
+                  const total = summaryData.totalReturns || 1;
+                  const percent = Math.round(((count as number) / total) * 100);
+                  return (
+                    <div key={reason} className="flex items-center gap-4">
+                      <div className="w-40 text-sm">{reason.replace(/_/g, " ")}</div>
+                      <div className="flex-1">
+                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-red-500 rounded-full"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="w-20 text-right text-sm text-muted-foreground">
+                        {count as number} ({percent}%)
+                      </div>
+                    </div>
+                  );
+                })}
+              {(!summaryData?.byReason ||
+                Object.keys(summaryData.byReason).length === 0) && (
+                <p className="text-muted-foreground text-center py-4">
+                  No RTO reason data available
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -169,27 +223,28 @@ export default function RTOManagementPage() {
           <div className="flex gap-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by AWB or Order ID..." className="pl-10" />
+              <Input
+                placeholder="Search by AWB or Order ID..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-            <Select>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
+            >
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="INITIATED">Initiated</SelectItem>
                 <SelectItem value="IN_TRANSIT">In Transit</SelectItem>
                 <SelectItem value="RECEIVED">Received</SelectItem>
                 <SelectItem value="QC_PENDING">QC Pending</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Courier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Couriers</SelectItem>
-                <SelectItem value="delhivery">Delhivery</SelectItem>
-                <SelectItem value="bluedart">BlueDart</SelectItem>
+                <SelectItem value="QC_PASSED">QC Passed</SelectItem>
+                <SelectItem value="RESTOCKED">Restocked</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -203,45 +258,67 @@ export default function RTOManagementPage() {
           <CardDescription>All return to origin shipments</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>RTO ID</TableHead>
-                <TableHead>Order / AWB</TableHead>
-                <TableHead>Courier</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Attempts</TableHead>
-                <TableHead>Initiated</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rtoOrders.map((rto) => (
-                <TableRow key={rto.id}>
-                  <TableCell className="font-medium">{rto.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p>{rto.orderId}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{rto.awb}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{rto.courier}</TableCell>
-                  <TableCell className="text-muted-foreground">{rto.reason}</TableCell>
-                  <TableCell>{rto.attempts}</TableCell>
-                  <TableCell className="text-muted-foreground">{rto.initiatedDate}</TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[rto.status]}>
-                      {rto.status.replace(/_/g, " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm">View</Button>
-                  </TableCell>
-                </TableRow>
+          {isLoadingReturns ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : returns.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <RotateCcw className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p>No RTO orders found</p>
+              <p className="text-sm">RTOs will appear here when created</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Return ID</TableHead>
+                  <TableHead>Order / AWB</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {returns.map((rto: any) => (
+                  <TableRow key={rto.id}>
+                    <TableCell className="font-medium font-mono">
+                      {rto.returnNo || rto.id?.slice(0, 8)}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p>{rto.orderNo || rto.orderId?.slice(0, 8)}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {rto.awbNo || "N/A"}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {rto.reason?.replace(/_/g, " ") || "N/A"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {rto.createdAt
+                        ? new Date(rto.createdAt).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={statusColors[rto.status] || "bg-gray-100"}>
+                        {rto.status?.replace(/_/g, " ") || "UNKNOWN"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

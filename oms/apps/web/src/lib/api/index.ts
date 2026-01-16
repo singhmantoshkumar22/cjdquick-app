@@ -18,7 +18,7 @@
  */
 
 // Re-export client configuration utilities
-export { OpenAPI, configureApiClient, getAuthToken, setAuthToken, clearAuthToken } from './client';
+export { OpenAPI, configureApiClient, configureServerClient } from './client';
 
 // Re-export error handling
 export { ApiError, CancelablePromise, CancelError } from './generated';
@@ -94,7 +94,6 @@ export type {
   NDRResponse,
   NDRCreate,
   NDRUpdate,
-  NDRBrief,
   NDRStatus,
   NDRReason,
   NDROutreachResponse,
