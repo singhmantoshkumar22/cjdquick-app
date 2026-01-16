@@ -6,7 +6,8 @@ from pydantic import BaseModel
 import uuid
 
 from ...core.database import get_db
-from ...models.inventory import Inventory, SKU
+from ...models.inventory import Inventory
+from ...models.sku import SKU
 from ...models.user import User
 from ..deps import get_current_user
 

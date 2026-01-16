@@ -1,0 +1,69 @@
+[project]
+name = "cjdquick-oms-api"
+version = "2.0.0"
+description = "CJDQuick OMS API - Order Management System Backend"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "CJDQuick Team"}
+]
+
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "gunicorn>=21.2.0",
+    "python-multipart>=0.0.6",
+    "sqlmodel>=0.0.14",
+    "sqlalchemy[asyncio]>=2.0.25",
+    "psycopg2-binary>=2.9.9",
+    "asyncpg>=0.29.0",
+    "greenlet>=3.0.3",
+    "alembic>=1.13.1",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "email-validator>=2.1.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.1.2",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.26.0",
+    "python-dateutil>=2.8.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.26.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

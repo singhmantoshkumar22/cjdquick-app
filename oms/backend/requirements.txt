@@ -1,12 +1,34 @@
-fastapi
-uvicorn[standard]
-sqlalchemy
-psycopg2-binary
-python-dotenv
-pydantic[email]
-pydantic-settings
-python-jose[cryptography]
-bcrypt
-python-multipart
-gunicorn
-email-validator
+# FastAPI Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+gunicorn>=21.2.0
+python-multipart>=0.0.6
+
+# SQLModel (SQLAlchemy + Pydantic unified)
+sqlmodel>=0.0.14
+
+# Database
+sqlalchemy[asyncio]>=2.0.25
+psycopg2-binary>=2.9.9
+asyncpg>=0.29.0
+greenlet>=3.0.3
+
+# Migrations
+alembic>=1.13.1
+
+# Pydantic & Validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+email-validator>=2.1.0
+
+# Security & Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.1.2
+
+# Environment
+python-dotenv>=1.0.0
+
+# Utilities
+httpx>=0.26.0
+python-dateutil>=2.8.2

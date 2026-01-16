@@ -1,70 +1,210 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Numeric, ARRAY, JSON
-from sqlalchemy.orm import relationship
+"""
+Inventory Model - SQLModel Implementation
+Stock quantities and batch tracking
+"""
 from datetime import datetime
-from ..core.database import Base
+from decimal import Decimal
+from typing import Optional, List, TYPE_CHECKING
+from uuid import UUID
+
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, String, Integer, ForeignKey, text
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, ARRAY, NUMERIC
+
+from .base import BaseModel, ResponseBase, CreateBase, UpdateBase
+from .enums import InventoryValuationMethod
+
+if TYPE_CHECKING:
+    from .sku import SKU
+    from .company import Bin, Location
 
 
-class SKU(Base):
-    __tablename__ = "SKU"
+# ============================================================================
+# Database Model
+# ============================================================================
 
-    id = Column(String, primary_key=True)
-    code = Column(String, nullable=False, index=True)
-    name = Column(String, nullable=False, index=True)
-    description = Column(String)
-    category = Column(String)
-    subCategory = Column(String)
-    brand = Column(String)
-    hsn = Column(String)
-    weight = Column(Numeric(10, 3))
-    length = Column(Numeric(10, 2))
-    width = Column(Numeric(10, 2))
-    height = Column(Numeric(10, 2))
-    mrp = Column(Numeric(12, 2))
-    costPrice = Column(Numeric(12, 2))
-    sellingPrice = Column(Numeric(12, 2))
-    taxRate = Column(Numeric(5, 2))
-    isSerialised = Column(Boolean, default=False)
-    isBatchTracked = Column(Boolean, default=False)
-    reorderLevel = Column(Integer)
-    reorderQty = Column(Integer)
-    barcodes = Column(ARRAY(String), default=[])
-    images = Column(ARRAY(String), default=[])
-    attributes = Column(JSON)
-    isActive = Column(Boolean, default=True)
-
-    companyId = Column(String, ForeignKey("Company.id", ondelete="CASCADE"), index=True)
-
-    createdAt = Column(DateTime, default=datetime.utcnow)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    company = relationship("Company", back_populates="skus")
-    inventory = relationship("Inventory", back_populates="sku")
-    orderItems = relationship("OrderItem", back_populates="sku")
-
-
-class Inventory(Base):
+class Inventory(BaseModel, table=True):
+    """
+    Inventory model - Stock quantities at bin level.
+    Tracks quantity, batch, serial numbers, and valuation.
+    """
     __tablename__ = "Inventory"
 
-    id = Column(String, primary_key=True)
-    quantity = Column(Integer, default=0)
-    reservedQty = Column(Integer, default=0)
-    batchNo = Column(String)
-    lotNo = Column(String)
-    expiryDate = Column(DateTime)
-    mfgDate = Column(DateTime)
-    mrp = Column(Numeric(12, 2))
-    serialNumbers = Column(ARRAY(String), default=[])
-    costPrice = Column(Numeric(12, 2))
+    # Quantities
+    quantity: int = Field(default=0)
+    reservedQty: int = Field(default=0)
 
-    skuId = Column(String, ForeignKey("SKU.id", ondelete="CASCADE"), index=True)
-    binId = Column(String, ForeignKey("Bin.id", ondelete="CASCADE"), index=True)
-    locationId = Column(String, ForeignKey("Location.id", ondelete="CASCADE"), index=True)
+    # Batch tracking
+    batchNo: Optional[str] = Field(default=None)
+    lotNo: Optional[str] = Field(default=None)
+    expiryDate: Optional[datetime] = Field(default=None)
+    mfgDate: Optional[datetime] = Field(default=None)
 
-    createdAt = Column(DateTime, default=datetime.utcnow)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Pricing
+    mrp: Optional[Decimal] = Field(
+        default=None,
+        sa_column=Column(NUMERIC(12, 2))
+    )
+    costPrice: Optional[Decimal] = Field(
+        default=None,
+        sa_column=Column(NUMERIC(12, 2))
+    )
+
+    # Serial numbers (for serialised items)
+    serialNumbers: List[str] = Field(
+        default_factory=list,
+        sa_column=Column(ARRAY(String), default=[])
+    )
+
+    # Valuation
+    valuationMethod: InventoryValuationMethod = Field(
+        default=InventoryValuationMethod.FIFO,
+        sa_column=Column(String, default="FIFO")
+    )
+    fifoSequence: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, index=True)
+    )
+
+    # Foreign Keys
+    skuId: UUID = Field(
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("SKU.id"),
+            nullable=False,
+            index=True
+        )
+    )
+    binId: UUID = Field(
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("Bin.id"),
+            nullable=False,
+            index=True
+        )
+    )
+    locationId: UUID = Field(
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("Location.id"),
+            nullable=False,
+            index=True
+        )
+    )
 
     # Relationships
-    sku = relationship("SKU", back_populates="inventory")
-    bin = relationship("Bin", back_populates="inventory")
-    location = relationship("Location", back_populates="inventory")
+    sku: Optional["SKU"] = Relationship(back_populates="inventory")
+    bin: Optional["Bin"] = Relationship()
+    location: Optional["Location"] = Relationship()
+
+    @property
+    def availableQty(self) -> int:
+        """Available quantity (total - reserved)"""
+        return self.quantity - self.reservedQty
+
+
+# ============================================================================
+# Request/Response Schemas
+# ============================================================================
+
+class InventoryBase(SQLModel):
+    """Shared inventory fields"""
+    quantity: int = 0
+    reservedQty: int = 0
+    batchNo: Optional[str] = None
+    lotNo: Optional[str] = None
+    expiryDate: Optional[datetime] = None
+    mfgDate: Optional[datetime] = None
+    mrp: Optional[Decimal] = None
+    costPrice: Optional[Decimal] = None
+    serialNumbers: List[str] = []
+    valuationMethod: InventoryValuationMethod = InventoryValuationMethod.FIFO
+
+
+class InventoryCreate(CreateBase):
+    """Schema for creating inventory record"""
+    quantity: int
+    reservedQty: int = 0
+    batchNo: Optional[str] = None
+    lotNo: Optional[str] = None
+    expiryDate: Optional[datetime] = None
+    mfgDate: Optional[datetime] = None
+    mrp: Optional[Decimal] = None
+    costPrice: Optional[Decimal] = None
+    serialNumbers: List[str] = []
+    valuationMethod: InventoryValuationMethod = InventoryValuationMethod.FIFO
+    skuId: UUID
+    binId: UUID
+    locationId: UUID
+
+
+class InventoryUpdate(UpdateBase):
+    """Schema for updating inventory"""
+    quantity: Optional[int] = None
+    reservedQty: Optional[int] = None
+    batchNo: Optional[str] = None
+    lotNo: Optional[str] = None
+    expiryDate: Optional[datetime] = None
+    mfgDate: Optional[datetime] = None
+    mrp: Optional[Decimal] = None
+    costPrice: Optional[Decimal] = None
+    serialNumbers: Optional[List[str]] = None
+
+
+class InventoryResponse(ResponseBase):
+    """Schema for inventory API responses"""
+    id: UUID
+    quantity: int
+    reservedQty: int
+    batchNo: Optional[str] = None
+    lotNo: Optional[str] = None
+    expiryDate: Optional[datetime] = None
+    mfgDate: Optional[datetime] = None
+    mrp: Optional[Decimal] = None
+    costPrice: Optional[Decimal] = None
+    serialNumbers: Optional[List[str]] = None
+    valuationMethod: Optional[InventoryValuationMethod] = None
+    fifoSequence: Optional[int] = None
+    skuId: UUID
+    binId: UUID
+    locationId: UUID
+    createdAt: datetime
+    updatedAt: datetime
+
+    # Computed field
+    availableQty: int = 0
+
+
+class InventoryAdjustment(SQLModel):
+    """Schema for inventory adjustment"""
+    skuId: UUID
+    binId: UUID
+    locationId: UUID
+    adjustmentQty: int  # Positive for add, negative for subtract
+    reason: str
+    batchNo: Optional[str] = None
+    serialNumbers: Optional[List[str]] = None
+    remarks: Optional[str] = None
+
+
+class InventoryTransfer(SQLModel):
+    """Schema for inventory transfer between bins"""
+    skuId: UUID
+    fromBinId: UUID
+    toBinId: UUID
+    quantity: int
+    batchNo: Optional[str] = None
+    serialNumbers: Optional[List[str]] = None
+    remarks: Optional[str] = None
+
+
+class InventorySummary(SQLModel):
+    """Inventory summary by SKU"""
+    skuId: UUID
+    skuCode: str
+    skuName: str
+    totalQuantity: int
+    reservedQuantity: int
+    availableQuantity: int
+    locationCount: int
+    binCount: int

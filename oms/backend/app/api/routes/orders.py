@@ -7,7 +7,8 @@ from datetime import datetime
 import uuid
 
 from ...core.database import get_db
-from ...models.order import Order, OrderItem, OrderStatus, Channel, PaymentMode, OrderType
+from ...models.order import Order, OrderItem
+from ...models.enums import OrderStatus, Channel, PaymentMode, OrderType
 from ...models.user import User
 from ..deps import get_current_user
 

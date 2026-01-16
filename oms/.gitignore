@@ -41,3 +41,12 @@ prisma/*.db-journal
 
 # Postgres data
 .pg-data
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Error logs
+*.log

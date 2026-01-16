@@ -31,7 +31,6 @@ echo ""
 
 # Step 1: Build test (catch errors before deploying)
 echo "[1/6] Running build test..."
-npm run prisma:generate
 cd apps/web && npm run build && cd ../..
 echo "✓ Build test passed"
 

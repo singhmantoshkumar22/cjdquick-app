@@ -1,13 +1,29 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { prisma } from "@oms/database";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://cjdquick-api-vr4w.onrender.com';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
+
+interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    companyId: string | null;
+    companyName: string | null;
+    companyCode: string | null;
+    locationAccess: string[];
+    isActive: boolean;
+  };
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // Required for production on Vercel
@@ -31,48 +47,39 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           const { email, password } = parsed.data;
 
-          const user = await prisma.user.findUnique({
-            where: { email },
-            include: {
-              Company: {
-                select: {
-                  id: true,
-                  code: true,
-                  name: true,
-                },
-              },
+          // Authenticate via FastAPI backend
+          const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
             },
+            body: JSON.stringify({ email, password }),
           });
 
-          if (!user || !user.isActive) {
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            console.log("[Auth] Authentication failed:", error.detail || 'Unknown error');
+            return null;
+          }
+
+          const data: AuthResponse = await response.json();
+
+          if (!data.user || !data.user.isActive) {
             console.log("[Auth] User not found or inactive:", email);
             return null;
           }
 
-          const passwordMatch = await bcrypt.compare(password, user.password);
-
-          if (!passwordMatch) {
-            console.log("[Auth] Password mismatch for:", email);
-            return null;
-          }
-
-          // Update last login
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { lastLoginAt: new Date() },
-          });
-
-          console.log("[Auth] Login successful:", email, "Role:", user.role);
+          console.log("[Auth] Login successful:", email, "Role:", data.user.role);
 
           return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            companyId: user.companyId,
-            companyName: user.Company?.name ?? null,
-            companyCode: user.Company?.code ?? null,
-            locationAccess: user.locationAccess,
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            role: data.user.role,
+            companyId: data.user.companyId,
+            companyName: data.user.companyName,
+            companyCode: data.user.companyCode,
+            locationAccess: data.user.locationAccess,
           };
         } catch (error) {
           console.error("[Auth] Error during authorization:", error);

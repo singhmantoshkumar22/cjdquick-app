@@ -5,8 +5,9 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 from ...core.database import get_db
-from ...models.order import Order, OrderStatus
-from ...models.inventory import Inventory, SKU
+from ...models.order import Order
+from ...models.enums import OrderStatus
+from ...models.inventory import Inventory
 from ...models.user import User
 from ..deps import get_current_user
 
