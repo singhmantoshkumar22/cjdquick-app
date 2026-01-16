@@ -87,9 +87,16 @@ def get_return_summary(
 
     returns = session.exec(select(Return)).all()
 
-    pending = sum(1 for r in returns if r.status in [ReturnStatus.INITIATED, ReturnStatus.PICKUP_SCHEDULED])
-    received = sum(1 for r in returns if r.status == ReturnStatus.RECEIVED)
-    processed = sum(1 for r in returns if r.status in [ReturnStatus.QC_PASSED, ReturnStatus.QC_FAILED])
+    # Use string comparison to avoid enum issues
+    def get_status_str(r):
+        return r.status.value if hasattr(r.status, 'value') else str(r.status)
+
+    def get_type_str(r):
+        return r.type.value if hasattr(r.type, 'value') else str(r.type)
+
+    pending = sum(1 for r in returns if get_status_str(r) in ["INITIATED", "PICKUP_SCHEDULED"])
+    received = sum(1 for r in returns if get_status_str(r) == "RECEIVED")
+    processed = sum(1 for r in returns if get_status_str(r) in ["QC_PASSED", "QC_FAILED"])
 
     by_type = {}
     by_status = {}
@@ -97,11 +104,13 @@ def get_return_summary(
     rto_count = 0
 
     for r in returns:
-        by_type[r.type.value] = by_type.get(r.type.value, 0) + 1
-        by_status[r.status.value] = by_status.get(r.status.value, 0) + 1
+        type_str = get_type_str(r)
+        status_str = get_status_str(r)
+        by_type[type_str] = by_type.get(type_str, 0) + 1
+        by_status[status_str] = by_status.get(status_str, 0) + 1
 
         # Track RTO reasons
-        if r.type == ReturnType.RTO:
+        if type_str == "RTO":
             rto_count += 1
             reason = r.reason or "Unknown"
             by_reason[reason] = by_reason.get(reason, 0) + 1
