@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Truck,
   Package,
@@ -12,6 +12,7 @@ import {
   Download,
   MapPin,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 
 interface Shipment {
@@ -26,71 +27,17 @@ interface Shipment {
   actualDelivery?: string;
   weight: number;
   createdAt: string;
+  trackingUrl?: string;
 }
 
-const mockShipments: Shipment[] = [
-  {
-    id: "1",
-    awb: "AWB123456789",
-    orderNumber: "ORD-2024-001",
-    transporter: "Delhivery",
-    status: "in_transit",
-    origin: "Mumbai",
-    destination: "Delhi",
-    estimatedDelivery: "2024-01-20",
-    weight: 1.5,
-    createdAt: "2024-01-18",
-  },
-  {
-    id: "2",
-    awb: "AWB987654321",
-    orderNumber: "ORD-2024-002",
-    transporter: "BlueDart",
-    status: "out_for_delivery",
-    origin: "Bangalore",
-    destination: "Chennai",
-    estimatedDelivery: "2024-01-19",
-    weight: 0.8,
-    createdAt: "2024-01-17",
-  },
-  {
-    id: "3",
-    awb: "AWB456789123",
-    orderNumber: "ORD-2024-003",
-    transporter: "Shiprocket",
-    status: "delivered",
-    origin: "Delhi",
-    destination: "Jaipur",
-    estimatedDelivery: "2024-01-18",
-    actualDelivery: "2024-01-17",
-    weight: 2.3,
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "4",
-    awb: "AWB789123456",
-    orderNumber: "ORD-2024-004",
-    transporter: "Ecom Express",
-    status: "exception",
-    origin: "Hyderabad",
-    destination: "Pune",
-    estimatedDelivery: "2024-01-19",
-    weight: 1.2,
-    createdAt: "2024-01-16",
-  },
-  {
-    id: "5",
-    awb: "AWB321654987",
-    orderNumber: "ORD-2024-005",
-    transporter: "DTDC",
-    status: "pending",
-    origin: "Kolkata",
-    destination: "Patna",
-    estimatedDelivery: "2024-01-21",
-    weight: 3.5,
-    createdAt: "2024-01-18",
-  },
-];
+interface StatusCounts {
+  all: number;
+  pending: number;
+  in_transit: number;
+  out_for_delivery: number;
+  delivered: number;
+  exception: number;
+}
 
 const statusConfig = {
   pending: {
@@ -121,27 +68,65 @@ const statusConfig = {
 };
 
 export default function ShipmentsPage() {
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [statusCounts, setStatusCounts] = useState<StatusCounts>({
+    all: 0, pending: 0, in_transit: 0, out_for_delivery: 0, delivered: 0, exception: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const filteredShipments = mockShipments.filter((shipment) => {
-    const matchesSearch =
-      shipment.awb.toLowerCase().includes(search.toLowerCase()) ||
-      shipment.orderNumber.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || shipment.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (statusFilter !== "all") params.set("status", statusFilter);
 
-  const statusCounts = {
-    all: mockShipments.length,
-    pending: mockShipments.filter((s) => s.status === "pending").length,
-    in_transit: mockShipments.filter((s) => s.status === "in_transit").length,
-    out_for_delivery: mockShipments.filter((s) => s.status === "out_for_delivery")
-      .length,
-    delivered: mockShipments.filter((s) => s.status === "delivered").length,
-    exception: mockShipments.filter((s) => s.status === "exception").length,
-  };
+      const response = await fetch(`/api/client/shipments?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch shipments");
+
+      const data = await response.json();
+      setShipments(data.shipments || []);
+      setStatusCounts(data.statusCounts || {
+        all: 0, pending: 0, in_transit: 0, out_for_delivery: 0, delivered: 0, exception: 0,
+      });
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const filteredShipments = shipments;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

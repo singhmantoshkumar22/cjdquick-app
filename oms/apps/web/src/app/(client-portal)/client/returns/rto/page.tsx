@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   RotateCcw,
   TrendingUp,
@@ -8,8 +8,8 @@ import {
   Package,
   AlertTriangle,
   MapPin,
-  Filter,
   Download,
+  Loader2,
 } from "lucide-react";
 
 interface RTOAnalysis {
@@ -30,98 +30,59 @@ interface LocationRTO {
   trend: "up" | "down" | "stable";
 }
 
-const rtoReasons: RTOAnalysis[] = [
-  {
-    id: "1",
-    reason: "Customer Not Available",
-    count: 125,
-    percentage: 35.2,
-    trend: "up",
-    trendPercent: 5.3,
-  },
-  {
-    id: "2",
-    reason: "Wrong Address",
-    count: 85,
-    percentage: 23.9,
-    trend: "down",
-    trendPercent: -2.1,
-  },
-  {
-    id: "3",
-    reason: "Customer Refused",
-    count: 65,
-    percentage: 18.3,
-    trend: "stable",
-    trendPercent: 0.5,
-  },
-  {
-    id: "4",
-    reason: "Delivery Attempted - Failed",
-    count: 45,
-    percentage: 12.7,
-    trend: "down",
-    trendPercent: -3.8,
-  },
-  {
-    id: "5",
-    reason: "Other",
-    count: 35,
-    percentage: 9.9,
-    trend: "up",
-    trendPercent: 1.2,
-  },
-];
-
-const locationRTO: LocationRTO[] = [
-  {
-    id: "1",
-    location: "Delhi NCR",
-    totalOrders: 2500,
-    rtoOrders: 175,
-    rtoRate: 7.0,
-    trend: "up",
-  },
-  {
-    id: "2",
-    location: "Mumbai",
-    totalOrders: 2200,
-    rtoOrders: 110,
-    rtoRate: 5.0,
-    trend: "down",
-  },
-  {
-    id: "3",
-    location: "Bangalore",
-    totalOrders: 1800,
-    rtoOrders: 72,
-    rtoRate: 4.0,
-    trend: "stable",
-  },
-  {
-    id: "4",
-    location: "Chennai",
-    totalOrders: 1200,
-    rtoOrders: 84,
-    rtoRate: 7.0,
-    trend: "up",
-  },
-  {
-    id: "5",
-    location: "Kolkata",
-    totalOrders: 800,
-    rtoOrders: 64,
-    rtoRate: 8.0,
-    trend: "up",
-  },
-];
-
 export default function RTOAnalysisPage() {
+  const [rtoReasons, setRtoReasons] = useState<RTOAnalysis[]>([]);
+  const [locationRTODataData, setLocationRTOData] = useState<LocationRTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("7days");
 
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/client/returns/rto?period=${dateRange}`);
+      if (!response.ok) throw new Error("Failed to fetch RTO data");
+
+      const data = await response.json();
+      setRtoReasons(data.reasons || []);
+      setLocationRTOData(data.locations || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const totalRTO = rtoReasons.reduce((sum, r) => sum + r.count, 0);
-  const totalOrders = locationRTO.reduce((sum, l) => sum + l.totalOrders, 0);
-  const overallRTORate = ((totalRTO / totalOrders) * 100).toFixed(1);
+  const totalOrders = locationRTODataData.reduce((sum, l) => sum + l.totalOrders, 0);
+  const overallRTORate = totalOrders > 0 ? ((totalRTO / totalOrders) * 100).toFixed(1) : "0";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -259,7 +220,7 @@ export default function RTOAnalysisPage() {
             </p>
           </div>
           <div className="divide-y">
-            {locationRTO.map((location) => (
+            {locationRTOData.map((location) => (
               <div
                 key={location.id}
                 className="p-4 flex items-center justify-between"

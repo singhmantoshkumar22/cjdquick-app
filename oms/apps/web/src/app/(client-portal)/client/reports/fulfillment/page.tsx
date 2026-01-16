@@ -1,69 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Truck,
   Clock,
   CheckCircle,
-  AlertTriangle,
   Download,
   TrendingUp,
-  TrendingDown,
+  Loader2,
 } from "lucide-react";
 
+interface FulfillmentData {
+  totalShipments: number;
+  delivered: number;
+  inTransit: number;
+  pending: number;
+  exceptions: number;
+  avgDeliveryTime: number;
+  onTimeRate: number;
+  slaCompliance: number;
+}
+
+interface CourierData {
+  courier: string;
+  shipments: number;
+  delivered: number;
+  avgTime: number;
+  sla: number;
+}
+
+interface ZoneData {
+  zone: string;
+  shipments: number;
+  avgTime: number;
+  onTime: number;
+}
+
 export default function FulfillmentReportPage() {
+  const [fulfillmentData, setFulfillmentData] = useState<FulfillmentData>({
+    totalShipments: 0, delivered: 0, inTransit: 0, pending: 0, exceptions: 0, avgDeliveryTime: 0, onTimeRate: 0, slaCompliance: 0,
+  });
+  const [courierPerformance, setCourierPerformance] = useState<CourierData[]>([]);
+  const [zonePerformance, setZonePerformance] = useState<ZoneData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("30days");
 
-  const fulfillmentData = {
-    totalShipments: 2450,
-    delivered: 2180,
-    inTransit: 185,
-    pending: 45,
-    exceptions: 40,
-    avgDeliveryTime: 3.2,
-    onTimeRate: 94.5,
-    slaCompliance: 96.2,
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/client/reports/fulfillment?period=${dateRange}`);
+      if (!response.ok) throw new Error("Failed to fetch fulfillment report");
 
-  const courierPerformance = [
-    {
-      courier: "Delhivery",
-      shipments: 850,
-      delivered: 785,
-      avgTime: 2.8,
-      sla: 97.2,
-    },
-    {
-      courier: "BlueDart",
-      shipments: 620,
-      delivered: 580,
-      avgTime: 2.5,
-      sla: 98.1,
-    },
-    {
-      courier: "Shiprocket",
-      shipments: 480,
-      delivered: 445,
-      avgTime: 3.5,
-      sla: 94.5,
-    },
-    {
-      courier: "Ecom Express",
-      shipments: 320,
-      delivered: 290,
-      avgTime: 3.8,
-      sla: 92.8,
-    },
-    { courier: "DTDC", shipments: 180, delivered: 160, avgTime: 4.2, sla: 90.5 },
-  ];
+      const data = await response.json();
+      setFulfillmentData(data.fulfillmentData || {
+        totalShipments: 0, delivered: 0, inTransit: 0, pending: 0, exceptions: 0, avgDeliveryTime: 0, onTimeRate: 0, slaCompliance: 0,
+      });
+      setCourierPerformance(data.courierPerformance || []);
+      setZonePerformance(data.zonePerformance || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
-  const zonePerformance = [
-    { zone: "North", shipments: 680, avgTime: 2.5, onTime: 96.2 },
-    { zone: "South", shipments: 520, avgTime: 3.0, onTime: 94.8 },
-    { zone: "East", shipments: 380, avgTime: 3.5, onTime: 92.5 },
-    { zone: "West", shipments: 620, avgTime: 2.8, onTime: 95.5 },
-    { zone: "Central", shipments: 250, avgTime: 3.2, onTime: 93.8 },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

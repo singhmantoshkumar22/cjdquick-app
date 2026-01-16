@@ -65,7 +65,8 @@ interface QCParameter {
 interface QCTemplate {
   id: string;
   name: string;
-  type: "INBOUND" | "RETURN" | "PRODUCTION" | "CYCLE_COUNT" | "RANDOM_AUDIT";
+  type?: "INBOUND" | "RETURN" | "PRODUCTION" | "CYCLE_COUNT" | "RANDOM_AUDIT";
+  qcType: "INBOUND" | "RETURN" | "PRODUCTION" | "CYCLE_COUNT" | "RANDOM_AUDIT";
   description?: string;
   isActive: boolean;
   parameters: QCParameter[];
@@ -106,7 +107,7 @@ export default function QCTemplateDetailPage() {
 
   const [formData, setFormData] = useState({
     name: "",
-    type: "INBOUND" as QCTemplate["type"],
+    qcType: "INBOUND" as QCTemplate["qcType"],
     description: "",
     isActive: true,
   });
@@ -136,7 +137,7 @@ export default function QCTemplateDetailPage() {
       setTemplate(data);
       setFormData({
         name: data.name,
-        type: data.type,
+        qcType: data.qcType || data.type,
         description: data.description || "",
         isActive: data.isActive,
       });
@@ -160,10 +161,17 @@ export default function QCTemplateDetailPage() {
 
     try {
       setSaving(true);
+      // Transform qcType back to type for the API
+      const apiData = {
+        name: formData.name,
+        type: formData.qcType,
+        description: formData.description,
+        isActive: formData.isActive,
+      };
       const response = await fetch(`/api/qc/templates/${templateId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(apiData),
       });
 
       if (!response.ok) throw new Error("Failed to update template");
@@ -295,8 +303,8 @@ export default function QCTemplateDetailPage() {
     });
   };
 
-  const getTypeBadgeColor = (type: QCTemplate["type"]) => {
-    const colors: Record<QCTemplate["type"], string> = {
+  const getTypeBadgeColor = (type: QCTemplate["qcType"]) => {
+    const colors: Record<QCTemplate["qcType"], string> = {
       INBOUND: "bg-blue-100 text-blue-800",
       RETURN: "bg-orange-100 text-orange-800",
       PRODUCTION: "bg-purple-100 text-purple-800",
@@ -403,11 +411,11 @@ export default function QCTemplateDetailPage() {
                   <div className="space-y-2">
                     <Label>QC Type</Label>
                     <Select
-                      value={formData.type}
+                      value={formData.qcType}
                       onValueChange={(value) =>
                         setFormData({
                           ...formData,
-                          type: value as QCTemplate["type"],
+                          qcType: value as QCTemplate["qcType"],
                         })
                       }
                     >
@@ -454,8 +462,8 @@ export default function QCTemplateDetailPage() {
                 <div>
                   <Label className="text-muted-foreground">QC Type</Label>
                   <div className="mt-1">
-                    <Badge className={getTypeBadgeColor(template.type)}>
-                      {template.type.replace("_", " ")}
+                    <Badge className={getTypeBadgeColor(template.qcType)}>
+                      {template.qcType.replace("_", " ")}
                     </Badge>
                   </div>
                 </div>

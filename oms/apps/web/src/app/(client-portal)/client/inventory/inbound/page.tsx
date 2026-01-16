@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Package,
   Truck,
   Clock,
   CheckCircle,
   Search,
-  Filter,
   Plus,
   Eye,
+  Loader2,
 } from "lucide-react";
 
 interface InboundShipment {
@@ -25,72 +25,6 @@ interface InboundShipment {
   receivedItems: number;
   createdAt: string;
 }
-
-const mockInbound: InboundShipment[] = [
-  {
-    id: "1",
-    asnNumber: "ASN-2024-001",
-    poNumber: "PO-2024-101",
-    vendor: "ABC Suppliers",
-    location: "Mumbai Warehouse",
-    status: "in_transit",
-    expectedDate: "2024-01-20",
-    totalItems: 500,
-    receivedItems: 0,
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    asnNumber: "ASN-2024-002",
-    poNumber: "PO-2024-102",
-    vendor: "XYZ Electronics",
-    location: "Delhi Hub",
-    status: "qc_pending",
-    expectedDate: "2024-01-18",
-    receivedDate: "2024-01-18",
-    totalItems: 200,
-    receivedItems: 195,
-    createdAt: "2024-01-12",
-  },
-  {
-    id: "3",
-    asnNumber: "ASN-2024-003",
-    poNumber: "PO-2024-103",
-    vendor: "Fashion House",
-    location: "Bangalore Center",
-    status: "completed",
-    expectedDate: "2024-01-17",
-    receivedDate: "2024-01-16",
-    totalItems: 1000,
-    receivedItems: 998,
-    createdAt: "2024-01-10",
-  },
-  {
-    id: "4",
-    asnNumber: "ASN-2024-004",
-    poNumber: "PO-2024-104",
-    vendor: "Beauty Corp",
-    location: "Chennai Warehouse",
-    status: "pending",
-    expectedDate: "2024-01-22",
-    totalItems: 350,
-    receivedItems: 0,
-    createdAt: "2024-01-16",
-  },
-  {
-    id: "5",
-    asnNumber: "ASN-2024-005",
-    poNumber: "PO-2024-105",
-    vendor: "Sports Gear Ltd",
-    location: "Mumbai Warehouse",
-    status: "received",
-    expectedDate: "2024-01-19",
-    receivedDate: "2024-01-19",
-    totalItems: 150,
-    receivedItems: 150,
-    createdAt: "2024-01-14",
-  },
-];
 
 const statusConfig = {
   pending: { label: "Pending", color: "bg-gray-100 text-gray-700", icon: Clock },
@@ -117,35 +51,76 @@ const statusConfig = {
 };
 
 export default function InboundPage() {
+  const [inboundItems, setInboundItems] = useState<InboundShipment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const filteredInbound = mockInbound.filter((item) => {
-    const matchesSearch =
-      item.asnNumber.toLowerCase().includes(search.toLowerCase()) ||
-      item.poNumber.toLowerCase().includes(search.toLowerCase()) ||
-      item.vendor.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || item.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+
+      const response = await fetch(`/api/client/inventory/inbound?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch inbound data");
+
+      const data = await response.json();
+      setInboundItems(data.shipments || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const filteredInbound = inboundItems;
 
   const statusCounts = {
-    pending: mockInbound.filter((s) => s.status === "pending").length,
-    in_transit: mockInbound.filter((s) => s.status === "in_transit").length,
-    received: mockInbound.filter((s) => s.status === "received").length,
-    qc_pending: mockInbound.filter((s) => s.status === "qc_pending").length,
-    completed: mockInbound.filter((s) => s.status === "completed").length,
+    pending: inboundItems.filter((s) => s.status === "pending").length,
+    in_transit: inboundItems.filter((s) => s.status === "in_transit").length,
+    received: inboundItems.filter((s) => s.status === "received").length,
+    qc_pending: inboundItems.filter((s) => s.status === "qc_pending").length,
+    completed: inboundItems.filter((s) => s.status === "completed").length,
   };
 
-  const totalExpectedItems = mockInbound.reduce(
+  const totalExpectedItems = inboundItems.reduce(
     (sum, item) => sum + item.totalItems,
     0
   );
-  const totalReceivedItems = mockInbound.reduce(
+  const totalReceivedItems = inboundItems.reduce(
     (sum, item) => sum + item.receivedItems,
     0
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -166,7 +141,7 @@ export default function InboundPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Shipments</p>
-              <p className="text-2xl font-bold">{mockInbound.length}</p>
+              <p className="text-2xl font-bold">{inboundItems.length}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Package className="w-6 h-6 text-blue-600" />

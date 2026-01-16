@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Package,
   AlertTriangle,
@@ -9,6 +9,7 @@ import {
   Filter,
   Download,
   MapPin,
+  Loader2,
 } from "lucide-react";
 
 interface StockItem {
@@ -25,74 +26,6 @@ interface StockItem {
   lastUpdated: string;
 }
 
-const mockStock: StockItem[] = [
-  {
-    id: "1",
-    skuCode: "SKU-001",
-    skuName: "Premium Cotton T-Shirt",
-    category: "Apparel",
-    location: "Mumbai Warehouse",
-    totalStock: 500,
-    availableStock: 420,
-    reservedStock: 80,
-    reorderLevel: 100,
-    status: "healthy",
-    lastUpdated: "2024-01-18T10:30:00",
-  },
-  {
-    id: "2",
-    skuCode: "SKU-002",
-    skuName: "Wireless Earbuds Pro",
-    category: "Electronics",
-    location: "Delhi Hub",
-    totalStock: 85,
-    availableStock: 45,
-    reservedStock: 40,
-    reorderLevel: 50,
-    status: "low",
-    lastUpdated: "2024-01-18T09:15:00",
-  },
-  {
-    id: "3",
-    skuCode: "SKU-003",
-    skuName: "Organic Face Cream",
-    category: "Beauty",
-    location: "Bangalore Center",
-    totalStock: 20,
-    availableStock: 8,
-    reservedStock: 12,
-    reorderLevel: 30,
-    status: "critical",
-    lastUpdated: "2024-01-18T11:00:00",
-  },
-  {
-    id: "4",
-    skuCode: "SKU-004",
-    skuName: "Running Shoes Elite",
-    category: "Footwear",
-    location: "Mumbai Warehouse",
-    totalStock: 0,
-    availableStock: 0,
-    reservedStock: 0,
-    reorderLevel: 25,
-    status: "out_of_stock",
-    lastUpdated: "2024-01-17T15:45:00",
-  },
-  {
-    id: "5",
-    skuCode: "SKU-005",
-    skuName: "Smart Watch Series 5",
-    category: "Electronics",
-    location: "Chennai Warehouse",
-    totalStock: 150,
-    availableStock: 120,
-    reservedStock: 30,
-    reorderLevel: 40,
-    status: "healthy",
-    lastUpdated: "2024-01-18T08:00:00",
-  },
-];
-
 const statusConfig = {
   healthy: { label: "Healthy", color: "bg-green-100 text-green-700" },
   low: { label: "Low Stock", color: "bg-yellow-100 text-yellow-700" },
@@ -101,29 +34,70 @@ const statusConfig = {
 };
 
 export default function StockLevelsPage() {
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [allLocations, setAllLocations] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
 
-  const locations = [...new Set(mockStock.map((s) => s.location))];
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (locationFilter !== "all") params.set("location", locationFilter);
 
-  const filteredStock = mockStock.filter((item) => {
-    const matchesSearch =
-      item.skuCode.toLowerCase().includes(search.toLowerCase()) ||
-      item.skuName.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || item.status === statusFilter;
-    const matchesLocation =
-      locationFilter === "all" || item.location === locationFilter;
-    return matchesSearch && matchesStatus && matchesLocation;
-  });
+      const response = await fetch(`/api/client/inventory/stock?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch stock data");
+
+      const data = await response.json();
+      setStockItems(data.items || []);
+      setAllLocations(data.locations || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, statusFilter, locationFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const filteredStock = stockItems;
 
   const statusCounts = {
-    healthy: mockStock.filter((s) => s.status === "healthy").length,
-    low: mockStock.filter((s) => s.status === "low").length,
-    critical: mockStock.filter((s) => s.status === "critical").length,
-    out_of_stock: mockStock.filter((s) => s.status === "out_of_stock").length,
+    healthy: stockItems.filter((s) => s.status === "healthy").length,
+    low: stockItems.filter((s) => s.status === "low").length,
+    critical: stockItems.filter((s) => s.status === "critical").length,
+    out_of_stock: stockItems.filter((s) => s.status === "out_of_stock").length,
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -150,7 +124,7 @@ export default function StockLevelsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total SKUs</p>
-              <p className="text-2xl font-bold">{mockStock.length}</p>
+              <p className="text-2xl font-bold">{stockItems.length}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Package className="w-6 h-6 text-blue-600" />
@@ -231,7 +205,7 @@ export default function StockLevelsPage() {
             className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Locations</option>
-            {locations.map((loc) => (
+            {allLocations.map((loc) => (
               <option key={loc} value={loc}>
                 {loc}
               </option>

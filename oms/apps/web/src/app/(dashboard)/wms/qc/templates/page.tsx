@@ -590,7 +590,7 @@ export default function QCTemplatesPage() {
                               <DropdownMenuItem
                                 onClick={() =>
                                   router.push(
-                                    `/wms/qc/templates/${template.id}/edit`
+                                    `/wms/qc/templates/${template.id}`
                                   )
                                 }
                               >

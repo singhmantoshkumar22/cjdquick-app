@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   MapPin,
   Package,
-  Truck,
   Clock,
   TrendingUp,
   TrendingDown,
   BarChart3,
+  Loader2,
 } from "lucide-react";
 
 interface LocationMetrics {
@@ -27,91 +27,58 @@ interface LocationMetrics {
   trendPercent: number;
 }
 
-const mockLocations: LocationMetrics[] = [
-  {
-    id: "1",
-    name: "Mumbai Warehouse",
-    code: "MUM-01",
-    city: "Mumbai",
-    state: "Maharashtra",
-    totalOrders: 1250,
-    pendingOrders: 85,
-    shippedOrders: 320,
-    deliveredOrders: 845,
-    avgProcessingTime: 4.2,
-    fulfillmentRate: 96.5,
-    trend: "up",
-    trendPercent: 8.3,
-  },
-  {
-    id: "2",
-    name: "Delhi Hub",
-    code: "DEL-01",
-    city: "New Delhi",
-    state: "Delhi",
-    totalOrders: 980,
-    pendingOrders: 120,
-    shippedOrders: 280,
-    deliveredOrders: 580,
-    avgProcessingTime: 5.8,
-    fulfillmentRate: 92.1,
-    trend: "stable",
-    trendPercent: 0.5,
-  },
-  {
-    id: "3",
-    name: "Bangalore Center",
-    code: "BLR-01",
-    city: "Bangalore",
-    state: "Karnataka",
-    totalOrders: 750,
-    pendingOrders: 45,
-    shippedOrders: 180,
-    deliveredOrders: 525,
-    avgProcessingTime: 3.5,
-    fulfillmentRate: 98.2,
-    trend: "up",
-    trendPercent: 12.1,
-  },
-  {
-    id: "4",
-    name: "Chennai Warehouse",
-    code: "CHN-01",
-    city: "Chennai",
-    state: "Tamil Nadu",
-    totalOrders: 420,
-    pendingOrders: 65,
-    shippedOrders: 95,
-    deliveredOrders: 260,
-    avgProcessingTime: 6.2,
-    fulfillmentRate: 88.5,
-    trend: "down",
-    trendPercent: -4.2,
-  },
-  {
-    id: "5",
-    name: "Kolkata Hub",
-    code: "KOL-01",
-    city: "Kolkata",
-    state: "West Bengal",
-    totalOrders: 380,
-    pendingOrders: 40,
-    shippedOrders: 110,
-    deliveredOrders: 230,
-    avgProcessingTime: 4.8,
-    fulfillmentRate: 94.7,
-    trend: "up",
-    trendPercent: 5.6,
-  },
-];
-
 export default function ByLocationPage() {
+  const [locations, setLocations] = useState<LocationMetrics[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
-  const totalOrders = mockLocations.reduce((sum, loc) => sum + loc.totalOrders, 0);
-  const avgFulfillmentRate =
-    mockLocations.reduce((sum, loc) => sum + loc.fulfillmentRate, 0) /
-    mockLocations.length;
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/client/fulfillment/by-location");
+      if (!response.ok) throw new Error("Failed to fetch location data");
+
+      const data = await response.json();
+      setLocations(data.locations || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const totalOrders = locations.reduce((sum, loc) => sum + loc.totalOrders, 0);
+  const avgFulfillmentRate = locations.length > 0
+    ? locations.reduce((sum, loc) => sum + loc.fulfillmentRate, 0) / locations.length
+    : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -132,7 +99,7 @@ export default function ByLocationPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Locations</p>
-              <p className="text-2xl font-bold">{mockLocations.length}</p>
+              <p className="text-2xl font-bold">{locations.length}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <MapPin className="w-6 h-6 text-blue-600" />
@@ -169,7 +136,7 @@ export default function ByLocationPage() {
             <div>
               <p className="text-sm text-gray-600">Pending Orders</p>
               <p className="text-2xl font-bold">
-                {mockLocations
+                {locations
                   .reduce((sum, loc) => sum + loc.pendingOrders, 0)
                   .toLocaleString()}
               </p>
@@ -183,7 +150,7 @@ export default function ByLocationPage() {
 
       {/* Location Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockLocations.map((location) => (
+        {locations.map((location) => (
           <div
             key={location.id}
             className={`bg-white rounded-xl p-6 shadow-sm border cursor-pointer transition-all ${

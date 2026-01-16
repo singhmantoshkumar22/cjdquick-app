@@ -1,42 +1,92 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
   ShoppingCart,
   Package,
   Download,
-  Calendar,
+  Loader2,
 } from "lucide-react";
 
+interface SalesData {
+  totalRevenue: number;
+  totalOrders: number;
+  avgOrderValue: number;
+  unitsSold: number;
+  revenueGrowth: number;
+  orderGrowth: number;
+}
+
+interface TopProduct {
+  name: string;
+  revenue: number;
+  units: number;
+}
+
+interface ChannelData {
+  channel: string;
+  revenue: number;
+  orders: number;
+  percentage: number;
+}
+
 export default function SalesReportPage() {
+  const [salesData, setSalesData] = useState<SalesData>({
+    totalRevenue: 0, totalOrders: 0, avgOrderValue: 0, unitsSold: 0, revenueGrowth: 0, orderGrowth: 0,
+  });
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [channelBreakdown, setChannelBreakdown] = useState<ChannelData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("30days");
 
-  const salesData = {
-    totalRevenue: 4850000,
-    totalOrders: 2450,
-    avgOrderValue: 1980,
-    unitsSold: 5680,
-    revenueGrowth: 12.5,
-    orderGrowth: 8.3,
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/client/reports/sales?period=${dateRange}`);
+      if (!response.ok) throw new Error("Failed to fetch sales report");
 
-  const topProducts = [
-    { name: "Premium Cotton T-Shirt", revenue: 875000, units: 3500 },
-    { name: "Wireless Earbuds Pro", revenue: 780000, units: 520 },
-    { name: "Smart Watch Series 5", revenue: 650000, units: 195 },
-    { name: "Running Shoes Elite", revenue: 520000, units: 325 },
-    { name: "Organic Face Cream", revenue: 425000, units: 850 },
-  ];
+      const data = await response.json();
+      setSalesData(data.salesData || {
+        totalRevenue: 0, totalOrders: 0, avgOrderValue: 0, unitsSold: 0, revenueGrowth: 0, orderGrowth: 0,
+      });
+      setTopProducts(data.topProducts || []);
+      setChannelBreakdown(data.channelBreakdown || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
-  const channelBreakdown = [
-    { channel: "Amazon", revenue: 1940000, orders: 980, percentage: 40 },
-    { channel: "Flipkart", revenue: 1455000, orders: 735, percentage: 30 },
-    { channel: "Website", revenue: 970000, orders: 490, percentage: 20 },
-    { channel: "Myntra", revenue: 485000, orders: 245, percentage: 10 },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

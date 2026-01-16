@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Package,
   TrendingUp,
@@ -9,6 +9,7 @@ import {
   Download,
   Filter,
   ArrowUpDown,
+  Loader2,
 } from "lucide-react";
 
 interface SKUPerformance {
@@ -25,93 +26,49 @@ interface SKUPerformance {
   trendPercent: number;
 }
 
-const mockSKUs: SKUPerformance[] = [
-  {
-    id: "1",
-    code: "SKU-001",
-    name: "Premium Cotton T-Shirt",
-    category: "Apparel",
-    totalOrders: 1250,
-    totalUnits: 3500,
-    revenue: 875000,
-    avgOrderValue: 700,
-    returnRate: 2.5,
-    trend: "up",
-    trendPercent: 15.3,
-  },
-  {
-    id: "2",
-    code: "SKU-002",
-    name: "Wireless Earbuds Pro",
-    category: "Electronics",
-    totalOrders: 890,
-    totalUnits: 1200,
-    revenue: 1560000,
-    avgOrderValue: 1752,
-    returnRate: 5.2,
-    trend: "up",
-    trendPercent: 22.1,
-  },
-  {
-    id: "3",
-    code: "SKU-003",
-    name: "Organic Face Cream",
-    category: "Beauty",
-    totalOrders: 650,
-    totalUnits: 850,
-    revenue: 425000,
-    avgOrderValue: 654,
-    returnRate: 1.8,
-    trend: "stable",
-    trendPercent: 0.5,
-  },
-  {
-    id: "4",
-    code: "SKU-004",
-    name: "Running Shoes Elite",
-    category: "Footwear",
-    totalOrders: 420,
-    totalUnits: 580,
-    revenue: 696000,
-    avgOrderValue: 1657,
-    returnRate: 8.5,
-    trend: "down",
-    trendPercent: -5.2,
-  },
-  {
-    id: "5",
-    code: "SKU-005",
-    name: "Smart Watch Series 5",
-    category: "Electronics",
-    totalOrders: 380,
-    totalUnits: 420,
-    revenue: 1260000,
-    avgOrderValue: 3316,
-    returnRate: 3.1,
-    trend: "up",
-    trendPercent: 18.7,
-  },
-];
+interface Category {
+  name: string;
+  count: number;
+}
 
 export default function SKUPerformancePage() {
+  const [skus, setSkus] = useState<SKUPerformance[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [sortBy, setSortBy] = useState<keyof SKUPerformance>("revenue");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  const filteredSKUs = mockSKUs
-    .filter(
-      (sku) =>
-        sku.code.toLowerCase().includes(search.toLowerCase()) ||
-        sku.name.toLowerCase().includes(search.toLowerCase())
-    )
-    .sort((a, b) => {
-      const aVal = a[sortBy];
-      const bVal = b[sortBy];
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
-      return 0;
-    });
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (selectedCategory) params.set("category", selectedCategory);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+
+      const response = await fetch(`/api/client/sku-performance?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch SKU performance");
+
+      const data = await response.json();
+      setSkus(data.skus || []);
+      setCategories(data.categories || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, selectedCategory, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const filteredSKUs = skus;
 
   const handleSort = (column: keyof SKUPerformance) => {
     if (sortBy === column) {
@@ -130,12 +87,35 @@ export default function SKUPerformancePage() {
     }).format(amount);
   };
 
-  const topPerformer = mockSKUs.reduce((prev, curr) =>
-    curr.revenue > prev.revenue ? curr : prev
-  );
-  const totalRevenue = mockSKUs.reduce((sum, sku) => sum + sku.revenue, 0);
-  const avgReturnRate =
-    mockSKUs.reduce((sum, sku) => sum + sku.returnRate, 0) / mockSKUs.length;
+  const topPerformer = skus.length > 0
+    ? skus.reduce((prev, curr) => (curr.revenue > prev.revenue ? curr : prev))
+    : null;
+  const totalRevenue = skus.reduce((sum, sku) => sum + sku.revenue, 0);
+  const avgReturnRate = skus.length > 0
+    ? skus.reduce((sum, sku) => sum + sku.returnRate, 0) / skus.length
+    : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -164,7 +144,7 @@ export default function SKUPerformancePage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total SKUs</p>
-              <p className="text-2xl font-bold">{mockSKUs.length}</p>
+              <p className="text-2xl font-bold">{skus.length}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Package className="w-6 h-6 text-blue-600" />
@@ -188,8 +168,8 @@ export default function SKUPerformancePage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Top Performer</p>
-              <p className="text-lg font-bold truncate">{topPerformer.code}</p>
-              <p className="text-xs text-gray-500 truncate">{topPerformer.name}</p>
+              <p className="text-lg font-bold truncate">{topPerformer?.code || "-"}</p>
+              <p className="text-xs text-gray-500 truncate">{topPerformer?.name || "No data"}</p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-purple-600" />

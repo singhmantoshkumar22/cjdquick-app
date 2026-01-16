@@ -1,41 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Package,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
   Download,
-  Boxes,
+  Loader2,
 } from "lucide-react";
 
+interface InventoryData {
+  totalSKUs: number;
+  totalValue: number;
+  avgTurnover: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  overstockItems: number;
+}
+
+interface CategoryData {
+  category: string;
+  skus: number;
+  value: number;
+  turnover: number;
+}
+
+interface AgingData {
+  age: string;
+  units: number;
+  value: number;
+  percentage: number;
+}
+
 export default function InventoryReportPage() {
+  const [inventoryData, setInventoryData] = useState<InventoryData>({
+    totalSKUs: 0, totalValue: 0, avgTurnover: 0, lowStockItems: 0, outOfStockItems: 0, overstockItems: 0,
+  });
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryData[]>([]);
+  const [agingAnalysis, setAgingAnalysis] = useState<AgingData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("30days");
 
-  const inventoryData = {
-    totalSKUs: 1250,
-    totalValue: 12500000,
-    avgTurnover: 4.2,
-    lowStockItems: 45,
-    outOfStockItems: 12,
-    overstockItems: 28,
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/client/reports/inventory?period=${dateRange}`);
+      if (!response.ok) throw new Error("Failed to fetch inventory report");
 
-  const categoryBreakdown = [
-    { category: "Apparel", skus: 450, value: 4500000, turnover: 5.2 },
-    { category: "Electronics", skus: 280, value: 3800000, turnover: 3.8 },
-    { category: "Beauty", skus: 220, value: 1800000, turnover: 4.5 },
-    { category: "Footwear", skus: 180, value: 1600000, turnover: 3.2 },
-    { category: "Accessories", skus: 120, value: 800000, turnover: 6.1 },
-  ];
+      const data = await response.json();
+      setInventoryData(data.inventoryData || {
+        totalSKUs: 0, totalValue: 0, avgTurnover: 0, lowStockItems: 0, outOfStockItems: 0, overstockItems: 0,
+      });
+      setCategoryBreakdown(data.categoryBreakdown || []);
+      setAgingAnalysis(data.agingAnalysis || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
-  const agingAnalysis = [
-    { age: "0-30 days", units: 8500, value: 5200000, percentage: 42 },
-    { age: "31-60 days", units: 4200, value: 3100000, percentage: 25 },
-    { age: "61-90 days", units: 2800, value: 2400000, percentage: 19 },
-    { age: "90+ days", units: 1500, value: 1800000, percentage: 14 },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

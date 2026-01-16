@@ -1,44 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  RotateCcw,
-  TrendingUp,
-  TrendingDown,
   Package,
-  AlertTriangle,
   Download,
-  DollarSign,
+  Loader2,
 } from "lucide-react";
 
+interface ReturnsData {
+  totalReturns: number;
+  rtoReturns: number;
+  customerReturns: number;
+  returnRate: number;
+  refundValue: number;
+  avgProcessingTime: number;
+}
+
+interface ReturnReason {
+  reason: string;
+  count: number;
+  percentage: number;
+}
+
+interface CategoryReturn {
+  category: string;
+  returns: number;
+  rate: number;
+}
+
 export default function ReturnsReportPage() {
+  const [returnsData, setReturnsData] = useState<ReturnsData>({
+    totalReturns: 0, rtoReturns: 0, customerReturns: 0, returnRate: 0, refundValue: 0, avgProcessingTime: 0,
+  });
+  const [returnReasons, setReturnReasons] = useState<ReturnReason[]>([]);
+  const [categoryReturns, setCategoryReturns] = useState<CategoryReturn[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("30days");
 
-  const returnsData = {
-    totalReturns: 285,
-    rtoReturns: 175,
-    customerReturns: 110,
-    returnRate: 5.8,
-    refundValue: 425000,
-    avgProcessingTime: 4.5,
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/client/reports/returns?period=${dateRange}`);
+      if (!response.ok) throw new Error("Failed to fetch returns report");
 
-  const returnReasons = [
-    { reason: "Product Quality Issue", count: 68, percentage: 23.9 },
-    { reason: "Wrong Size/Fit", count: 55, percentage: 19.3 },
-    { reason: "Product Not as Described", count: 48, percentage: 16.8 },
-    { reason: "Customer Changed Mind", count: 42, percentage: 14.7 },
-    { reason: "Damaged in Transit", count: 38, percentage: 13.3 },
-    { reason: "Other", count: 34, percentage: 11.9 },
-  ];
+      const data = await response.json();
+      setReturnsData(data.returnsData || {
+        totalReturns: 0, rtoReturns: 0, customerReturns: 0, returnRate: 0, refundValue: 0, avgProcessingTime: 0,
+      });
+      setReturnReasons(data.returnReasons || []);
+      setCategoryReturns(data.categoryReturns || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
-  const categoryReturns = [
-    { category: "Apparel", returns: 95, rate: 7.2 },
-    { category: "Footwear", returns: 68, rate: 8.5 },
-    { category: "Electronics", returns: 52, rate: 4.2 },
-    { category: "Beauty", returns: 38, rate: 3.8 },
-    { category: "Accessories", returns: 32, rate: 5.5 },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

@@ -1,68 +1,109 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  BarChart3,
   TrendingUp,
   TrendingDown,
   Users,
   ShoppingCart,
-  Package,
   DollarSign,
   Target,
-  Calendar,
   Download,
+  Loader2,
 } from "lucide-react";
 
+interface KPIs {
+  revenue: { value: number; change: number; trend: "up" | "down" };
+  orders: { value: number; change: number; trend: "up" | "down" };
+  customers: { value: number; change: number; trend: "up" | "down" };
+  aov: { value: number; change: number; trend: "up" | "down" };
+}
+
+interface FunnelStage {
+  stage: string;
+  count: number;
+  rate: number;
+}
+
+interface ChannelMetric {
+  channel: string;
+  revenue: number;
+  orders: number;
+  aov: number;
+  growth: number;
+}
+
+interface CohortData {
+  month: string;
+  acquired: number;
+  m1: number;
+  m2: number;
+  m3: number;
+}
+
 export default function AnalyticsPage() {
+  const [kpis, setKpis] = useState<KPIs>({
+    revenue: { value: 0, change: 0, trend: "up" },
+    orders: { value: 0, change: 0, trend: "up" },
+    customers: { value: 0, change: 0, trend: "up" },
+    aov: { value: 0, change: 0, trend: "up" },
+  });
+  const [conversionFunnel, setConversionFunnel] = useState<FunnelStage[]>([]);
+  const [channelMetrics, setChannelMetrics] = useState<ChannelMetric[]>([]);
+  const [cohortData, setCohortData] = useState<CohortData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("30days");
 
-  const kpis = {
-    revenue: { value: 4850000, change: 12.5, trend: "up" },
-    orders: { value: 2450, change: 8.3, trend: "up" },
-    customers: { value: 1850, change: 15.2, trend: "up" },
-    aov: { value: 1980, change: -2.1, trend: "down" },
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/client/analytics?period=${dateRange}`);
+      if (!response.ok) throw new Error("Failed to fetch analytics data");
 
-  const conversionFunnel = [
-    { stage: "Visitors", count: 125000, rate: 100 },
-    { stage: "Product Views", count: 45000, rate: 36 },
-    { stage: "Add to Cart", count: 8500, rate: 6.8 },
-    { stage: "Checkout", count: 3200, rate: 2.56 },
-    { stage: "Completed Orders", count: 2450, rate: 1.96 },
-  ];
+      const data = await response.json();
+      setKpis(data.kpis || {
+        revenue: { value: 0, change: 0, trend: "up" },
+        orders: { value: 0, change: 0, trend: "up" },
+        customers: { value: 0, change: 0, trend: "up" },
+        aov: { value: 0, change: 0, trend: "up" },
+      });
+      setConversionFunnel(data.conversionFunnel || []);
+      setChannelMetrics(data.channelMetrics || []);
+      setCohortData(data.cohortData || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
 
-  const channelMetrics = [
-    {
-      channel: "Amazon",
-      revenue: 1940000,
-      orders: 980,
-      aov: 1980,
-      growth: 15.3,
-    },
-    {
-      channel: "Flipkart",
-      revenue: 1455000,
-      orders: 735,
-      aov: 1980,
-      growth: 8.2,
-    },
-    {
-      channel: "Website",
-      revenue: 970000,
-      orders: 490,
-      aov: 1980,
-      growth: 22.5,
-    },
-    { channel: "Myntra", revenue: 485000, orders: 245, aov: 1980, growth: -3.1 },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const cohortData = [
-    { month: "Jan 2024", acquired: 450, m1: 68, m2: 42, m3: 28 },
-    { month: "Dec 2023", acquired: 380, m1: 72, m2: 45, m3: 32 },
-    { month: "Nov 2023", acquired: 520, m1: 65, m2: 38, m3: 25 },
-    { month: "Oct 2023", acquired: 410, m1: 70, m2: 48, m3: 35 },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
