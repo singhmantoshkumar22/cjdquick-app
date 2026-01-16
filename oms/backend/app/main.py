@@ -86,20 +86,7 @@ async def debug_db():
     return result
 
 
-@app.post("/admin/seed-returns")
-async def seed_returns_data():
-    """Admin endpoint to seed RTO/Return test data (TEMPORARY - NO AUTH)"""
-    try:
-        from .scripts.seed_returns import seed_returns
-        seed_returns()
-        return {"status": "success", "message": "Returns data seeded successfully"}
-    except Exception as e:
-        import traceback
-        return {
-            "status": "error",
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+# Seed endpoint removed - data already seeded
 
 
 @app.get("/debug/verify/{email}")
