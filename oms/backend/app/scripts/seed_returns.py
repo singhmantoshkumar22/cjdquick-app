@@ -63,6 +63,7 @@ def seed_returns():
         returns_data = []
 
         # Distribution of statuses for realistic data
+        # Using only statuses that exist in DB enum
         status_distribution = [
             (ReturnStatus.INITIATED, 5),
             (ReturnStatus.IN_TRANSIT, 8),
@@ -70,8 +71,7 @@ def seed_returns():
             (ReturnStatus.QC_PENDING, 10),
             (ReturnStatus.QC_PASSED, 4),
             (ReturnStatus.QC_FAILED, 2),
-            (ReturnStatus.PROCESSED, 3),
-            (ReturnStatus.COMPLETED, 7),
+            (ReturnStatus.COMPLETED, 10),
         ]
 
         index = 1
@@ -91,11 +91,10 @@ def seed_returns():
                              ReturnStatus.PROCESSED, ReturnStatus.COMPLETED]:
                     received_at = initiated_at + timedelta(days=random.randint(1, 5))
 
-                if status in [ReturnStatus.QC_PASSED, ReturnStatus.QC_FAILED,
-                             ReturnStatus.PROCESSED, ReturnStatus.COMPLETED]:
+                if status in [ReturnStatus.QC_PASSED, ReturnStatus.QC_FAILED, ReturnStatus.COMPLETED]:
                     qc_status = QCStatus.PASSED if status != ReturnStatus.QC_FAILED else QCStatus.FAILED
 
-                if status in [ReturnStatus.PROCESSED, ReturnStatus.COMPLETED]:
+                if status == ReturnStatus.COMPLETED:
                     processed_at = received_at + timedelta(days=random.randint(1, 3)) if received_at else None
 
                 return_obj = Return(
