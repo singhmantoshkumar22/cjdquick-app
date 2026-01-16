@@ -478,7 +478,7 @@ class NDRListItem(SQLModel):
     order: Optional[NDROrderInfo] = None
     delivery: Optional[NDRDeliveryInfo] = None
     outreachAttempts: List[dict] = []
-    _count: Optional[dict] = None
+    outreachCount: int = 0
 
 
 class NDRListResponse(SQLModel):

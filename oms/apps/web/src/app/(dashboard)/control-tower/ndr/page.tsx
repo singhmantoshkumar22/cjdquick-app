@@ -120,14 +120,15 @@ export default function NDRCommandCenterPage() {
   // Calculate stats
   const totalNDRs = Object.values(stats.statusCounts).reduce((a, b) => a + b, 0);
   const openNDRs = stats.statusCounts.OPEN || 0;
-  const contactedNDRs = stats.statusCounts.CONTACTED || 0;
+  const actionRequestedNDRs = stats.statusCounts.ACTION_REQUESTED || 0;
   const resolvedNDRs = stats.statusCounts.RESOLVED || 0;
-  const rtoPending = stats.statusCounts.RTO_PENDING || 0;
+  const rtoNDRs = stats.statusCounts.RTO || 0;
+  const closedNDRs = stats.statusCounts.CLOSED || 0;
   const criticalNDRs = stats.priorityCounts.CRITICAL || 0;
   const highPriorityNDRs = stats.priorityCounts.HIGH || 0;
 
   const resolutionRate = totalNDRs > 0 ? Math.round((resolvedNDRs / totalNDRs) * 100) : 0;
-  const contactRate = totalNDRs > 0 ? Math.round(((contactedNDRs + resolvedNDRs) / totalNDRs) * 100) : 0;
+  const contactRate = totalNDRs > 0 ? Math.round(((actionRequestedNDRs + resolvedNDRs) / totalNDRs) * 100) : 0;
 
   const lastRefresh = new Date(dataUpdatedAt);
 
@@ -175,11 +176,11 @@ export default function NDRCommandCenterPage() {
 
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contacted</CardTitle>
+            <CardTitle className="text-sm font-medium">Action Requested</CardTitle>
             <Phone className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{contactedNDRs}</div>
+            <div className="text-2xl font-bold">{actionRequestedNDRs}</div>
             <p className="text-xs text-muted-foreground">Awaiting response</p>
           </CardContent>
         </Card>
@@ -197,11 +198,11 @@ export default function NDRCommandCenterPage() {
 
         <Card className="border-l-4 border-l-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">RTO Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">RTO</CardTitle>
             <XCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{rtoPending}</div>
+            <div className="text-2xl font-bold">{rtoNDRs}</div>
             <p className="text-xs text-muted-foreground">Return initiated</p>
           </CardContent>
         </Card>
@@ -318,12 +319,12 @@ export default function NDRCommandCenterPage() {
         <CardContent>
           <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-7">
             {[
-              { key: "CUSTOMER_NOT_AVAILABLE", label: "Not Available", color: "bg-blue-500" },
+              { key: "CUSTOMER_UNAVAILABLE", label: "Not Available", color: "bg-blue-500" },
               { key: "WRONG_ADDRESS", label: "Wrong Address", color: "bg-red-500" },
               { key: "PHONE_UNREACHABLE", label: "Phone Off", color: "bg-orange-500" },
-              { key: "REFUSED", label: "Refused", color: "bg-purple-500" },
+              { key: "CUSTOMER_REFUSED", label: "Refused", color: "bg-purple-500" },
               { key: "COD_NOT_READY", label: "COD Not Ready", color: "bg-amber-500" },
-              { key: "CUSTOMER_RESCHEDULE", label: "Reschedule", color: "bg-green-500" },
+              { key: "DELIVERY_RESCHEDULED", label: "Reschedule", color: "bg-green-500" },
               { key: "OTHER", label: "Other", color: "bg-gray-500" },
             ].map(({ key, label, color }) => {
               const count = stats.reasonCounts[key] || 0;
@@ -377,11 +378,11 @@ export default function NDRCommandCenterPage() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="OPEN">Open</SelectItem>
-                <SelectItem value="CONTACTED">Contacted</SelectItem>
-                <SelectItem value="CUSTOMER_RESPONDED">Responded</SelectItem>
+                <SelectItem value="ACTION_REQUESTED">Action Requested</SelectItem>
                 <SelectItem value="REATTEMPT_SCHEDULED">Reattempt</SelectItem>
                 <SelectItem value="RESOLVED">Resolved</SelectItem>
-                <SelectItem value="RTO_PENDING">RTO Pending</SelectItem>
+                <SelectItem value="RTO">RTO</SelectItem>
+                <SelectItem value="CLOSED">Closed</SelectItem>
               </SelectContent>
             </Select>
             <Select value={priorityFilter || "all"} onValueChange={(v) => setPriorityFilter(v === "all" ? "" : v as NDRPriority)}>
@@ -486,11 +487,15 @@ export default function NDRCommandCenterPage() {
                           className={
                             ndr.status === "RESOLVED"
                               ? "bg-green-100 text-green-700"
-                              : ndr.status === "CONTACTED"
+                              : ndr.status === "ACTION_REQUESTED"
                                 ? "bg-blue-100 text-blue-700"
-                                : ndr.status === "RTO_PENDING"
+                                : ndr.status === "RTO"
                                   ? "bg-red-100 text-red-700"
-                                  : "bg-gray-100 text-gray-700"
+                                  : ndr.status === "REATTEMPT_SCHEDULED"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : ndr.status === "CLOSED"
+                                      ? "bg-gray-100 text-gray-700"
+                                      : "bg-orange-100 text-orange-700"
                           }
                         >
                           {ndr.status.replace(/_/g, " ")}
@@ -499,7 +504,7 @@ export default function NDRCommandCenterPage() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Badge variant="outline" className="text-xs">
-                            {(ndr as any)._count?.outreachAttempts || 0} attempts
+                            {(ndr as any).outreachCount || 0} attempts
                           </Badge>
                         </div>
                       </TableCell>

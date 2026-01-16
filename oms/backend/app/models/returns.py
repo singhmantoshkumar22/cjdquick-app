@@ -169,6 +169,7 @@ class ReturnResponse(ResponseBase):
     type: ReturnType
     status: ReturnStatus
     orderId: Optional[UUID] = None
+    companyId: Optional[UUID] = None
     awbNo: Optional[str] = None
     reason: Optional[str] = None
     remarks: Optional[str] = None
