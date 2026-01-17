@@ -31,6 +31,7 @@ from .channels import router as channels_router
 from .communications import router as communications_router
 from .analytics import router as analytics_router
 from .system import router as system_router
+from .dashboard import router as dashboard_router
 
 # Main v1 router
 router = APIRouter(prefix="/v1")
@@ -63,3 +64,4 @@ router.include_router(channels_router)
 router.include_router(communications_router)
 router.include_router(analytics_router)
 router.include_router(system_router)
+router.include_router(dashboard_router)
