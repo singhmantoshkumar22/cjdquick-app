@@ -284,10 +284,18 @@ def create_order(
         )
 
     # Create order
-    order = Order(**order_data.model_dump())
-    session.add(order)
-    session.commit()
-    session.refresh(order)
+    try:
+        order_dict = order_data.model_dump()
+        order = Order(**order_dict)
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create order: {str(e)}"
+        )
 
     return OrderResponse.model_validate(order)
 
