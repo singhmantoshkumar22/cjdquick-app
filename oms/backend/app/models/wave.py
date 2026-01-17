@@ -284,6 +284,14 @@ class Picklist(BaseModel, table=True):
             index=True
         )
     )
+    companyId: UUID = Field(
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("Company.id"),
+            nullable=False,
+            index=True
+        )
+    )
 
     # Timestamps
     startedAt: Optional[datetime] = Field(default=None)
@@ -551,6 +559,7 @@ class PicklistResponse(ResponseBase):
     status: PicklistStatus
     orderId: UUID
     assignedToId: Optional[UUID] = None
+    companyId: UUID
     startedAt: Optional[datetime] = None
     completedAt: Optional[datetime] = None
     createdAt: datetime

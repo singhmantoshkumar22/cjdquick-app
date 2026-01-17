@@ -16,7 +16,7 @@ from app.models import (
     WaveOrder, WaveOrderCreate, WaveOrderUpdate, WaveOrderResponse,
     Picklist, PicklistCreate, PicklistUpdate, PicklistResponse,
     PicklistItem, PicklistItemCreate, PicklistItemUpdate, PicklistItemResponse,
-    User, Location, WaveType, WaveStatus, PicklistStatus
+    User, Location, Order, WaveType, WaveStatus, PicklistStatus
 )
 
 router = APIRouter(prefix="/waves", tags=["Waves"])
@@ -348,8 +348,18 @@ def create_picklist(
     current_user: User = Depends(get_current_user)
 ):
     """Create new picklist."""
+    # Get order to set companyId
+    order = session.get(Order, data.orderId)
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found"
+        )
+
     try:
-        picklist = Picklist.model_validate(data)
+        picklist_dict = data.model_dump()
+        picklist_dict["companyId"] = order.companyId
+        picklist = Picklist(**picklist_dict)
         session.add(picklist)
         session.commit()
         session.refresh(picklist)
