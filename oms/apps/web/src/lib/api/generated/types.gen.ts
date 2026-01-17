@@ -755,12 +755,18 @@ export type InboundUpdate = {
     completedAt?: (string | null);
 };
 
+/**
+ * Schema for inventory adjustment
+ */
 export type InventoryAdjustment = {
     skuId: string;
     binId: string;
-    quantity: number;
+    locationId: string;
+    adjustmentQty: number;
     reason: string;
     batchNo?: (string | null);
+    serialNumbers?: (Array<(string)> | null);
+    remarks?: (string | null);
 };
 
 /**
@@ -790,28 +796,17 @@ export type InventoryMove = {
     batchNo?: (string | null);
 };
 
-/**
- * Schema for inventory API responses
- */
 export type InventoryResponse = {
     id: string;
     quantity: number;
     reservedQty: number;
+    availableQty: number;
     batchNo?: (string | null);
-    lotNo?: (string | null);
-    expiryDate?: (string | null);
-    mfgDate?: (string | null);
-    mrp?: (string | null);
-    costPrice?: (string | null);
-    serialNumbers?: (Array<(string)> | null);
-    valuationMethod?: (InventoryValuationMethod | null);
-    fifoSequence?: (number | null);
     skuId: string;
+    skuCode?: (string | null);
+    skuName?: (string | null);
     binId: string;
     locationId: string;
-    createdAt: string;
-    updatedAt: string;
-    availableQty?: number;
 };
 
 /**
@@ -901,17 +896,13 @@ export type LocationCreate = {
     code: string;
     name: string;
     type: LocationType;
-    address?: ({
-    [key: string]: unknown;
-} | null);
+    address: {
+        [key: string]: unknown;
+    };
     contactPerson?: (string | null);
     contactPhone?: (string | null);
     contactEmail?: (string | null);
     gst?: (string | null);
-    settings?: ({
-    [key: string]: unknown;
-} | null);
-    companyId: string;
 };
 
 export type LocationResponse = {
@@ -951,19 +942,13 @@ export const LocationType = {
 } as const;
 
 export type LocationUpdate = {
-    code?: (string | null);
     name?: (string | null);
-    type?: (LocationType | null);
     address?: ({
     [key: string]: unknown;
 } | null);
     contactPerson?: (string | null);
     contactPhone?: (string | null);
     contactEmail?: (string | null);
-    gst?: (string | null);
-    settings?: ({
-    [key: string]: unknown;
-} | null);
     isActive?: (boolean | null);
 };
 
@@ -1095,6 +1080,7 @@ export type NDRListItem = {
     outreachAttempts?: Array<{
         [key: string]: unknown;
     }>;
+    outreachCount?: number;
 };
 
 /**
@@ -2043,6 +2029,7 @@ export type ReturnResponse = {
     type: ReturnType;
     status: ReturnStatus;
     orderId?: (string | null);
+    companyId?: (string | null);
     awbNo?: (string | null);
     reason?: (string | null);
     remarks?: (string | null);
@@ -2330,11 +2317,15 @@ export type UserBrief = {
     avatar?: (string | null);
 };
 
+/**
+ * Schema for creating a new user
+ */
 export type UserCreate = {
     email: string;
     password: string;
     name: string;
     phone?: (string | null);
+    avatar?: (string | null);
     role?: UserRole;
     companyId?: (string | null);
     locationAccess?: Array<(string)>;
@@ -2352,20 +2343,27 @@ export type UserLogin = {
  * Schema for login response
  */
 export type UserLoginResponse = {
-    user: app__models__user__UserResponse;
+    user: UserResponse;
     token: string;
     expiresIn: number;
 };
 
+/**
+ * Schema for user API responses
+ */
 export type UserResponse = {
     id: string;
     email: string;
     name: string;
     phone?: (string | null);
     avatar?: (string | null);
-    role: string;
+    role: UserRole;
     isActive: boolean;
     companyId?: (string | null);
+    locationAccess?: Array<(string)>;
+    lastLoginAt?: (string | null);
+    createdAt: string;
+    updatedAt: string;
 };
 
 /**
@@ -2643,30 +2641,12 @@ export type ZoneUpdate = {
     isActive?: (boolean | null);
 };
 
-export type app__api__routes__inventory__InventoryResponse = {
-    id: string;
-    quantity: number;
-    reservedQty: number;
-    availableQty: number;
-    batchNo?: (string | null);
+export type app__api__routes__inventory__InventoryAdjustment = {
     skuId: string;
-    skuCode?: (string | null);
-    skuName?: (string | null);
     binId: string;
-    locationId: string;
-};
-
-export type app__api__routes__locations__LocationCreate = {
-    code: string;
-    name: string;
-    type: LocationType;
-    address: {
-        [key: string]: unknown;
-    };
-    contactPerson?: (string | null);
-    contactPhone?: (string | null);
-    contactEmail?: (string | null);
-    gst?: (string | null);
+    quantity: number;
+    reason: string;
+    batchNo?: (string | null);
 };
 
 export type app__api__routes__locations__LocationResponse = {
@@ -2683,17 +2663,6 @@ export type app__api__routes__locations__LocationResponse = {
     gst?: (string | null);
     isActive: boolean;
     companyId: string;
-};
-
-export type app__api__routes__locations__LocationUpdate = {
-    name?: (string | null);
-    address?: ({
-    [key: string]: unknown;
-} | null);
-    contactPerson?: (string | null);
-    contactPhone?: (string | null);
-    contactEmail?: (string | null);
-    isActive?: (boolean | null);
 };
 
 export type app__api__routes__orders__OrderResponse = {
@@ -2753,18 +2722,83 @@ export type app__api__routes__skus__SKUResponse = {
     companyId?: (string | null);
 };
 
+export type app__api__routes__users__UserCreate = {
+    email: string;
+    password: string;
+    name: string;
+    phone?: (string | null);
+    role?: UserRole;
+    companyId?: (string | null);
+    locationAccess?: Array<(string)>;
+};
+
+export type app__api__routes__users__UserResponse = {
+    id: string;
+    email: string;
+    name: string;
+    phone?: (string | null);
+    avatar?: (string | null);
+    role: string;
+    isActive: boolean;
+    companyId?: (string | null);
+};
+
+export type app__models__company__LocationCreate = {
+    code: string;
+    name: string;
+    type: LocationType;
+    address?: ({
+    [key: string]: unknown;
+} | null);
+    contactPerson?: (string | null);
+    contactPhone?: (string | null);
+    contactEmail?: (string | null);
+    gst?: (string | null);
+    settings?: ({
+    [key: string]: unknown;
+} | null);
+    companyId: string;
+};
+
+export type app__models__company__LocationUpdate = {
+    code?: (string | null);
+    name?: (string | null);
+    type?: (LocationType | null);
+    address?: ({
+    [key: string]: unknown;
+} | null);
+    contactPerson?: (string | null);
+    contactPhone?: (string | null);
+    contactEmail?: (string | null);
+    gst?: (string | null);
+    settings?: ({
+    [key: string]: unknown;
+} | null);
+    isActive?: (boolean | null);
+};
+
 /**
- * Schema for inventory adjustment
+ * Schema for inventory API responses
  */
-export type app__models__inventory__InventoryAdjustment = {
+export type app__models__inventory__InventoryResponse = {
+    id: string;
+    quantity: number;
+    reservedQty: number;
+    batchNo?: (string | null);
+    lotNo?: (string | null);
+    expiryDate?: (string | null);
+    mfgDate?: (string | null);
+    mrp?: (string | null);
+    costPrice?: (string | null);
+    serialNumbers?: (Array<(string)> | null);
+    valuationMethod?: (InventoryValuationMethod | null);
+    fifoSequence?: (number | null);
     skuId: string;
     binId: string;
     locationId: string;
-    adjustmentQty: number;
-    reason: string;
-    batchNo?: (string | null);
-    serialNumbers?: (Array<(string)> | null);
-    remarks?: (string | null);
+    createdAt: string;
+    updatedAt: string;
+    availableQty?: number;
 };
 
 /**
@@ -2854,38 +2888,6 @@ export type app__models__sku__SKUUpdate = {
 };
 
 /**
- * Schema for creating a new user
- */
-export type app__models__user__UserCreate = {
-    email: string;
-    password: string;
-    name: string;
-    phone?: (string | null);
-    avatar?: (string | null);
-    role?: UserRole;
-    companyId?: (string | null);
-    locationAccess?: Array<(string)>;
-};
-
-/**
- * Schema for user API responses
- */
-export type app__models__user__UserResponse = {
-    id: string;
-    email: string;
-    name: string;
-    phone?: (string | null);
-    avatar?: (string | null);
-    role: UserRole;
-    isActive: boolean;
-    companyId?: (string | null);
-    locationAccess?: Array<(string)>;
-    lastLoginAt?: (string | null);
-    createdAt: string;
-    updatedAt: string;
-};
-
-/**
  * Schema for updating a user (all fields optional)
  */
 export type app__models__user__UserUpdate = {
@@ -2917,13 +2919,13 @@ export type LoginApiV1AuthLoginPostData = {
 
 export type LoginApiV1AuthLoginPostResponse = (UserLoginResponse);
 
-export type GetMeApiV1AuthMeGetResponse = (app__models__user__UserResponse);
+export type GetMeApiV1AuthMeGetResponse = (UserResponse);
 
 export type UpdateMeApiV1AuthMePatchData = {
     requestBody: app__models__user__UserUpdate;
 };
 
-export type UpdateMeApiV1AuthMePatchResponse = (app__models__user__UserResponse);
+export type UpdateMeApiV1AuthMePatchResponse = (UserResponse);
 
 export type RefreshTokenApiV1AuthRefreshPostResponse = (UserLoginResponse);
 
@@ -2940,10 +2942,10 @@ export type ListUsersApiV1UsersGetData = {
 export type ListUsersApiV1UsersGetResponse = (Array<UserBrief>);
 
 export type CreateUserApiV1UsersPostData = {
-    requestBody: app__models__user__UserCreate;
+    requestBody: UserCreate;
 };
 
-export type CreateUserApiV1UsersPostResponse = (app__models__user__UserResponse);
+export type CreateUserApiV1UsersPostResponse = (UserResponse);
 
 export type CountUsersApiV1UsersCountGetData = {
     isActive?: (boolean | null);
@@ -2956,14 +2958,14 @@ export type GetUserApiV1UsersUserIdGetData = {
     userId: string;
 };
 
-export type GetUserApiV1UsersUserIdGetResponse = (app__models__user__UserResponse);
+export type GetUserApiV1UsersUserIdGetResponse = (UserResponse);
 
 export type UpdateUserApiV1UsersUserIdPatchData = {
     requestBody: app__models__user__UserUpdate;
     userId: string;
 };
 
-export type UpdateUserApiV1UsersUserIdPatchResponse = (app__models__user__UserResponse);
+export type UpdateUserApiV1UsersUserIdPatchResponse = (UserResponse);
 
 export type DeleteUserApiV1UsersUserIdDeleteData = {
     userId: string;
@@ -3022,7 +3024,7 @@ export type ListLocationsApiV1LocationsGetData = {
 export type ListLocationsApiV1LocationsGetResponse = (Array<LocationBrief>);
 
 export type CreateLocationApiV1LocationsPostData = {
-    requestBody: LocationCreate;
+    requestBody: app__models__company__LocationCreate;
 };
 
 export type CreateLocationApiV1LocationsPostResponse = (LocationResponse);
@@ -3035,7 +3037,7 @@ export type GetLocationApiV1LocationsLocationIdGetResponse = (LocationResponse);
 
 export type UpdateLocationApiV1LocationsLocationIdPatchData = {
     locationId: string;
-    requestBody: LocationUpdate;
+    requestBody: app__models__company__LocationUpdate;
 };
 
 export type UpdateLocationApiV1LocationsLocationIdPatchResponse = (LocationResponse);
@@ -3157,13 +3159,13 @@ export type ListInventoryApiV1InventoryGetData = {
     skuId?: (string | null);
 };
 
-export type ListInventoryApiV1InventoryGetResponse = (Array<InventoryResponse>);
+export type ListInventoryApiV1InventoryGetResponse = (Array<app__models__inventory__InventoryResponse>);
 
 export type CreateInventoryApiV1InventoryPostData = {
     requestBody: InventoryCreate;
 };
 
-export type CreateInventoryApiV1InventoryPostResponse = (InventoryResponse);
+export type CreateInventoryApiV1InventoryPostResponse = (app__models__inventory__InventoryResponse);
 
 export type CountInventoryApiV1InventoryCountGetData = {
     locationId?: (string | null);
@@ -3182,14 +3184,14 @@ export type GetInventoryApiV1InventoryInventoryIdGetData = {
     inventoryId: string;
 };
 
-export type GetInventoryApiV1InventoryInventoryIdGetResponse = (InventoryResponse);
+export type GetInventoryApiV1InventoryInventoryIdGetResponse = (app__models__inventory__InventoryResponse);
 
 export type UpdateInventoryApiV1InventoryInventoryIdPatchData = {
     inventoryId: string;
     requestBody: InventoryUpdate;
 };
 
-export type UpdateInventoryApiV1InventoryInventoryIdPatchResponse = (InventoryResponse);
+export type UpdateInventoryApiV1InventoryInventoryIdPatchResponse = (app__models__inventory__InventoryResponse);
 
 export type DeleteInventoryApiV1InventoryInventoryIdDeleteData = {
     inventoryId: string;
@@ -3198,10 +3200,10 @@ export type DeleteInventoryApiV1InventoryInventoryIdDeleteData = {
 export type DeleteInventoryApiV1InventoryInventoryIdDeleteResponse = (void);
 
 export type AdjustInventoryApiV1InventoryAdjustPostData = {
-    requestBody: app__models__inventory__InventoryAdjustment;
+    requestBody: InventoryAdjustment;
 };
 
-export type AdjustInventoryApiV1InventoryAdjustPostResponse = (InventoryResponse);
+export type AdjustInventoryApiV1InventoryAdjustPostResponse = (app__models__inventory__InventoryResponse);
 
 export type TransferInventoryApiV1InventoryTransferPostData = {
     requestBody: InventoryTransfer;
@@ -4093,26 +4095,26 @@ export type ListUsersApiUsersGetData = {
     search?: (string | null);
 };
 
-export type ListUsersApiUsersGetResponse = (Array<UserResponse>);
+export type ListUsersApiUsersGetResponse = (Array<app__api__routes__users__UserResponse>);
 
 export type CreateUserApiUsersPostData = {
-    requestBody: UserCreate;
+    requestBody: app__api__routes__users__UserCreate;
 };
 
-export type CreateUserApiUsersPostResponse = (UserResponse);
+export type CreateUserApiUsersPostResponse = (app__api__routes__users__UserResponse);
 
 export type GetUserApiUsersUserIdGetData = {
     userId: string;
 };
 
-export type GetUserApiUsersUserIdGetResponse = (UserResponse);
+export type GetUserApiUsersUserIdGetResponse = (app__api__routes__users__UserResponse);
 
 export type UpdateUserApiUsersUserIdPatchData = {
     requestBody: UserUpdate;
     userId: string;
 };
 
-export type UpdateUserApiUsersUserIdPatchResponse = (UserResponse);
+export type UpdateUserApiUsersUserIdPatchResponse = (app__api__routes__users__UserResponse);
 
 export type DeleteUserApiUsersUserIdDeleteData = {
     userId: string;
@@ -4203,7 +4205,7 @@ export type ListInventoryApiInventoryGetData = {
     skuId?: (string | null);
 };
 
-export type ListInventoryApiInventoryGetResponse = (Array<app__api__routes__inventory__InventoryResponse>);
+export type ListInventoryApiInventoryGetResponse = (Array<InventoryResponse>);
 
 export type GetInventorySummaryApiInventorySummaryGetData = {
     locationId?: (string | null);
@@ -4212,7 +4214,7 @@ export type GetInventorySummaryApiInventorySummaryGetData = {
 export type GetInventorySummaryApiInventorySummaryGetResponse = (unknown);
 
 export type CreateAdjustmentApiInventoryAdjustmentsPostData = {
-    requestBody: InventoryAdjustment;
+    requestBody: app__api__routes__inventory__InventoryAdjustment;
 };
 
 export type CreateAdjustmentApiInventoryAdjustmentsPostResponse = (unknown);
@@ -4233,7 +4235,7 @@ export type ListLocationsApiLocationsGetData = {
 export type ListLocationsApiLocationsGetResponse = (Array<app__api__routes__locations__LocationResponse>);
 
 export type CreateLocationApiLocationsPostData = {
-    requestBody: app__api__routes__locations__LocationCreate;
+    requestBody: LocationCreate;
 };
 
 export type CreateLocationApiLocationsPostResponse = (app__api__routes__locations__LocationResponse);
@@ -4246,7 +4248,7 @@ export type GetLocationApiLocationsLocationIdGetResponse = (app__api__routes__lo
 
 export type UpdateLocationApiLocationsLocationIdPatchData = {
     locationId: string;
-    requestBody: app__api__routes__locations__LocationUpdate;
+    requestBody: LocationUpdate;
 };
 
 export type UpdateLocationApiLocationsLocationIdPatchResponse = (app__api__routes__locations__LocationResponse);

@@ -3957,15 +3957,22 @@ export const InventoryAdjustmentSchema = {
     properties: {
         skuId: {
             type: 'string',
+            format: 'uuid',
             title: 'Skuid'
         },
         binId: {
             type: 'string',
+            format: 'uuid',
             title: 'Binid'
         },
-        quantity: {
+        locationId: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Locationid'
+        },
+        adjustmentQty: {
             type: 'integer',
-            title: 'Quantity'
+            title: 'Adjustmentqty'
         },
         reason: {
             type: 'string',
@@ -3981,11 +3988,37 @@ export const InventoryAdjustmentSchema = {
                 }
             ],
             title: 'Batchno'
+        },
+        serialNumbers: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Serialnumbers'
+        },
+        remarks: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Remarks'
         }
     },
     type: 'object',
-    required: ['skuId', 'binId', 'quantity', 'reason'],
-    title: 'InventoryAdjustment'
+    required: ['skuId', 'binId', 'locationId', 'adjustmentQty', 'reason'],
+    title: 'InventoryAdjustment',
+    description: 'Schema for inventory adjustment'
 } as const;
 
 export const InventoryCreateSchema = {
@@ -4148,7 +4181,6 @@ export const InventoryResponseSchema = {
     properties: {
         id: {
             type: 'string',
-            format: 'uuid',
             title: 'Id'
         },
         quantity: {
@@ -4158,6 +4190,10 @@ export const InventoryResponseSchema = {
         reservedQty: {
             type: 'integer',
             title: 'Reservedqty'
+        },
+        availableQty: {
+            type: 'integer',
+            title: 'Availableqty'
         },
         batchNo: {
             anyOf: [
@@ -4170,7 +4206,11 @@ export const InventoryResponseSchema = {
             ],
             title: 'Batchno'
         },
-        lotNo: {
+        skuId: {
+            type: 'string',
+            title: 'Skuid'
+        },
+        skuCode: {
             anyOf: [
                 {
                     type: 'string'
@@ -4179,126 +4219,31 @@ export const InventoryResponseSchema = {
                     type: 'null'
                 }
             ],
-            title: 'Lotno'
+            title: 'Skucode'
         },
-        expiryDate: {
+        skuName: {
             anyOf: [
                 {
-                    type: 'string',
-                    format: 'date-time'
+                    type: 'string'
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Expirydate'
-        },
-        mfgDate: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Mfgdate'
-        },
-        mrp: {
-            anyOf: [
-                {
-                    type: 'string',
-                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Mrp'
-        },
-        costPrice: {
-            anyOf: [
-                {
-                    type: 'string',
-                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Costprice'
-        },
-        serialNumbers: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Serialnumbers'
-        },
-        valuationMethod: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/InventoryValuationMethod'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        fifoSequence: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Fifosequence'
-        },
-        skuId: {
-            type: 'string',
-            format: 'uuid',
-            title: 'Skuid'
+            title: 'Skuname'
         },
         binId: {
             type: 'string',
-            format: 'uuid',
             title: 'Binid'
         },
         locationId: {
             type: 'string',
-            format: 'uuid',
             title: 'Locationid'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Createdat'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Updatedat'
-        },
-        availableQty: {
-            type: 'integer',
-            title: 'Availableqty',
-            default: 0
         }
     },
     type: 'object',
-    required: ['id', 'quantity', 'reservedQty', 'skuId', 'binId', 'locationId', 'createdAt', 'updatedAt'],
-    title: 'InventoryResponse',
-    description: 'Schema for inventory API responses'
+    required: ['id', 'quantity', 'reservedQty', 'availableQty', 'skuId', 'binId', 'locationId'],
+    title: 'InventoryResponse'
 } as const;
 
 export const InventorySummarySchema = {
@@ -4579,15 +4524,8 @@ export const LocationCreateSchema = {
             '$ref': '#/components/schemas/LocationType'
         },
         address: {
-            anyOf: [
-                {
-                    additionalProperties: true,
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            additionalProperties: true,
+            type: 'object',
             title: 'Address'
         },
         contactPerson: {
@@ -4633,27 +4571,10 @@ export const LocationCreateSchema = {
                 }
             ],
             title: 'Gst'
-        },
-        settings: {
-            anyOf: [
-                {
-                    additionalProperties: true,
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Settings'
-        },
-        companyId: {
-            type: 'string',
-            format: 'uuid',
-            title: 'Companyid'
         }
     },
     type: 'object',
-    required: ['code', 'name', 'type', 'companyId'],
+    required: ['code', 'name', 'type', 'address'],
     title: 'LocationCreate'
 } as const;
 
@@ -4777,17 +4698,6 @@ export const LocationTypeSchema = {
 
 export const LocationUpdateSchema = {
     properties: {
-        code: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Code'
-        },
         name: {
             anyOf: [
                 {
@@ -4798,16 +4708,6 @@ export const LocationUpdateSchema = {
                 }
             ],
             title: 'Name'
-        },
-        type: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/LocationType'
-                },
-                {
-                    type: 'null'
-                }
-            ]
         },
         address: {
             anyOf: [
@@ -4853,29 +4753,6 @@ export const LocationUpdateSchema = {
                 }
             ],
             title: 'Contactemail'
-        },
-        gst: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Gst'
-        },
-        settings: {
-            anyOf: [
-                {
-                    additionalProperties: true,
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Settings'
         },
         isActive: {
             anyOf: [
@@ -5427,6 +5304,11 @@ export const NDRListItemSchema = {
             type: 'array',
             title: 'Outreachattempts',
             default: []
+        },
+        outreachCount: {
+            type: 'integer',
+            title: 'Outreachcount',
+            default: 0
         }
     },
     type: 'object',
@@ -9340,6 +9222,18 @@ export const ReturnResponseSchema = {
             ],
             title: 'Orderid'
         },
+        companyId: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Companyid'
+        },
         awbNo: {
             anyOf: [
                 {
@@ -10768,7 +10662,6 @@ export const UserCreateSchema = {
     properties: {
         email: {
             type: 'string',
-            format: 'email',
             title: 'Email'
         },
         password: {
@@ -10790,6 +10683,17 @@ export const UserCreateSchema = {
             ],
             title: 'Phone'
         },
+        avatar: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avatar'
+        },
         role: {
             '$ref': '#/components/schemas/UserRole',
             default: 'OPERATOR'
@@ -10797,7 +10701,8 @@ export const UserCreateSchema = {
         companyId: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    format: 'uuid'
                 },
                 {
                     type: 'null'
@@ -10807,7 +10712,8 @@ export const UserCreateSchema = {
         },
         locationAccess: {
             items: {
-                type: 'string'
+                type: 'string',
+                format: 'uuid'
             },
             type: 'array',
             title: 'Locationaccess',
@@ -10816,7 +10722,8 @@ export const UserCreateSchema = {
     },
     type: 'object',
     required: ['email', 'password', 'name'],
-    title: 'UserCreate'
+    title: 'UserCreate',
+    description: 'Schema for creating a new user'
 } as const;
 
 export const UserLoginSchema = {
@@ -10839,7 +10746,7 @@ export const UserLoginSchema = {
 export const UserLoginResponseSchema = {
     properties: {
         user: {
-            '$ref': '#/components/schemas/app__models__user__UserResponse'
+            '$ref': '#/components/schemas/UserResponse'
         },
         token: {
             type: 'string',
@@ -10860,6 +10767,7 @@ export const UserResponseSchema = {
     properties: {
         id: {
             type: 'string',
+            format: 'uuid',
             title: 'Id'
         },
         email: {
@@ -10893,8 +10801,7 @@ export const UserResponseSchema = {
             title: 'Avatar'
         },
         role: {
-            type: 'string',
-            title: 'Role'
+            '$ref': '#/components/schemas/UserRole'
         },
         isActive: {
             type: 'boolean',
@@ -10903,18 +10810,51 @@ export const UserResponseSchema = {
         companyId: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    format: 'uuid'
                 },
                 {
                     type: 'null'
                 }
             ],
             title: 'Companyid'
+        },
+        locationAccess: {
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            type: 'array',
+            title: 'Locationaccess',
+            default: []
+        },
+        lastLoginAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Lastloginat'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
         }
     },
     type: 'object',
-    required: ['id', 'email', 'name', 'role', 'isActive'],
-    title: 'UserResponse'
+    required: ['id', 'email', 'name', 'role', 'isActive', 'createdAt', 'updatedAt'],
+    title: 'UserResponse',
+    description: 'Schema for user API responses'
 } as const;
 
 export const UserRoleSchema = {
@@ -12127,23 +12067,23 @@ export const ZoneUpdateSchema = {
     title: 'ZoneUpdate'
 } as const;
 
-export const app__api__routes__inventory__InventoryResponseSchema = {
+export const app__api__routes__inventory__InventoryAdjustmentSchema = {
     properties: {
-        id: {
+        skuId: {
             type: 'string',
-            title: 'Id'
+            title: 'Skuid'
+        },
+        binId: {
+            type: 'string',
+            title: 'Binid'
         },
         quantity: {
             type: 'integer',
             title: 'Quantity'
         },
-        reservedQty: {
-            type: 'integer',
-            title: 'Reservedqty'
-        },
-        availableQty: {
-            type: 'integer',
-            title: 'Availableqty'
+        reason: {
+            type: 'string',
+            title: 'Reason'
         },
         batchNo: {
             anyOf: [
@@ -12155,113 +12095,11 @@ export const app__api__routes__inventory__InventoryResponseSchema = {
                 }
             ],
             title: 'Batchno'
-        },
-        skuId: {
-            type: 'string',
-            title: 'Skuid'
-        },
-        skuCode: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Skucode'
-        },
-        skuName: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Skuname'
-        },
-        binId: {
-            type: 'string',
-            title: 'Binid'
-        },
-        locationId: {
-            type: 'string',
-            title: 'Locationid'
         }
     },
     type: 'object',
-    required: ['id', 'quantity', 'reservedQty', 'availableQty', 'skuId', 'binId', 'locationId'],
-    title: 'InventoryResponse'
-} as const;
-
-export const app__api__routes__locations__LocationCreateSchema = {
-    properties: {
-        code: {
-            type: 'string',
-            title: 'Code'
-        },
-        name: {
-            type: 'string',
-            title: 'Name'
-        },
-        type: {
-            '$ref': '#/components/schemas/LocationType'
-        },
-        address: {
-            additionalProperties: true,
-            type: 'object',
-            title: 'Address'
-        },
-        contactPerson: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Contactperson'
-        },
-        contactPhone: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Contactphone'
-        },
-        contactEmail: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Contactemail'
-        },
-        gst: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Gst'
-        }
-    },
-    type: 'object',
-    required: ['code', 'name', 'type', 'address'],
-    title: 'LocationCreate'
+    required: ['skuId', 'binId', 'quantity', 'reason'],
+    title: 'InventoryAdjustment'
 } as const;
 
 export const app__api__routes__locations__LocationResponseSchema = {
@@ -12350,80 +12188,6 @@ export const app__api__routes__locations__LocationResponseSchema = {
     type: 'object',
     required: ['id', 'code', 'name', 'type', 'isActive', 'companyId'],
     title: 'LocationResponse'
-} as const;
-
-export const app__api__routes__locations__LocationUpdateSchema = {
-    properties: {
-        name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Name'
-        },
-        address: {
-            anyOf: [
-                {
-                    additionalProperties: true,
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Address'
-        },
-        contactPerson: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Contactperson'
-        },
-        contactPhone: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Contactphone'
-        },
-        contactEmail: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Contactemail'
-        },
-        isActive: {
-            anyOf: [
-                {
-                    type: 'boolean'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Isactive'
-        }
-    },
-    type: 'object',
-    title: 'LocationUpdate'
 } as const;
 
 export const app__api__routes__orders__OrderResponseSchema = {
@@ -12820,30 +12584,346 @@ export const app__api__routes__skus__SKUResponseSchema = {
     title: 'SKUResponse'
 } as const;
 
-export const app__models__inventory__InventoryAdjustmentSchema = {
+export const app__api__routes__users__UserCreateSchema = {
     properties: {
-        skuId: {
+        email: {
+            type: 'string',
+            format: 'email',
+            title: 'Email'
+        },
+        password: {
+            type: 'string',
+            title: 'Password'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        phone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Phone'
+        },
+        role: {
+            '$ref': '#/components/schemas/UserRole',
+            default: 'OPERATOR'
+        },
+        companyId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Companyid'
+        },
+        locationAccess: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Locationaccess',
+            default: []
+        }
+    },
+    type: 'object',
+    required: ['email', 'password', 'name'],
+    title: 'UserCreate'
+} as const;
+
+export const app__api__routes__users__UserResponseSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        email: {
+            type: 'string',
+            title: 'Email'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        phone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Phone'
+        },
+        avatar: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avatar'
+        },
+        role: {
+            type: 'string',
+            title: 'Role'
+        },
+        isActive: {
+            type: 'boolean',
+            title: 'Isactive'
+        },
+        companyId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Companyid'
+        }
+    },
+    type: 'object',
+    required: ['id', 'email', 'name', 'role', 'isActive'],
+    title: 'UserResponse'
+} as const;
+
+export const app__models__company__LocationCreateSchema = {
+    properties: {
+        code: {
+            type: 'string',
+            title: 'Code'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        type: {
+            '$ref': '#/components/schemas/LocationType'
+        },
+        address: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Address'
+        },
+        contactPerson: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Contactperson'
+        },
+        contactPhone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Contactphone'
+        },
+        contactEmail: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Contactemail'
+        },
+        gst: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gst'
+        },
+        settings: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Settings'
+        },
+        companyId: {
             type: 'string',
             format: 'uuid',
-            title: 'Skuid'
+            title: 'Companyid'
+        }
+    },
+    type: 'object',
+    required: ['code', 'name', 'type', 'companyId'],
+    title: 'LocationCreate'
+} as const;
+
+export const app__models__company__LocationUpdateSchema = {
+    properties: {
+        code: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Code'
         },
-        binId: {
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        type: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LocationType'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        address: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Address'
+        },
+        contactPerson: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Contactperson'
+        },
+        contactPhone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Contactphone'
+        },
+        contactEmail: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Contactemail'
+        },
+        gst: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gst'
+        },
+        settings: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Settings'
+        },
+        isActive: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Isactive'
+        }
+    },
+    type: 'object',
+    title: 'LocationUpdate'
+} as const;
+
+export const app__models__inventory__InventoryResponseSchema = {
+    properties: {
+        id: {
             type: 'string',
             format: 'uuid',
-            title: 'Binid'
+            title: 'Id'
         },
-        locationId: {
-            type: 'string',
-            format: 'uuid',
-            title: 'Locationid'
-        },
-        adjustmentQty: {
+        quantity: {
             type: 'integer',
-            title: 'Adjustmentqty'
+            title: 'Quantity'
         },
-        reason: {
-            type: 'string',
-            title: 'Reason'
+        reservedQty: {
+            type: 'integer',
+            title: 'Reservedqty'
         },
         batchNo: {
             anyOf: [
@@ -12855,6 +12935,65 @@ export const app__models__inventory__InventoryAdjustmentSchema = {
                 }
             ],
             title: 'Batchno'
+        },
+        lotNo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Lotno'
+        },
+        expiryDate: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Expirydate'
+        },
+        mfgDate: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Mfgdate'
+        },
+        mrp: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Mrp'
+        },
+        costPrice: {
+            anyOf: [
+                {
+                    type: 'string',
+                    pattern: '^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Costprice'
         },
         serialNumbers: {
             anyOf: [
@@ -12870,22 +13009,62 @@ export const app__models__inventory__InventoryAdjustmentSchema = {
             ],
             title: 'Serialnumbers'
         },
-        remarks: {
+        valuationMethod: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/InventoryValuationMethod'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        fifoSequence: {
+            anyOf: [
+                {
+                    type: 'integer'
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Remarks'
+            title: 'Fifosequence'
+        },
+        skuId: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Skuid'
+        },
+        binId: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Binid'
+        },
+        locationId: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Locationid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Createdat'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updatedat'
+        },
+        availableQty: {
+            type: 'integer',
+            title: 'Availableqty',
+            default: 0
         }
     },
     type: 'object',
-    required: ['skuId', 'binId', 'locationId', 'adjustmentQty', 'reason'],
-    title: 'InventoryAdjustment',
-    description: 'Schema for inventory adjustment'
+    required: ['id', 'quantity', 'reservedQty', 'skuId', 'binId', 'locationId', 'createdAt', 'updatedAt'],
+    title: 'InventoryResponse',
+    description: 'Schema for inventory API responses'
 } as const;
 
 export const app__models__order__OrderCreateSchema = {
@@ -13557,168 +13736,6 @@ export const app__models__sku__SKUUpdateSchema = {
     type: 'object',
     title: 'SKUUpdate',
     description: 'Schema for updating a SKU'
-} as const;
-
-export const app__models__user__UserCreateSchema = {
-    properties: {
-        email: {
-            type: 'string',
-            title: 'Email'
-        },
-        password: {
-            type: 'string',
-            title: 'Password'
-        },
-        name: {
-            type: 'string',
-            title: 'Name'
-        },
-        phone: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Phone'
-        },
-        avatar: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Avatar'
-        },
-        role: {
-            '$ref': '#/components/schemas/UserRole',
-            default: 'OPERATOR'
-        },
-        companyId: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Companyid'
-        },
-        locationAccess: {
-            items: {
-                type: 'string',
-                format: 'uuid'
-            },
-            type: 'array',
-            title: 'Locationaccess',
-            default: []
-        }
-    },
-    type: 'object',
-    required: ['email', 'password', 'name'],
-    title: 'UserCreate',
-    description: 'Schema for creating a new user'
-} as const;
-
-export const app__models__user__UserResponseSchema = {
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            title: 'Id'
-        },
-        email: {
-            type: 'string',
-            title: 'Email'
-        },
-        name: {
-            type: 'string',
-            title: 'Name'
-        },
-        phone: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Phone'
-        },
-        avatar: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Avatar'
-        },
-        role: {
-            '$ref': '#/components/schemas/UserRole'
-        },
-        isActive: {
-            type: 'boolean',
-            title: 'Isactive'
-        },
-        companyId: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Companyid'
-        },
-        locationAccess: {
-            items: {
-                type: 'string',
-                format: 'uuid'
-            },
-            type: 'array',
-            title: 'Locationaccess',
-            default: []
-        },
-        lastLoginAt: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Lastloginat'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Createdat'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            title: 'Updatedat'
-        }
-    },
-    type: 'object',
-    required: ['id', 'email', 'name', 'role', 'isActive', 'createdAt', 'updatedAt'],
-    title: 'UserResponse',
-    description: 'Schema for user API responses'
 } as const;
 
 export const app__models__user__UserUpdateSchema = {

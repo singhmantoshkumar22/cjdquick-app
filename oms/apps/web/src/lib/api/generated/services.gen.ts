@@ -29,7 +29,7 @@ export const loginApiV1AuthLoginPost = (data: LoginApiV1AuthLoginPostData): Canc
 /**
  * Get Me
  * Get current authenticated user's profile.
- * @returns app__models__user__UserResponse Successful Response
+ * @returns UserResponse Successful Response
  * @throws ApiError
  */
 export const getMeApiV1AuthMeGet = (): CancelablePromise<GetMeApiV1AuthMeGetResponse> => {
@@ -45,7 +45,7 @@ export const getMeApiV1AuthMeGet = (): CancelablePromise<GetMeApiV1AuthMeGetResp
  * Can update: name, phone, avatar
  * @param data The data for the request.
  * @param data.requestBody
- * @returns app__models__user__UserResponse Successful Response
+ * @returns UserResponse Successful Response
  * @throws ApiError
  */
 export const updateMeApiV1AuthMePatch = (data: UpdateMeApiV1AuthMePatchData): CancelablePromise<UpdateMeApiV1AuthMePatchResponse> => {
@@ -125,7 +125,7 @@ export const listUsersApiV1UsersGet = (data: ListUsersApiV1UsersGetData = {}): C
  * Non-super-admins can only create users for their own company.
  * @param data The data for the request.
  * @param data.requestBody
- * @returns app__models__user__UserResponse Successful Response
+ * @returns UserResponse Successful Response
  * @throws ApiError
  */
 export const createUserApiV1UsersPost = (data: CreateUserApiV1UsersPostData): CancelablePromise<CreateUserApiV1UsersPostResponse> => {
@@ -168,7 +168,7 @@ export const countUsersApiV1UsersCountGet = (data: CountUsersApiV1UsersCountGetD
  * Get a specific user by ID.
  * @param data The data for the request.
  * @param data.userId
- * @returns app__models__user__UserResponse Successful Response
+ * @returns UserResponse Successful Response
  * @throws ApiError
  */
 export const getUserApiV1UsersUserIdGet = (data: GetUserApiV1UsersUserIdGetData): CancelablePromise<GetUserApiV1UsersUserIdGetResponse> => {
@@ -190,7 +190,7 @@ export const getUserApiV1UsersUserIdGet = (data: GetUserApiV1UsersUserIdGetData)
  * @param data The data for the request.
  * @param data.userId
  * @param data.requestBody
- * @returns app__models__user__UserResponse Successful Response
+ * @returns UserResponse Successful Response
  * @throws ApiError
  */
 export const updateUserApiV1UsersUserIdPatch = (data: UpdateUserApiV1UsersUserIdPatchData): CancelablePromise<UpdateUserApiV1UsersUserIdPatchResponse> => {
@@ -845,7 +845,7 @@ export const getSkuByCodeApiV1SkusCodeCodeGet = (data: GetSkuByCodeApiV1SkusCode
  * @param data.locationId
  * @param data.binId
  * @param data.batchNo
- * @returns InventoryResponse Successful Response
+ * @returns app__models__inventory__InventoryResponse Successful Response
  * @throws ApiError
  */
 export const listInventoryApiV1InventoryGet = (data: ListInventoryApiV1InventoryGetData = {}): CancelablePromise<ListInventoryApiV1InventoryGetResponse> => {
@@ -871,7 +871,7 @@ export const listInventoryApiV1InventoryGet = (data: ListInventoryApiV1Inventory
  * Create a new inventory record. Requires MANAGER or higher role.
  * @param data The data for the request.
  * @param data.requestBody
- * @returns InventoryResponse Successful Response
+ * @returns app__models__inventory__InventoryResponse Successful Response
  * @throws ApiError
  */
 export const createInventoryApiV1InventoryPost = (data: CreateInventoryApiV1InventoryPostData): CancelablePromise<CreateInventoryApiV1InventoryPostResponse> => {
@@ -935,7 +935,7 @@ export const getInventorySummaryApiV1InventorySummaryGet = (data: GetInventorySu
  * Get a specific inventory record by ID.
  * @param data The data for the request.
  * @param data.inventoryId
- * @returns InventoryResponse Successful Response
+ * @returns app__models__inventory__InventoryResponse Successful Response
  * @throws ApiError
  */
 export const getInventoryApiV1InventoryInventoryIdGet = (data: GetInventoryApiV1InventoryInventoryIdGetData): CancelablePromise<GetInventoryApiV1InventoryInventoryIdGetResponse> => {
@@ -957,7 +957,7 @@ export const getInventoryApiV1InventoryInventoryIdGet = (data: GetInventoryApiV1
  * @param data The data for the request.
  * @param data.inventoryId
  * @param data.requestBody
- * @returns InventoryResponse Successful Response
+ * @returns app__models__inventory__InventoryResponse Successful Response
  * @throws ApiError
  */
 export const updateInventoryApiV1InventoryInventoryIdPatch = (data: UpdateInventoryApiV1InventoryInventoryIdPatchData): CancelablePromise<UpdateInventoryApiV1InventoryInventoryIdPatchResponse> => {
@@ -1002,7 +1002,7 @@ export const deleteInventoryApiV1InventoryInventoryIdDelete = (data: DeleteInven
  * Requires MANAGER or higher role.
  * @param data The data for the request.
  * @param data.requestBody
- * @returns InventoryResponse Successful Response
+ * @returns app__models__inventory__InventoryResponse Successful Response
  * @throws ApiError
  */
 export const adjustInventoryApiV1InventoryAdjustPost = (data: AdjustInventoryApiV1InventoryAdjustPostData): CancelablePromise<AdjustInventoryApiV1InventoryAdjustPostResponse> => {
@@ -3968,7 +3968,7 @@ export const getCurrentUserInfoApiAuthMeGet = (): CancelablePromise<GetCurrentUs
  * @param data.pageSize
  * @param data.search
  * @param data.role
- * @returns UserResponse Successful Response
+ * @returns app__api__routes__users__UserResponse Successful Response
  * @throws ApiError
  */
 export const listUsersApiUsersGet = (data: ListUsersApiUsersGetData = {}): CancelablePromise<ListUsersApiUsersGetResponse> => {
@@ -3991,7 +3991,7 @@ export const listUsersApiUsersGet = (data: ListUsersApiUsersGetData = {}): Cance
  * Create User
  * @param data The data for the request.
  * @param data.requestBody
- * @returns UserResponse Successful Response
+ * @returns app__api__routes__users__UserResponse Successful Response
  * @throws ApiError
  */
 export const createUserApiUsersPost = (data: CreateUserApiUsersPostData): CancelablePromise<CreateUserApiUsersPostResponse> => {
@@ -4010,7 +4010,7 @@ export const createUserApiUsersPost = (data: CreateUserApiUsersPostData): Cancel
  * Get User
  * @param data The data for the request.
  * @param data.userId
- * @returns UserResponse Successful Response
+ * @returns app__api__routes__users__UserResponse Successful Response
  * @throws ApiError
  */
 export const getUserApiUsersUserIdGet = (data: GetUserApiUsersUserIdGetData): CancelablePromise<GetUserApiUsersUserIdGetResponse> => {
@@ -4031,7 +4031,7 @@ export const getUserApiUsersUserIdGet = (data: GetUserApiUsersUserIdGetData): Ca
  * @param data The data for the request.
  * @param data.userId
  * @param data.requestBody
- * @returns UserResponse Successful Response
+ * @returns app__api__routes__users__UserResponse Successful Response
  * @throws ApiError
  */
 export const updateUserApiUsersUserIdPatch = (data: UpdateUserApiUsersUserIdPatchData): CancelablePromise<UpdateUserApiUsersUserIdPatchResponse> => {
@@ -4307,7 +4307,7 @@ export const deleteSkuApiSkusSkuIdDelete = (data: DeleteSkuApiSkusSkuIdDeleteDat
  * @param data.skuId
  * @param data.binId
  * @param data.lowStock
- * @returns app__api__routes__inventory__InventoryResponse Successful Response
+ * @returns InventoryResponse Successful Response
  * @throws ApiError
  */
 export const listInventoryApiInventoryGet = (data: ListInventoryApiInventoryGetData = {}): CancelablePromise<ListInventoryApiInventoryGetResponse> => {
