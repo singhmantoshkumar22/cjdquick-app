@@ -3,9 +3,10 @@ Wave Models - SQLModel Implementation
 Wave picking, picklists, and fulfillment workflow
 """
 from datetime import datetime
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Any
 from uuid import UUID
 
+from pydantic import field_validator
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, String, Integer, JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, ARRAY
@@ -392,18 +393,18 @@ class WaveResponse(ResponseBase):
     locationId: UUID
     assignedToId: Optional[UUID] = None
     createdById: UUID
-    maxOrders: int
-    maxItems: int
+    maxOrders: int = 50
+    maxItems: int = 500
     priorityFrom: Optional[int] = None
     priorityTo: Optional[int] = None
     cutoffTime: Optional[datetime] = None
     zones: List[str] = []
-    totalOrders: int
-    totalItems: int
-    totalUnits: int
-    pickedOrders: int
-    pickedItems: int
-    pickedUnits: int
+    totalOrders: int = 0
+    totalItems: int = 0
+    totalUnits: int = 0
+    pickedOrders: int = 0
+    pickedItems: int = 0
+    pickedUnits: int = 0
     plannedStartAt: Optional[datetime] = None
     releasedAt: Optional[datetime] = None
     startedAt: Optional[datetime] = None
@@ -414,6 +415,23 @@ class WaveResponse(ResponseBase):
     remarks: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
+
+    @field_validator('zones', mode='before')
+    @classmethod
+    def zones_default(cls, v: Any) -> List[str]:
+        """Convert None to empty list for zones"""
+        if v is None:
+            return []
+        return v
+
+    @field_validator('maxOrders', 'maxItems', 'totalOrders', 'totalItems', 'totalUnits',
+                     'pickedOrders', 'pickedItems', 'pickedUnits', mode='before')
+    @classmethod
+    def int_defaults(cls, v: Any) -> int:
+        """Convert None to 0 for integer fields"""
+        if v is None:
+            return 0
+        return v
 
 
 class WaveBrief(ResponseBase):

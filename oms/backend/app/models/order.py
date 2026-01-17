@@ -4,9 +4,10 @@ Orders, OrderItems, and Deliveries
 """
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Any
 from uuid import UUID
 
+from pydantic import field_validator
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, String, Integer, JSON, ForeignKey, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, ARRAY, NUMERIC
@@ -394,7 +395,7 @@ class OrderResponse(ResponseBase):
     orderDate: datetime
     shipByDate: Optional[datetime] = None
     promisedDate: Optional[datetime] = None
-    priority: int
+    priority: int = 0
     tags: List[str] = []
     remarks: Optional[str] = None
     locationId: UUID
@@ -409,6 +410,30 @@ class OrderResponse(ResponseBase):
     irnNo: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
+
+    @field_validator('tags', mode='before')
+    @classmethod
+    def tags_default(cls, v: Any) -> List[str]:
+        """Convert None to empty list for tags"""
+        if v is None:
+            return []
+        return v
+
+    @field_validator('priority', mode='before')
+    @classmethod
+    def priority_default(cls, v: Any) -> int:
+        """Convert None to 0 for priority"""
+        if v is None:
+            return 0
+        return v
+
+    @field_validator('shippingCharges', 'discount', 'codCharges', mode='before')
+    @classmethod
+    def decimal_defaults(cls, v: Any) -> Decimal:
+        """Convert None to Decimal(0) for optional decimal fields"""
+        if v is None:
+            return Decimal("0")
+        return v
 
 
 class OrderBrief(ResponseBase):
