@@ -120,6 +120,14 @@ class Order(BaseModel, table=True):
         default=None,
         sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("Customer.id"), index=True)
     )
+    companyId: UUID = Field(
+        sa_column=Column(
+            PG_UUID(as_uuid=True),
+            ForeignKey("Company.id"),
+            nullable=False,
+            index=True
+        )
+    )
 
     # B2B fields
     paymentTermType: Optional[PaymentTermType] = Field(
@@ -399,6 +407,7 @@ class OrderResponse(ResponseBase):
     tags: List[str] = []
     remarks: Optional[str] = None
     locationId: UUID
+    companyId: UUID
     customerId: Optional[UUID] = None
     paymentTermType: Optional[PaymentTermType] = None
     paymentTermDays: Optional[int] = None

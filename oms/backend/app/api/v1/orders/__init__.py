@@ -286,6 +286,8 @@ def create_order(
     # Create order
     try:
         order_dict = order_data.model_dump()
+        # Set companyId from location
+        order_dict["companyId"] = location.companyId
         order = Order(**order_dict)
         session.add(order)
         session.commit()
