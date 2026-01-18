@@ -849,6 +849,7 @@ def import_orders(
             order = Order(
                 orderNo=order_no,
                 locationId=location_id,
+                companyId=location.companyId,
                 orderDate=order_date,
                 channel=channel,
                 orderType=OrderType.B2C,
@@ -858,16 +859,17 @@ def import_orders(
                 customerEmail=first_row.customer_email,
                 shippingAddress={
                     "name": first_row.customer_name,
-                    "addressLine1": first_row.shipping_address_line1,
-                    "addressLine2": first_row.shipping_address_line2 or "",
+                    "line1": first_row.shipping_address_line1,
+                    "line2": first_row.shipping_address_line2 or "",
                     "city": first_row.shipping_city,
                     "state": first_row.shipping_state,
                     "pincode": first_row.shipping_pincode,
+                    "country": "India",
                 },
                 subtotal=subtotal,
                 taxAmount=total_tax,
-                discountAmount=total_discount,
-                shippingAmount=shipping_charges,
+                discount=total_discount,
+                shippingCharges=shipping_charges,
                 codCharges=cod_charges,
                 totalAmount=total_amount,
                 status=OrderStatus.CREATED,
@@ -880,24 +882,25 @@ def import_orders(
             session.flush()  # Get the order ID
 
             # Create order items
+            from app.models import SKU
             for row in rows:
-                # Try to find SKU by code
-                from app.models import SKU
+                # Find SKU by code (required)
                 sku = session.exec(
                     select(SKU).where(SKU.code == row.sku_code)
                 ).first()
+
+                if not sku:
+                    raise ValueError(f"SKU not found: {row.sku_code}")
 
                 item_total = row.unit_price * row.quantity
 
                 item = OrderItem(
                     orderId=order.id,
-                    skuId=sku.id if sku else None,
-                    skuCode=row.sku_code,
-                    skuName=sku.name if sku else row.sku_code,
+                    skuId=sku.id,
                     quantity=row.quantity,
                     unitPrice=row.unit_price,
                     taxAmount=row.tax_amount or 0,
-                    discountAmount=row.discount or 0,
+                    discount=row.discount or 0,
                     totalPrice=item_total + (row.tax_amount or 0) - (row.discount or 0),
                     status=ItemStatus.PENDING,
                 )
