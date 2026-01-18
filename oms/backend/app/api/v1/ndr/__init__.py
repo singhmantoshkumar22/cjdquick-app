@@ -26,7 +26,7 @@ router = APIRouter(prefix="/ndr", tags=["NDR"])
 # NDR Endpoints
 # ============================================================================
 
-@router.get("", response_model=NDRListResponse)
+@router.get("")
 def list_ndrs(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
@@ -110,19 +110,9 @@ def list_ndrs(
         resolved_count = status_counts.get("RESOLVED", 0)
         outreach_success_rate = round(resolved_count / total, 2) if total > 0 else 0
 
-        # Format NDRs for response (matching frontend expectations)
+        # Format NDRs for response (simplified)
         formatted_ndrs = []
         for n in ndrs:
-            # Get related order and delivery info
-            order = session.get(Order, n.orderId) if n.orderId else None
-            delivery = session.get(Delivery, n.deliveryId) if n.deliveryId else None
-
-            # Count outreach attempts - use try/except to handle lazy loading issues
-            try:
-                outreach_count = len(n.outreaches) if n.outreaches else 0
-            except Exception:
-                outreach_count = 0
-
             formatted_ndrs.append({
                 "id": str(n.id),
                 "ndrCode": n.ndrCode,
@@ -136,25 +126,10 @@ def list_ndrs(
                 "attemptDate": n.attemptDate.isoformat() if n.attemptDate else None,
                 "carrierRemark": n.carrierRemark,
                 "createdAt": n.createdAt.isoformat() if n.createdAt else None,
-                "order": {
-                    "id": str(order.id) if order else str(n.orderId),
-                    "orderNo": order.orderNo if order else f"ORD-{str(n.orderId)[:8]}",
-                    "customerName": order.customerName if order else "Unknown",
-                    "customerPhone": order.customerPhone if order else "N/A",
-                    "customerEmail": order.customerEmail if order else None,
-                    "shippingAddress": order.shippingAddress if order else None,
-                    "paymentMode": order.paymentMode.value if order and order.paymentMode else "PREPAID",
-                    "totalAmount": float(order.totalAmount) if order and order.totalAmount else 0,
-                } if n.orderId else None,
-                "delivery": {
-                    "id": str(delivery.id) if delivery else str(n.deliveryId),
-                    "deliveryNo": delivery.deliveryNo if delivery else "N/A",
-                    "awbNo": delivery.awbNo if delivery else "N/A",
-                    "status": delivery.status.value if delivery and delivery.status else "PENDING",
-                    "transporter": None,
-                } if n.deliveryId else None,
+                "order": None,
+                "delivery": None,
                 "outreachAttempts": [],
-                "outreachCount": outreach_count,
+                "outreachCount": 0,
             })
 
         return {
