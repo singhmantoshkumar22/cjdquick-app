@@ -22,6 +22,15 @@ from app.models import (
 router = APIRouter(prefix="/ndr", tags=["NDR"])
 
 
+def safe_enum_value(value, default: str) -> str:
+    """Safely extract enum value, handling both enum objects and strings."""
+    if value is None:
+        return default
+    if hasattr(value, 'value'):
+        return value.value
+    return str(value)
+
+
 # ============================================================================
 # NDR Endpoints
 # ============================================================================
@@ -70,11 +79,11 @@ def list_ndrs(
         formatted_ndrs.append({
             "id": str(n.id),
             "ndrCode": n.ndrCode,
-            "reason": n.reason.value if n.reason else "OTHER",
+            "reason": safe_enum_value(n.reason, "OTHER"),
             "aiClassification": n.aiClassification,
             "confidence": n.confidence,
-            "status": n.status.value if n.status else "OPEN",
-            "priority": n.priority.value if n.priority else "MEDIUM",
+            "status": safe_enum_value(n.status, "OPEN"),
+            "priority": safe_enum_value(n.priority, "MEDIUM"),
             "riskScore": n.riskScore,
             "attemptNumber": n.attemptNumber,
             "attemptDate": n.attemptDate.isoformat() if n.attemptDate else None,
@@ -132,15 +141,15 @@ def get_ndr_summary(
 
     ndrs = session.exec(base_query).all()
 
-    open_count = sum(1 for n in ndrs if n.status and n.status == NDRStatus.OPEN)
-    resolved_count = sum(1 for n in ndrs if n.status and n.status == NDRStatus.RESOLVED)
-    rto_count = sum(1 for n in ndrs if n.status and n.status == NDRStatus.RTO)
+    open_count = sum(1 for n in ndrs if safe_enum_value(n.status, "") == "OPEN")
+    resolved_count = sum(1 for n in ndrs if safe_enum_value(n.status, "") == "RESOLVED")
+    rto_count = sum(1 for n in ndrs if safe_enum_value(n.status, "") == "RTO")
 
     by_reason = {}
     by_priority = {}
     for n in ndrs:
-        reason_key = n.reason.value if n.reason else "OTHER"
-        priority_key = n.priority.value if n.priority else "MEDIUM"
+        reason_key = safe_enum_value(n.reason, "OTHER")
+        priority_key = safe_enum_value(n.priority, "MEDIUM")
         by_reason[reason_key] = by_reason.get(reason_key, 0) + 1
         by_priority[priority_key] = by_priority.get(priority_key, 0) + 1
 
