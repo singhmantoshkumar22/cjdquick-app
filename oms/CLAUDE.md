@@ -313,3 +313,62 @@ class User(SQLModel, table=True):
 4. **ALL business logic goes in FastAPI backend**
 5. **Use `./scripts/deploy-all.sh` for deployments**
 6. **Frontend is a thin UI layer** - no complex server-side logic
+
+---
+
+## GO-LIVE ROADMAP (Priority Items)
+
+### Completed ✅
+- [x] Backend health verified (all APIs working)
+- [x] Dashboard API connected
+- [x] All frontend pages loading (60+ routes tested)
+- [x] Login flow verified
+- [x] Fixed Picklists API route ordering
+- [x] Fixed NDR list endpoint
+
+### Priority 1: End-to-End Order Flow Test
+**Status: PENDING**
+
+Test the complete order lifecycle:
+```
+1. Create Order (manual or import)
+2. Allocate Inventory
+3. Create Wave
+4. Generate Picklist
+5. Pack Order
+6. Create Shipment
+7. Generate AWB
+8. Track Shipment
+```
+
+### Priority 2: Enable PDF Generation
+**Status: PENDING**
+
+Files to wire:
+- `apps/web/src/app/api/print/invoice/[id]/route.ts` → Invoice PDF
+- `apps/web/src/app/api/print/label/[id]/route.ts` → Shipping Label PDF
+- Connect to `packages/integrations/src/pdf/` generators
+
+### Priority 3: Enable CSV Import
+**Status: PENDING**
+
+Files to wire:
+- `apps/web/src/app/(dashboard)/orders/import/page.tsx`
+- Connect to `packages/integrations/src/importers/` (CSV, Order, SKU importers)
+
+### Priority 4: Wire Integration Settings UI
+**Status: PENDING**
+
+Configure channel/transporter credentials:
+- `apps/web/src/app/(dashboard)/settings/integrations/page.tsx`
+- `apps/web/src/app/(dashboard)/logistics/transporters/page.tsx`
+- Connect to 9 channel integrations (Shopify, Amazon, Flipkart, etc.)
+- Connect to 8 transporter integrations (Shiprocket, Delhivery, etc.)
+
+### Priority 5: Production Hardening
+**Status: PENDING**
+
+- Add error boundaries (`error.tsx`) to route groups
+- Configure error logging/monitoring
+- Security audit (auth on all endpoints, input validation, data isolation)
+- Performance optimization (caching, query indexes)
