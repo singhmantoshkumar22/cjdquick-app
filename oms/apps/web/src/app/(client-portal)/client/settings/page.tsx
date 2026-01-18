@@ -45,17 +45,48 @@ export default function ClientSettingsPage() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setSaving(false);
-    alert("Profile updated successfully!");
+    try {
+      const response = await fetch("/api/v1/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+        }),
+      });
+      if (response.ok) {
+        alert("Profile updated successfully!");
+      } else {
+        alert("Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveNotifications = async () => {
     setSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setSaving(false);
-    alert("Notification preferences saved!");
+    try {
+      const response = await fetch("/api/v1/users/me/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notifications),
+      });
+      if (response.ok) {
+        alert("Notification preferences saved!");
+      } else {
+        alert("Failed to save notifications");
+      }
+    } catch (error) {
+      console.error("Error saving notifications:", error);
+      alert("Failed to save notifications");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -68,10 +99,28 @@ export default function ClientSettingsPage() {
       return;
     }
     setSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setSaving(false);
-    setPassword({ current: "", new: "", confirm: "" });
-    alert("Password changed successfully!");
+    try {
+      const response = await fetch("/api/v1/users/me/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: password.current,
+          newPassword: password.new,
+        }),
+      });
+      if (response.ok) {
+        setPassword({ current: "", new: "", confirm: "" });
+        alert("Password changed successfully!");
+      } else {
+        const error = await response.json();
+        alert(error.message || "Failed to change password");
+      }
+    } catch (error) {
+      console.error("Error changing password:", error);
+      alert("Failed to change password");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const tabs = [
