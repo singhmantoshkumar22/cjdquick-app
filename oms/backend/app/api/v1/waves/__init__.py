@@ -23,7 +23,7 @@ router = APIRouter(prefix="/waves", tags=["Waves"])
 
 
 # ============================================================================
-# Wave Endpoints
+# Wave List and Create Endpoints (Static paths - must come first)
 # ============================================================================
 
 @router.get("", response_model=List[WaveBrief])
@@ -88,19 +88,6 @@ def count_waves(
     return {"count": count}
 
 
-@router.get("/{wave_id}", response_model=WaveResponse)
-def get_wave(
-    wave_id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Get wave by ID."""
-    wave = session.get(Wave, wave_id)
-    if not wave:
-        raise HTTPException(status_code=404, detail="Wave not found")
-    return WaveResponse.model_validate(wave)
-
-
 @router.post("", response_model=WaveResponse, status_code=status.HTTP_201_CREATED)
 def create_wave(
     data: WaveCreate,
@@ -130,6 +117,192 @@ def create_wave(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create wave: {str(e)}"
         )
+
+
+# ============================================================================
+# Picklist Endpoints (Static paths - must come before /{wave_id})
+# ============================================================================
+
+@router.get("/picklists", response_model=List[PicklistResponse])
+def list_picklists(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    status: Optional[PicklistStatus] = None,
+    assigned_to_id: Optional[UUID] = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """List picklists."""
+    query = select(Picklist)
+
+    if status:
+        query = query.where(Picklist.status == status)
+    if assigned_to_id:
+        query = query.where(Picklist.assignedToId == assigned_to_id)
+
+    query = query.offset(skip).limit(limit).order_by(Picklist.createdAt.desc())
+    picklists = session.exec(query).all()
+    return [PicklistResponse.model_validate(p) for p in picklists]
+
+
+@router.post("/picklists", response_model=PicklistResponse, status_code=status.HTTP_201_CREATED)
+def create_picklist(
+    data: PicklistCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Create new picklist."""
+    # Get order to set companyId
+    order = session.get(Order, data.orderId)
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found"
+        )
+
+    try:
+        picklist_dict = data.model_dump()
+        picklist_dict["companyId"] = order.companyId
+        picklist = Picklist(**picklist_dict)
+        session.add(picklist)
+        session.commit()
+        session.refresh(picklist)
+        return PicklistResponse.model_validate(picklist)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create picklist: {str(e)}"
+        )
+
+
+@router.get("/picklists/{picklist_id}", response_model=PicklistResponse)
+def get_picklist(
+    picklist_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get picklist by ID."""
+    picklist = session.get(Picklist, picklist_id)
+    if not picklist:
+        raise HTTPException(status_code=404, detail="Picklist not found")
+    return PicklistResponse.model_validate(picklist)
+
+
+@router.patch("/picklists/{picklist_id}", response_model=PicklistResponse)
+def update_picklist(
+    picklist_id: UUID,
+    data: PicklistUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Update picklist."""
+    picklist = session.get(Picklist, picklist_id)
+    if not picklist:
+        raise HTTPException(status_code=404, detail="Picklist not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(picklist, field, value)
+
+    session.add(picklist)
+    session.commit()
+    session.refresh(picklist)
+    return PicklistResponse.model_validate(picklist)
+
+
+@router.get("/picklists/{picklist_id}/items", response_model=List[PicklistItemResponse])
+def list_picklist_items(
+    picklist_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """List items in a picklist."""
+    query = select(PicklistItem).where(PicklistItem.picklistId == picklist_id)
+    items = session.exec(query).all()
+    return [PicklistItemResponse.model_validate(i) for i in items]
+
+
+@router.post("/picklists/{picklist_id}/items", response_model=PicklistItemResponse, status_code=status.HTTP_201_CREATED)
+def add_picklist_item(
+    picklist_id: UUID,
+    data: PicklistItemCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Add item to picklist."""
+    item_data = data.model_dump()
+    item_data["picklistId"] = picklist_id
+    item = PicklistItem.model_validate(item_data)
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return PicklistItemResponse.model_validate(item)
+
+
+@router.patch("/picklists/items/{item_id}", response_model=PicklistItemResponse)
+def update_picklist_item(
+    item_id: UUID,
+    data: PicklistItemUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Update picklist item."""
+    item = session.get(PicklistItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Picklist item not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(item, field, value)
+
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return PicklistItemResponse.model_validate(item)
+
+
+# ============================================================================
+# Wave Item Update (Static path with /items prefix - must come before /{wave_id})
+# ============================================================================
+
+@router.patch("/items/{item_id}", response_model=WaveItemResponse)
+def update_wave_item(
+    item_id: UUID,
+    data: WaveItemUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Update wave item (e.g., mark picked)."""
+    item = session.get(WaveItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Wave item not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(item, field, value)
+
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return WaveItemResponse.model_validate(item)
+
+
+# ============================================================================
+# Wave Dynamic Endpoints (/{wave_id} - must come after static paths)
+# ============================================================================
+
+@router.get("/{wave_id}", response_model=WaveResponse)
+def get_wave(
+    wave_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get wave by ID."""
+    wave = session.get(Wave, wave_id)
+    if not wave:
+        raise HTTPException(status_code=404, detail="Wave not found")
+    return WaveResponse.model_validate(wave)
 
 
 @router.patch("/{wave_id}", response_model=WaveResponse)
@@ -215,7 +388,7 @@ def complete_wave(
 
 
 # ============================================================================
-# Wave Items Endpoints
+# Wave Items Endpoints (Nested under /{wave_id})
 # ============================================================================
 
 @router.get("/{wave_id}/items", response_model=List[WaveItemResponse])
@@ -247,30 +420,8 @@ def add_wave_item(
     return WaveItemResponse.model_validate(item)
 
 
-@router.patch("/items/{item_id}", response_model=WaveItemResponse)
-def update_wave_item(
-    item_id: UUID,
-    data: WaveItemUpdate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Update wave item (e.g., mark picked)."""
-    item = session.get(WaveItem, item_id)
-    if not item:
-        raise HTTPException(status_code=404, detail="Wave item not found")
-
-    update_data = data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(item, field, value)
-
-    session.add(item)
-    session.commit()
-    session.refresh(item)
-    return WaveItemResponse.model_validate(item)
-
-
 # ============================================================================
-# Wave Orders Endpoints
+# Wave Orders Endpoints (Nested under /{wave_id})
 # ============================================================================
 
 @router.get("/{wave_id}/orders", response_model=List[WaveOrderResponse])
@@ -300,146 +451,3 @@ def add_order_to_wave(
     session.commit()
     session.refresh(wave_order)
     return WaveOrderResponse.model_validate(wave_order)
-
-
-# ============================================================================
-# Picklist Endpoints
-# ============================================================================
-
-@router.get("/picklists", response_model=List[PicklistResponse])
-def list_picklists(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-    status: Optional[PicklistStatus] = None,
-    assigned_to_id: Optional[UUID] = None,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """List picklists."""
-    query = select(Picklist)
-
-    if status:
-        query = query.where(Picklist.status == status)
-    if assigned_to_id:
-        query = query.where(Picklist.assignedToId == assigned_to_id)
-
-    query = query.offset(skip).limit(limit).order_by(Picklist.createdAt.desc())
-    picklists = session.exec(query).all()
-    return [PicklistResponse.model_validate(p) for p in picklists]
-
-
-@router.get("/picklists/{picklist_id}", response_model=PicklistResponse)
-def get_picklist(
-    picklist_id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Get picklist by ID."""
-    picklist = session.get(Picklist, picklist_id)
-    if not picklist:
-        raise HTTPException(status_code=404, detail="Picklist not found")
-    return PicklistResponse.model_validate(picklist)
-
-
-@router.post("/picklists", response_model=PicklistResponse, status_code=status.HTTP_201_CREATED)
-def create_picklist(
-    data: PicklistCreate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Create new picklist."""
-    # Get order to set companyId
-    order = session.get(Order, data.orderId)
-    if not order:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Order not found"
-        )
-
-    try:
-        picklist_dict = data.model_dump()
-        picklist_dict["companyId"] = order.companyId
-        picklist = Picklist(**picklist_dict)
-        session.add(picklist)
-        session.commit()
-        session.refresh(picklist)
-        return PicklistResponse.model_validate(picklist)
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create picklist: {str(e)}"
-        )
-
-
-@router.patch("/picklists/{picklist_id}", response_model=PicklistResponse)
-def update_picklist(
-    picklist_id: UUID,
-    data: PicklistUpdate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Update picklist."""
-    picklist = session.get(Picklist, picklist_id)
-    if not picklist:
-        raise HTTPException(status_code=404, detail="Picklist not found")
-
-    update_data = data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(picklist, field, value)
-
-    session.add(picklist)
-    session.commit()
-    session.refresh(picklist)
-    return PicklistResponse.model_validate(picklist)
-
-
-@router.get("/picklists/{picklist_id}/items", response_model=List[PicklistItemResponse])
-def list_picklist_items(
-    picklist_id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """List items in a picklist."""
-    query = select(PicklistItem).where(PicklistItem.picklistId == picklist_id)
-    items = session.exec(query).all()
-    return [PicklistItemResponse.model_validate(i) for i in items]
-
-
-@router.post("/picklists/{picklist_id}/items", response_model=PicklistItemResponse, status_code=status.HTTP_201_CREATED)
-def add_picklist_item(
-    picklist_id: UUID,
-    data: PicklistItemCreate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Add item to picklist."""
-    item_data = data.model_dump()
-    item_data["picklistId"] = picklist_id
-    item = PicklistItem.model_validate(item_data)
-    session.add(item)
-    session.commit()
-    session.refresh(item)
-    return PicklistItemResponse.model_validate(item)
-
-
-@router.patch("/picklists/items/{item_id}", response_model=PicklistItemResponse)
-def update_picklist_item(
-    item_id: UUID,
-    data: PicklistItemUpdate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Update picklist item."""
-    item = session.get(PicklistItem, item_id)
-    if not item:
-        raise HTTPException(status_code=404, detail="Picklist item not found")
-
-    update_data = data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(item, field, value)
-
-    session.add(item)
-    session.commit()
-    session.refresh(item)
-    return PicklistItemResponse.model_validate(item)
