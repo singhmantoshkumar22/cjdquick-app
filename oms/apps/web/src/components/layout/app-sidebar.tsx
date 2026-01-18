@@ -35,6 +35,10 @@ import {
   Store,
   Plug,
   Shield,
+  Radar,
+  BrainCircuit,
+  MessageSquareMore,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -80,6 +84,21 @@ const dashboardNav: NavItemWithHref = {
   title: "Dashboard",
   icon: LayoutDashboard,
   href: "/dashboard",
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTROL TOWER (AI & Proactive Monitoring)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const controlTowerNav: NavItemWithSub = {
+  title: "Control Tower",
+  icon: Radar,
+  items: [
+    { title: "Overview", href: "/control-tower" },
+    { title: "NDR Command Center", href: "/control-tower/ndr" },
+    { title: "AI Actions", href: "/control-tower/ai-actions" },
+    { title: "Proactive Alerts", href: "/control-tower/proactive" },
+  ],
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -374,6 +393,18 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* ═══ CONTROL TOWER ═══ */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-blue-600">
+            Control Tower
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <CollapsibleNavItem item={controlTowerNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
