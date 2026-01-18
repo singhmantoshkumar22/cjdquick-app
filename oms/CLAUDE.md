@@ -329,6 +329,9 @@ class User(SQLModel, table=True):
   - Fixed Delivery model (added companyId field)
   - Test order: E2E-FLOW-TEST-001 → SHIPPED
   - All steps verified: Create → Wave → Picklist → Pack → Ship
+- [x] **PDF Generation Working** (2026-01-18)
+  - Invoice, Shipping Label, Picklist PDFs all functional
+  - Fixed field mapping and numeric parsing issues
 
 ### Priority 1: End-to-End Order Flow Test
 **Status: COMPLETED ✅**
@@ -345,12 +348,15 @@ Tested order lifecycle (2026-01-18):
 ```
 
 ### Priority 2: Enable PDF Generation
-**Status: PENDING**
+**Status: COMPLETED ✅**
 
-Files to wire:
-- `apps/web/src/app/api/print/invoice/[id]/route.ts` → Invoice PDF
-- `apps/web/src/app/api/print/label/[id]/route.ts` → Shipping Label PDF
-- Connect to `packages/integrations/src/pdf/` generators
+All PDF routes tested and working (2026-01-18):
+- ✓ Invoice PDF: `/api/print/invoice/[id]` - Returns valid PDF
+- ✓ Shipping Label PDF: `/api/print/label/[id]` - Returns valid PDF
+- ✓ Picklist PDF: `/api/print/picklist/[id]` - Returns valid PDF
+
+Fixed: Field mapping issues (orderNo vs orderNumber, line1 vs addressLine1)
+Fixed: Numeric value parsing (API returns strings, PDF expects numbers)
 
 ### Priority 3: Enable CSV Import
 **Status: PENDING**
