@@ -31,16 +31,56 @@ def list_ndrs(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     skip: int = Query(0, ge=0),
+    ndr_status: Optional[NDRStatus] = Query(None, alias="status"),
+    priority: Optional[NDRPriority] = None,
     company_filter: CompanyFilter = Depends(),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """List NDRs with pagination (minimal version for debugging)."""
-    # Very simple implementation - just return count to verify endpoint works
-    count = session.exec(select(func.count(NDR.id))).one()
+    """List NDRs with pagination and filters."""
+    actual_skip = skip if skip > 0 else (page - 1) * limit
+
+    # Build filter query
+    base_query = select(NDR)
+    if company_filter.company_id:
+        base_query = base_query.where(NDR.companyId == company_filter.company_id)
+    if ndr_status:
+        base_query = base_query.where(NDR.status == ndr_status)
+    if priority:
+        base_query = base_query.where(NDR.priority == priority)
+
+    # Get total count
+    count = session.exec(select(func.count(NDR.id)).select_from(base_query.subquery())).one()
+
+    # Get paginated results
+    ndrs = session.exec(
+        base_query.offset(actual_skip).limit(limit).order_by(NDR.createdAt.desc())
+    ).all()
+
+    # Format response
+    formatted_ndrs = []
+    for n in ndrs:
+        formatted_ndrs.append({
+            "id": str(n.id),
+            "ndrCode": n.ndrCode,
+            "reason": n.reason.value if n.reason else "OTHER",
+            "aiClassification": n.aiClassification,
+            "confidence": n.confidence,
+            "status": n.status.value if n.status else "OPEN",
+            "priority": n.priority.value if n.priority else "MEDIUM",
+            "riskScore": n.riskScore,
+            "attemptNumber": n.attemptNumber,
+            "attemptDate": n.attemptDate.isoformat() if n.attemptDate else None,
+            "carrierRemark": n.carrierRemark,
+            "createdAt": n.createdAt.isoformat() if n.createdAt else None,
+            "order": None,
+            "delivery": None,
+            "outreachAttempts": [],
+            "outreachCount": 0,
+        })
 
     return {
-        "ndrs": [],
+        "ndrs": formatted_ndrs,
         "total": count,
         "statusCounts": {},
         "priorityCounts": {},
