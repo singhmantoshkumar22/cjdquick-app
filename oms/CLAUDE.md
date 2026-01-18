@@ -420,3 +420,142 @@ Files added/verified:
 - `apps/web/src/app/(b2b-portal)/loading.tsx`
 - `apps/web/src/lib/error-logger.ts`
 - Error boundaries already existed for all route groups
+
+---
+
+## COMPREHENSIVE SYSTEM AUDIT (2026-01-18)
+
+### Overview
+- **Total Frontend Pages:** 165 pages across 5 route groups
+- **Total Backend API Modules:** 24 modules with 200+ endpoints
+- **System Status:** Production-ready, all major features implemented
+
+### Frontend Pages Inventory
+
+#### Dashboard Route Group (106 pages)
+| Section | Pages | Status |
+|---------|-------|--------|
+| Dashboard | `/dashboard`, `/dashboard/seller-panel` | ✅ Live |
+| Control Tower | `/control-tower`, `/control-tower/ndr`, `/control-tower/ai-actions`, `/control-tower/proactive` | ✅ Live |
+| Orders | `/orders`, `/orders/[id]`, `/orders/import`, `/orders/new`, `/orders/[id]/edit` | ✅ Live |
+| WMS/Fulfillment | `/wms/waves`, `/wms/picklist`, `/wms/packing`, `/wms/manifest`, `/wms/gate-pass`, `/wms/delivery-shipping` | ✅ Live |
+| QC | `/wms/qc/templates`, `/wms/qc/executions` + detail pages | ✅ Live |
+| Inbound | `/inbound`, `/inbound/purchase-orders`, `/inbound/receiving`, `/inbound/qc` | ✅ Live |
+| Inventory | `/inventory`, `/inventory/adjustment`, `/inventory/cycle-count`, `/inventory/movements`, `/inventory/virtual` | ✅ Live |
+| Logistics | `/logistics/tracking`, `/logistics/awb`, `/logistics/transporters`, `/logistics/rate-cards`, `/logistics/shipping-rules`, `/logistics/allocation-rules`, `/logistics/pincodes` | ✅ Live |
+| Returns | `/returns`, `/returns/rto`, `/returns/qc`, `/returns/refunds` | ✅ Live |
+| Finance | `/finance/cod-reconciliation`, `/finance/freight-billing`, `/finance/weight-discrepancy`, `/finance/payment-ledger`, `/finance/dashboard` | ✅ Live |
+| Reports | `/reports/sales`, `/reports/inventory`, `/reports/logistics`, `/reports/finance`, `/reports/scheduled` | ✅ Live |
+| Channels | `/channels`, `/channels/sync` | ✅ Live |
+| Settings | `/settings/company`, `/settings/users`, `/settings/integrations`, `/settings/skus`, `/settings/locations`, `/settings/bundles` | ✅ Live |
+| B2B | `/b2b/customers`, `/b2b/quotations`, `/b2b/credit`, `/b2b/price-lists` | ✅ Live |
+| Procurement | `/procurement/purchase-orders`, `/procurement/vendors` | ✅ Live |
+| Master (Super Admin) | `/master/brands`, `/master/companies` | ✅ Live |
+
+#### Client Portal (54 pages)
+Full mirror of dashboard functionality for tenant self-service at `/client/*`.
+
+#### B2B Portal (9 pages)
+Public-facing B2B customer portal at `/portal/*`.
+
+### Backend API Modules Inventory
+
+| Module | Prefix | Key Endpoints | Status |
+|--------|--------|---------------|--------|
+| **auth** | `/v1/auth` | login, me, refresh, logout | ✅ Live |
+| **users** | `/v1/users` | CRUD, count, search | ✅ Live |
+| **companies** | `/v1/companies` | CRUD, count | ✅ Live |
+| **locations** | `/v1/locations` | CRUD, zones, bins | ✅ Live |
+| **skus** | `/v1/skus` | CRUD, categories, brands | ✅ Live |
+| **inventory** | `/v1/inventory` | CRUD, adjust, transfer, summary | ✅ Live |
+| **orders** | `/v1/orders` | CRUD, items, deliveries, import, stats | ✅ Live |
+| **customers** | `/v1/customers` | CRUD, groups, credit | ✅ Live |
+| **waves** | `/v1/waves` | CRUD, items, orders, picklists | ✅ Live |
+| **inbound** | `/v1/inbound` | CRUD, items, complete | ✅ Live |
+| **returns** | `/v1/returns` | CRUD, items, receive, qc, process | ✅ Live |
+| **ndr** | `/v1/ndr` | CRUD, outreach, ai-actions, summary | ✅ Live |
+| **transporters** | `/v1/transporters` | CRUD, configs, manifests | ✅ Live |
+| **logistics** | `/v1/logistics` | rate-cards, shipping-rules, pincodes, awb | ✅ Live |
+| **channels** | `/v1/channels` | configs, imports, sync | ✅ Live |
+| **qc** | `/v1/qc` | templates, parameters, executions, results | ✅ Live |
+| **b2b** | `/v1/b2b` | quotations, price-lists | ✅ Live |
+| **procurement** | `/v1/procurement` | purchase-orders, vendors | ✅ Live |
+| **finance** | `/v1/finance` | cod, freight, weight-discrepancy, ledger | ✅ Live |
+| **communications** | `/v1/communications` | proactive, templates | ✅ Live |
+| **analytics** | `/v1/analytics` | dashboard stats | ✅ Live |
+| **dashboard** | `/v1/dashboard` | overview stats | ✅ Live |
+| **wms_extended** | `/v1/wms` | extended operations | ✅ Live |
+| **system** | `/v1/system` | health, config | ✅ Live |
+
+### Control Tower Features (AI-Powered)
+
+| Page | Path | Features |
+|------|------|----------|
+| **Overview** | `/control-tower` | Real-time SLA monitoring, D0/D1/D2 predictions, carrier health, capacity alerts, inventory health |
+| **NDR Command Center** | `/control-tower/ndr` | AI-powered NDR resolution, automated outreach (WhatsApp, SMS, AI Voice, Email), reason analysis |
+| **AI Actions** | `/control-tower/ai-actions` | Monitor all AI automation (classify, outreach, resolve, sentiment, priority, escalation, prediction) |
+| **Proactive Alerts** | `/control-tower/proactive` | Automated notifications (order confirmed, shipped, out for delivery, delays, SLA breach risk) |
+
+### Coverage Matrix
+
+| Category | Frontend | Backend | Status |
+|----------|----------|---------|--------|
+| Authentication | ✅ | ✅ | Complete |
+| Dashboard | ✅ | ✅ | Complete |
+| Control Tower / NDR | ✅ | ✅ | Complete |
+| Orders | ✅ | ✅ | Complete |
+| WMS / Fulfillment | ✅ | ✅ | Complete |
+| Inventory | ✅ | ✅ | Complete |
+| Logistics | ✅ | ✅ | Complete |
+| Returns | ✅ | ✅ | Complete |
+| Finance | ✅ | ✅ | Complete |
+| Settings | ✅ | ✅ | Complete |
+| Channels | ✅ | ✅ | Complete |
+| B2B | ✅ | ✅ | Complete |
+| Reports | ✅ | ✅ | Complete |
+
+### Issues Found & Fixed (2026-01-18)
+
+1. **Control Tower Missing from Navigation** - FIXED
+   - Pages existed but were not linked in sidebar
+   - Added Control Tower section with Overview, NDR, AI Actions, Proactive Alerts
+   - File: `apps/web/src/components/layout/app-sidebar.tsx`
+
+### Packages/Integrations Available
+
+| Type | Count | Items |
+|------|-------|-------|
+| **Channel Integrations** | 9 | Shopify, Amazon, Flipkart, Myntra, AJIO, Meesho, Nykaa, TataCliq, JioMart |
+| **Transporter Integrations** | 8 | Shiprocket, Delhivery, BlueDart, Ekart, Shadowfax, DTDC, EcomExpress, Xpressbees |
+| **Aggregator** | 1 | ClickPost |
+| **PDF Generators** | 3 | Invoice (GST), Shipping Label, Picklist |
+| **Importers** | 3 | CSV Parser, Order Importer, SKU Importer |
+
+### Navigation Structure
+
+```
+Sidebar Navigation:
+├── Dashboard
+├── Control Tower (NEW - Added 2026-01-18)
+│   ├── Overview
+│   ├── NDR Command Center
+│   ├── AI Actions
+│   └── Proactive Alerts
+├── Operations
+│   ├── Orders (All Orders, Import, B2B)
+│   ├── Fulfillment (Waves, Picklist, Packing, Manifest, Gate Pass)
+│   ├── Inbound (Purchase Orders, ASN/Receiving)
+│   ├── Inventory (Stock, Adjustments, Cycle Count, Movements)
+│   ├── Shipping & Logistics (Tracking, AWB, NDR)
+│   ├── Returns (Customer, RTO, QC, Refunds)
+│   └── Quality Control (Queue, Inbound QC, Templates)
+├── Analytics & Finance
+│   ├── Finance (COD, Freight, Weight, Ledger)
+│   └── Reports (Sales, Inventory, Logistics, Finance, Scheduled)
+└── Configuration
+    ├── Catalog (SKU Master, Bundles, B2B Customers)
+    ├── Warehouse Setup (Locations)
+    ├── Logistics Setup (Couriers, Rate Cards, Rules, Pincodes)
+    ├── Channels (Marketplace, Sync)
+    └── Settings (Company, Users, API)
+```
