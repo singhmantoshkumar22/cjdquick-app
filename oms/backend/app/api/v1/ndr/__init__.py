@@ -44,127 +44,134 @@ def list_ndrs(
     current_user: User = Depends(get_current_user)
 ):
     """List NDRs with pagination, filters, and aggregated stats."""
-    from app.models.order import Order, Delivery
+    try:
+        from app.models.order import Order, Delivery
 
-    # Calculate skip from page if not provided
-    actual_skip = skip if skip > 0 else (page - 1) * limit
+        # Calculate skip from page if not provided
+        actual_skip = skip if skip > 0 else (page - 1) * limit
 
-    # Base query for filtering
-    base_query = select(NDR)
+        # Base query for filtering
+        base_query = select(NDR)
 
-    if company_filter.company_id:
-        base_query = base_query.where(NDR.companyId == company_filter.company_id)
+        if company_filter.company_id:
+            base_query = base_query.where(NDR.companyId == company_filter.company_id)
 
-    if status:
-        base_query = base_query.where(NDR.status == status)
-    if priority:
-        base_query = base_query.where(NDR.priority == priority)
-    if reason:
-        base_query = base_query.where(NDR.reason == reason)
-    if order_id:
-        base_query = base_query.where(NDR.orderId == order_id)
-    if delivery_id:
-        base_query = base_query.where(NDR.deliveryId == delivery_id)
-    if date_from:
-        base_query = base_query.where(NDR.attemptDate >= date_from)
-    if date_to:
-        base_query = base_query.where(NDR.attemptDate <= date_to)
+        if status:
+            base_query = base_query.where(NDR.status == status)
+        if priority:
+            base_query = base_query.where(NDR.priority == priority)
+        if reason:
+            base_query = base_query.where(NDR.reason == reason)
+        if order_id:
+            base_query = base_query.where(NDR.orderId == order_id)
+        if delivery_id:
+            base_query = base_query.where(NDR.deliveryId == delivery_id)
+        if date_from:
+            base_query = base_query.where(NDR.attemptDate >= date_from)
+        if date_to:
+            base_query = base_query.where(NDR.attemptDate <= date_to)
 
-    # Get all NDRs for aggregation (without pagination)
-    all_ndrs = session.exec(base_query).all()
-    total = len(all_ndrs)
+        # Get all NDRs for aggregation (without pagination)
+        all_ndrs = session.exec(base_query).all()
+        total = len(all_ndrs)
 
-    # Get paginated NDRs
-    paginated_query = base_query.offset(actual_skip).limit(limit).order_by(NDR.createdAt.desc())
-    ndrs = session.exec(paginated_query).all()
+        # Get paginated NDRs
+        paginated_query = base_query.offset(actual_skip).limit(limit).order_by(NDR.createdAt.desc())
+        ndrs = session.exec(paginated_query).all()
 
-    # Calculate status counts
-    status_counts = {}
-    priority_counts = {}
-    reason_counts = {}
-    resolved_times = []
+        # Calculate status counts
+        status_counts = {}
+        priority_counts = {}
+        reason_counts = {}
+        resolved_times = []
 
-    for n in all_ndrs:
-        # Status counts
-        status_key = n.status.value if n.status else "UNKNOWN"
-        status_counts[status_key] = status_counts.get(status_key, 0) + 1
+        for n in all_ndrs:
+            # Status counts
+            status_key = n.status.value if n.status else "UNKNOWN"
+            status_counts[status_key] = status_counts.get(status_key, 0) + 1
 
-        # Priority counts
-        priority_key = n.priority.value if n.priority else "UNKNOWN"
-        priority_counts[priority_key] = priority_counts.get(priority_key, 0) + 1
+            # Priority counts
+            priority_key = n.priority.value if n.priority else "UNKNOWN"
+            priority_counts[priority_key] = priority_counts.get(priority_key, 0) + 1
 
-        # Reason counts
-        reason_key = n.reason.value if n.reason else "OTHER"
-        reason_counts[reason_key] = reason_counts.get(reason_key, 0) + 1
+            # Reason counts
+            reason_key = n.reason.value if n.reason else "OTHER"
+            reason_counts[reason_key] = reason_counts.get(reason_key, 0) + 1
 
-        # Track resolution times
-        if n.resolvedAt and n.createdAt:
-            hours = (n.resolvedAt - n.createdAt).total_seconds() / 3600
-            resolved_times.append(hours)
+            # Track resolution times
+            if n.resolvedAt and n.createdAt:
+                hours = (n.resolvedAt - n.createdAt).total_seconds() / 3600
+                resolved_times.append(hours)
 
-    # Calculate averages
-    avg_resolution_hours = round(sum(resolved_times) / len(resolved_times), 1) if resolved_times else 0
+        # Calculate averages
+        avg_resolution_hours = round(sum(resolved_times) / len(resolved_times), 1) if resolved_times else 0
 
-    # Calculate outreach success rate (simplified - count resolved / total)
-    resolved_count = status_counts.get("RESOLVED", 0)
-    outreach_success_rate = round(resolved_count / total, 2) if total > 0 else 0
+        # Calculate outreach success rate (simplified - count resolved / total)
+        resolved_count = status_counts.get("RESOLVED", 0)
+        outreach_success_rate = round(resolved_count / total, 2) if total > 0 else 0
 
-    # Format NDRs for response (matching frontend expectations)
-    formatted_ndrs = []
-    for n in ndrs:
-        # Get related order and delivery info
-        order = session.get(Order, n.orderId) if n.orderId else None
-        delivery = session.get(Delivery, n.deliveryId) if n.deliveryId else None
+        # Format NDRs for response (matching frontend expectations)
+        formatted_ndrs = []
+        for n in ndrs:
+            # Get related order and delivery info
+            order = session.get(Order, n.orderId) if n.orderId else None
+            delivery = session.get(Delivery, n.deliveryId) if n.deliveryId else None
 
-        # Count outreach attempts - use try/except to handle lazy loading issues
-        try:
-            outreach_count = len(n.outreaches) if n.outreaches else 0
-        except Exception:
-            outreach_count = 0
+            # Count outreach attempts - use try/except to handle lazy loading issues
+            try:
+                outreach_count = len(n.outreaches) if n.outreaches else 0
+            except Exception:
+                outreach_count = 0
 
-        formatted_ndrs.append({
-            "id": str(n.id),
-            "ndrCode": n.ndrCode,
-            "reason": n.reason.value if n.reason else "OTHER",
-            "aiClassification": n.aiClassification,
-            "confidence": n.confidence,
-            "status": n.status.value if n.status else "OPEN",
-            "priority": n.priority.value if n.priority else "MEDIUM",
-            "riskScore": n.riskScore,
-            "attemptNumber": n.attemptNumber,
-            "attemptDate": n.attemptDate.isoformat() if n.attemptDate else None,
-            "carrierRemark": n.carrierRemark,
-            "createdAt": n.createdAt.isoformat() if n.createdAt else None,
-            "order": {
-                "id": str(order.id) if order else str(n.orderId),
-                "orderNo": order.orderNo if order else f"ORD-{str(n.orderId)[:8]}",
-                "customerName": order.customerName if order else "Unknown",
-                "customerPhone": order.customerPhone if order else "N/A",
-                "customerEmail": order.customerEmail if order else None,
-                "shippingAddress": order.shippingAddress if order else None,
-                "paymentMode": order.paymentMode.value if order and order.paymentMode else "PREPAID",
-                "totalAmount": float(order.totalAmount) if order and order.totalAmount else 0,
-            } if n.orderId else None,
-            "delivery": {
-                "id": str(delivery.id) if delivery else str(n.deliveryId),
-                "deliveryNo": delivery.deliveryNo if delivery else "N/A",
-                "awbNo": delivery.awbNo if delivery else "N/A",
-                "status": delivery.status.value if delivery and delivery.status else "PENDING",
-                "transporter": None,
-            } if n.deliveryId else None,
-            "outreachAttempts": [],
-            "outreachCount": outreach_count,
-        })
+            formatted_ndrs.append({
+                "id": str(n.id),
+                "ndrCode": n.ndrCode,
+                "reason": n.reason.value if n.reason else "OTHER",
+                "aiClassification": n.aiClassification,
+                "confidence": n.confidence,
+                "status": n.status.value if n.status else "OPEN",
+                "priority": n.priority.value if n.priority else "MEDIUM",
+                "riskScore": n.riskScore,
+                "attemptNumber": n.attemptNumber,
+                "attemptDate": n.attemptDate.isoformat() if n.attemptDate else None,
+                "carrierRemark": n.carrierRemark,
+                "createdAt": n.createdAt.isoformat() if n.createdAt else None,
+                "order": {
+                    "id": str(order.id) if order else str(n.orderId),
+                    "orderNo": order.orderNo if order else f"ORD-{str(n.orderId)[:8]}",
+                    "customerName": order.customerName if order else "Unknown",
+                    "customerPhone": order.customerPhone if order else "N/A",
+                    "customerEmail": order.customerEmail if order else None,
+                    "shippingAddress": order.shippingAddress if order else None,
+                    "paymentMode": order.paymentMode.value if order and order.paymentMode else "PREPAID",
+                    "totalAmount": float(order.totalAmount) if order and order.totalAmount else 0,
+                } if n.orderId else None,
+                "delivery": {
+                    "id": str(delivery.id) if delivery else str(n.deliveryId),
+                    "deliveryNo": delivery.deliveryNo if delivery else "N/A",
+                    "awbNo": delivery.awbNo if delivery else "N/A",
+                    "status": delivery.status.value if delivery and delivery.status else "PENDING",
+                    "transporter": None,
+                } if n.deliveryId else None,
+                "outreachAttempts": [],
+                "outreachCount": outreach_count,
+            })
 
-    return {
-        "ndrs": formatted_ndrs,
-        "total": total,
-        "statusCounts": status_counts,
-        "priorityCounts": priority_counts,
-        "reasonCounts": reason_counts,
-        "avgResolutionHours": avg_resolution_hours,
-        "outreachSuccessRate": outreach_success_rate,
-    }
+        return {
+            "ndrs": formatted_ndrs,
+            "total": total,
+            "statusCounts": status_counts,
+            "priorityCounts": priority_counts,
+            "reasonCounts": reason_counts,
+            "avgResolutionHours": avg_resolution_hours,
+            "outreachSuccessRate": outreach_success_rate,
+        }
+    except Exception as e:
+        import traceback
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"NDR list error: {str(e)}\n{traceback.format_exc()}"
+        )
 
 
 @router.get("/count")
