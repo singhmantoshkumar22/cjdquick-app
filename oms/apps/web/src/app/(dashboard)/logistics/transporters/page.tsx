@@ -113,10 +113,10 @@ export default function TransportersPage() {
       if (search) params.set("search", search);
       params.set("limit", "100");
 
-      const response = await fetch(`/api/v1/v1/transporters?${params}`);
+      const response = await fetch(`/api/v1/transporters?${params}`);
       if (!response.ok) throw new Error("Failed to fetch transporters");
       const result = await response.json();
-      setTransporters(result.data || []);
+      setTransporters(Array.isArray(result) ? result : result.data || []);
     } catch (error) {
       console.error("Error fetching transporters:", error);
       toast.error("Failed to load transporters");
@@ -222,7 +222,7 @@ export default function TransportersPage() {
 
   async function handleToggleActive(transporter: Transporter) {
     try {
-      const response = await fetch(`/api/v1/v1/transporters/${transporter.id}`, {
+      const response = await fetch(`/api/v1/transporters/${transporter.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !transporter.isActive }),

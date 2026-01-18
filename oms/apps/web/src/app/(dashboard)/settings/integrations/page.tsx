@@ -108,9 +108,10 @@ export default function IntegrationsPage() {
   const { data: channelsData, isLoading: channelsLoading } = useQuery({
     queryKey: ["channel-configs"],
     queryFn: async () => {
-      const res = await fetch("/api/v1/channels?limit=50");
+      const res = await fetch("/api/v1/channels/configs?limit=50");
       if (!res.ok) throw new Error("Failed to fetch channels");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? { data } : data;
     },
   });
 
@@ -120,7 +121,8 @@ export default function IntegrationsPage() {
     queryFn: async () => {
       const res = await fetch("/api/v1/transporters?limit=50");
       if (!res.ok) throw new Error("Failed to fetch transporters");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? { data } : data;
     },
   });
 
@@ -130,14 +132,15 @@ export default function IntegrationsPage() {
     queryFn: async () => {
       const res = await fetch("/api/v1/locations?limit=100");
       if (!res.ok) throw new Error("Failed to fetch locations");
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data) ? { data } : data;
     },
   });
 
   // Save channel mutation
   const saveChannelMutation = useMutation({
     mutationFn: async (data: typeof channelForm & { id?: string }) => {
-      const url = data.id ? `/api/v1/channels/${data.id}` : "/api/v1/channels";
+      const url = data.id ? `/api/v1/channels/configs/${data.id}` : "/api/v1/channels/configs";
       const method = data.id ? "PATCH" : "POST";
       const res = await fetch(url, {
         method,
@@ -202,10 +205,9 @@ export default function IntegrationsPage() {
   // Sync mutation
   const syncMutation = useMutation({
     mutationFn: async (channelConfigId: string) => {
-      const res = await fetch("/api/v1/integrations/channels/sync", {
+      const res = await fetch(`/api/v1/channels/configs/${channelConfigId}/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelConfigId }),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -213,10 +215,10 @@ export default function IntegrationsPage() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
-        title: "Sync completed",
-        description: `${data.synced} orders synced`,
+        title: "Sync triggered",
+        description: "Sync has been initiated",
       });
       queryClient.invalidateQueries({ queryKey: ["channel-configs"] });
     },
