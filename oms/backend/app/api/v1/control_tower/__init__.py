@@ -12,11 +12,13 @@ from sqlmodel import Session, select, func, and_, or_
 
 from app.core.database import get_session
 from app.core.deps import get_current_user, require_manager, CompanyFilter
-from app.models import (
-    Order, Delivery, NDR, Return, Inventory, SKU,
-    Exception as ExceptionModel, ExceptionCreate,
-    AIActionLog, User
-)
+from app.models.order import Order, Delivery
+from app.models.ndr import NDR, AIActionLog
+from app.models.returns import Return
+from app.models.inventory import Inventory
+from app.models.sku import SKU
+from app.models.system import Exception as ExceptionModel
+from app.models.user import User
 
 router = APIRouter(prefix="/control-tower", tags=["Control Tower"])
 
