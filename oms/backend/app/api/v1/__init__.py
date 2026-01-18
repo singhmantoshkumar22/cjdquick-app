@@ -34,6 +34,7 @@ from .system import router as system_router
 from .dashboard import router as dashboard_router
 from .ai_actions import router as ai_actions_router
 from .sla import router as sla_router
+from .control_tower import router as control_tower_router
 
 # Main v1 router
 router = APIRouter(prefix="/v1")
@@ -69,3 +70,4 @@ router.include_router(system_router)
 router.include_router(dashboard_router)
 router.include_router(ai_actions_router)
 router.include_router(sla_router)
+router.include_router(control_tower_router)

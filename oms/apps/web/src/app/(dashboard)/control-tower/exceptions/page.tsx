@@ -14,6 +14,8 @@ import {
   Package,
   Truck,
   ArrowLeft,
+  Zap,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,52 +40,97 @@ import { toast } from "sonner";
 
 interface Exception {
   id: string;
+  exceptionCode: string;
   type: string;
-  orderNo: string;
-  orderId: string;
-  description: string;
+  source: string;
   severity: string;
+  entityType: string;
+  entityId: string;
+  orderId: string | null;
+  title: string;
+  description: string;
+  autoResolvable: boolean;
   status: string;
-  createdAt: string;
+  priority: number;
+  resolution: string | null;
+  resolvedBy: string | null;
   resolvedAt: string | null;
-  assignedTo: string | null;
+  createdAt: string;
 }
 
-const severityConfig: Record<string, { label: string; color: string }> = {
-  CRITICAL: { label: "Critical", color: "text-red-600" },
-  HIGH: { label: "High", color: "text-orange-600" },
-  MEDIUM: { label: "Medium", color: "text-yellow-600" },
-  LOW: { label: "Low", color: "text-green-600" },
+interface DashboardStats {
+  exceptions: {
+    critical: number;
+    open: number;
+    inProgress: number;
+    resolvedToday: number;
+    byType: Record<string, number>;
+  };
+  operations: {
+    ordersToday: number;
+    openNDRs: number;
+  };
+  lastScan: string;
+}
+
+const severityConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  CRITICAL: { label: "Critical", color: "bg-red-100 text-red-700 border-red-200", icon: AlertTriangle },
+  HIGH: { label: "High", color: "bg-orange-100 text-orange-700 border-orange-200", icon: AlertTriangle },
+  MEDIUM: { label: "Medium", color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: Clock },
+  LOW: { label: "Low", color: "bg-green-100 text-green-700 border-green-200", icon: CheckCircle },
 };
 
-const statusConfig: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
-> = {
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   OPEN: { label: "Open", variant: "destructive" },
   IN_PROGRESS: { label: "In Progress", variant: "secondary" },
   RESOLVED: { label: "Resolved", variant: "default" },
   IGNORED: { label: "Ignored", variant: "outline" },
 };
 
+const typeConfig: Record<string, { label: string; icon: React.ElementType }> = {
+  STUCK_ORDER: { label: "Stuck Order", icon: Package },
+  SLA_BREACH: { label: "SLA Breach", icon: Clock },
+  NDR_ESCALATION: { label: "NDR Escalation", icon: AlertTriangle },
+  CARRIER_DELAY: { label: "Carrier Delay", icon: Truck },
+  INVENTORY_ISSUE: { label: "Inventory Issue", icon: Package },
+  PAYMENT_ISSUE: { label: "Payment Issue", icon: AlertTriangle },
+};
+
 const exceptionTypes = [
   { value: "all", label: "All Types" },
   { value: "STUCK_ORDER", label: "Stuck Orders" },
   { value: "SLA_BREACH", label: "SLA Breach" },
-  { value: "INVENTORY_ISSUE", label: "Inventory Issues" },
+  { value: "NDR_ESCALATION", label: "NDR Escalation" },
   { value: "CARRIER_DELAY", label: "Carrier Delays" },
+  { value: "INVENTORY_ISSUE", label: "Inventory Issues" },
   { value: "PAYMENT_ISSUE", label: "Payment Issues" },
 ];
 
 export default function ExceptionManagementPage() {
   const router = useRouter();
   const [exceptions, setExceptions] = useState<Exception[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [isScanning, setIsScanning] = useState(false);
+  const [lastScanResult, setLastScanResult] = useState<any>(null);
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
+  // Fetch dashboard stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch("/api/v1/control-tower/dashboard");
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    }
+  }, []);
+
+  // Fetch exceptions list
   const fetchExceptions = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -96,35 +143,48 @@ export default function ExceptionManagementPage() {
       if (!response.ok) throw new Error("Failed to fetch exceptions");
       const result = await response.json();
 
-      // Map backend response to frontend interface
-      const mappedExceptions = (result || []).map((e: Record<string, unknown>) => ({
-        id: e.id,
-        type: e.type || "UNKNOWN",
-        orderNo: e.orderNo || e.exceptionCode || "-",
-        orderId: e.orderId || "",
-        description: e.description || e.message || "",
-        severity: e.severity || "MEDIUM",
-        status: e.status || "OPEN",
-        createdAt: e.createdAt,
-        resolvedAt: e.resolvedAt,
-        assignedTo: e.assignedTo,
-      }));
-
-      setExceptions(mappedExceptions);
-      setTotal(mappedExceptions.length);
+      setExceptions(result || []);
     } catch (error) {
       console.error("Error fetching exceptions:", error);
-      toast.error("Failed to load exceptions");
       setExceptions([]);
-      setTotal(0);
     } finally {
       setIsLoading(false);
     }
   }, [search, activeTab]);
 
+  // Trigger exception detection engine
+  const runDetectionEngine = async () => {
+    try {
+      setIsScanning(true);
+      toast.info("Running exception detection engine...");
+
+      const response = await fetch("/api/v1/control-tower/detect-exceptions", {
+        method: "POST",
+      });
+
+      if (!response.ok) throw new Error("Detection failed");
+
+      const result = await response.json();
+      setLastScanResult(result);
+
+      toast.success(
+        `Scan complete: ${result.summary.exceptions_created} new, ${result.summary.exceptions_updated} updated, ${result.summary.exceptions_auto_resolved} resolved`
+      );
+
+      // Refresh data
+      await Promise.all([fetchStats(), fetchExceptions()]);
+    } catch (error) {
+      console.error("Detection engine error:", error);
+      toast.error("Failed to run detection engine");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   useEffect(() => {
+    fetchStats();
     fetchExceptions();
-  }, [fetchExceptions]);
+  }, [fetchStats, fetchExceptions]);
 
   function clearFilters() {
     setSearch("");
@@ -132,6 +192,27 @@ export default function ExceptionManagementPage() {
   }
 
   const hasFilters = search || activeTab !== "all";
+
+  const getSeverityBadge = (severity: string) => {
+    const config = severityConfig[severity] || severityConfig.MEDIUM;
+    const Icon = config.icon;
+    return (
+      <Badge className={`${config.color} flex items-center gap-1`}>
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const getTypeBadge = (type: string) => {
+    const config = typeConfig[type] || { label: type, icon: AlertTriangle };
+    return (
+      <Badge variant="outline" className="flex items-center gap-1">
+        <config.icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -151,11 +232,42 @@ export default function ExceptionManagementPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={fetchExceptions}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            onClick={runDetectionEngine}
+            disabled={isScanning}
+          >
+            <Zap className={`mr-2 h-4 w-4 ${isScanning ? "animate-pulse" : ""}`} />
+            {isScanning ? "Scanning..." : "Run Detection"}
+          </Button>
+          <Button variant="outline" onClick={fetchExceptions} disabled={isLoading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Last Scan Result */}
+      {lastScanResult && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-4">
+                <span className="font-medium text-blue-700">Last Scan Result:</span>
+                <span className="text-blue-600">
+                  {lastScanResult.summary.exceptions_created} created,{" "}
+                  {lastScanResult.summary.exceptions_updated} updated,{" "}
+                  {lastScanResult.summary.exceptions_auto_resolved} auto-resolved
+                </span>
+              </div>
+              <span className="text-blue-500 text-xs">
+                {new Date(lastScanResult.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -165,7 +277,9 @@ export default function ExceptionManagementPage() {
             <AlertTriangle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">0</div>
+            <div className="text-2xl font-bold text-red-600">
+              {stats?.exceptions.critical ?? 0}
+            </div>
             <p className="text-xs text-muted-foreground">Requires immediate action</p>
           </CardContent>
         </Card>
@@ -175,7 +289,10 @@ export default function ExceptionManagementPage() {
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">0</div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats?.exceptions.open ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting resolution</p>
           </CardContent>
         </Card>
         <Card>
@@ -184,7 +301,10 @@ export default function ExceptionManagementPage() {
             <Package className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">0</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats?.exceptions.inProgress ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Being worked on</p>
           </CardContent>
         </Card>
         <Card>
@@ -193,7 +313,10 @@ export default function ExceptionManagementPage() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">0</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats?.exceptions.resolvedToday ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Successfully resolved</p>
           </CardContent>
         </Card>
       </div>
@@ -204,6 +327,11 @@ export default function ExceptionManagementPage() {
           {exceptionTypes.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.label}
+              {stats?.exceptions.byType[tab.value] && tab.value !== "all" && (
+                <Badge variant="secondary" className="ml-2 h-5 px-1.5">
+                  {stats.exceptions.byType[tab.value]}
+                </Badge>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -216,7 +344,7 @@ export default function ExceptionManagementPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by order no or description..."
+                placeholder="Search by exception code, entity ID, or description..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -236,12 +364,14 @@ export default function ExceptionManagementPage() {
         <CardHeader>
           <CardTitle>Exception Queue</CardTitle>
           <CardDescription>
-            {total} exceptions found {hasFilters && "(filtered)"}
+            {exceptions.length} exceptions found {hasFilters && "(filtered)"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-8">Loading...</div>
+            <div className="flex justify-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
           ) : exceptions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
@@ -251,25 +381,26 @@ export default function ExceptionManagementPage() {
                   ? "No exceptions match your filters"
                   : "No exceptions detected. Operations running smoothly."}
               </p>
+              <Button className="mt-4" onClick={runDetectionEngine} disabled={isScanning}>
+                <Zap className="mr-2 h-4 w-4" />
+                Run Detection Engine
+              </Button>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Exception</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Description</TableHead>
+                  <TableHead>Entity</TableHead>
                   <TableHead>Severity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {exceptions.map((exception) => {
-                  const severityInfo = severityConfig[exception.severity] || {
-                    label: exception.severity,
-                    color: "text-muted-foreground",
-                  };
                   const statusInfo = statusConfig[exception.status] || {
                     label: exception.status,
                     variant: "outline" as const,
@@ -278,31 +409,42 @@ export default function ExceptionManagementPage() {
                   return (
                     <TableRow key={exception.id}>
                       <TableCell>
-                        <Badge variant="outline">{exception.type}</Badge>
+                        <div>
+                          <p className="font-medium">{exception.exceptionCode}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            {exception.title}
+                          </p>
+                        </div>
                       </TableCell>
+                      <TableCell>{getTypeBadge(exception.type)}</TableCell>
                       <TableCell>
-                        <button
-                          onClick={() => router.push(`/orders/${exception.orderId}`)}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {exception.orderNo}
-                        </button>
+                        <div>
+                          <p className="font-medium">{exception.entityId}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {exception.entityType}
+                          </p>
+                        </div>
                       </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {exception.description}
-                      </TableCell>
+                      <TableCell>{getSeverityBadge(exception.severity)}</TableCell>
                       <TableCell>
-                        <span className={severityInfo.color}>
-                          {severityInfo.label}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusInfo.variant}>
-                          {statusInfo.label}
-                        </Badge>
+                        <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                       </TableCell>
                       <TableCell>
                         {format(new Date(exception.createdAt), "dd MMM, HH:mm")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (exception.orderId) {
+                              router.push(`/orders/${exception.orderId}`);
+                            }
+                          }}
+                          disabled={!exception.orderId}
+                        >
+                          View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
