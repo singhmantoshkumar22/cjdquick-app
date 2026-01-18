@@ -521,6 +521,14 @@ Public-facing B2B customer portal at `/portal/*`.
    - Added Control Tower section with Overview, NDR, AI Actions, Proactive Alerts
    - File: `apps/web/src/components/layout/app-sidebar.tsx`
 
+2. **NDR API 500 Internal Server Error** - FIXED
+   - `/api/v1/ndr` and `/api/v1/ndr/summary` endpoints returning 500 error
+   - **Root Cause:** SQLModel returning raw strings from PostgreSQL instead of Python enum objects
+   - When enum fields (reason, status, priority) were stored as strings in DB, calling `.value` on them failed
+   - **Solution:** Added `safe_enum_value()` helper function that handles both enum objects and raw strings
+   - File: `backend/app/api/v1/ndr/__init__.py`
+   - **Verification:** All NDR endpoints now working (49 NDRs, list/summary/count all return 200)
+
 ### Packages/Integrations Available
 
 | Type | Count | Items |
