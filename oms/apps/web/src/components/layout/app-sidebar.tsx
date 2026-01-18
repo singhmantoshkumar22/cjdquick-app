@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { useState } from "react";
 import {
   Package,
   LayoutDashboard,
@@ -10,25 +11,20 @@ import {
   Warehouse,
   Boxes,
   Truck,
-  PackageCheck,
   RotateCcw,
   BarChart3,
   Settings,
   Building2,
   Users,
-  MapPin,
   LogOut,
   ChevronDown,
-  Layers,
+  ChevronRight,
   ClipboardCheck,
   CreditCard,
   AlertTriangle,
   PackageOpen,
-  ScanLine,
   FileBox,
-  ClipboardList,
   ArrowDownToLine,
-  ArrowUpFromLine,
   Route,
   BadgeCheck,
   Tags,
@@ -37,8 +33,39 @@ import {
   Shield,
   Radar,
   BrainCircuit,
-  MessageSquareMore,
   Bell,
+  Handshake,
+  Receipt,
+  FileText,
+  TrendingUp,
+  PackageSearch,
+  MapPin,
+  RefreshCw,
+  AlertCircle,
+  Target,
+  Activity,
+  DollarSign,
+  Scale,
+  BookOpen,
+  Timer,
+  Layers,
+  Grid3X3,
+  Megaphone,
+  Mail,
+  ListChecks,
+  ClipboardList,
+  Scan,
+  PackageX,
+  CircleDollarSign,
+  TruckIcon,
+  LineChart,
+  PieChart,
+  Calendar,
+  FileSpreadsheet,
+  Database,
+  Server,
+  ScrollText,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Sidebar,
@@ -69,15 +96,19 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Type definitions for navigation items
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPE DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
 type NavSubItem = { title: string; href: string };
 type NavItemWithSub = { title: string; icon: LucideIcon; items: NavSubItem[] };
 type NavItemWithHref = { title: string; icon: LucideIcon; href: string };
 type NavItem = NavItemWithSub | NavItemWithHref;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DASHBOARD
+// COMMAND CENTER
 // ═══════════════════════════════════════════════════════════════════════════
 
 const dashboardNav: NavItemWithHref = {
@@ -86,114 +117,141 @@ const dashboardNav: NavItemWithHref = {
   href: "/dashboard",
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CONTROL TOWER (AI & Proactive Monitoring)
-// ═══════════════════════════════════════════════════════════════════════════
-
 const controlTowerNav: NavItemWithSub = {
   title: "Control Tower",
   icon: Radar,
   items: [
-    { title: "Overview", href: "/control-tower" },
-    { title: "NDR Command Center", href: "/control-tower/ndr" },
-    { title: "AI Actions", href: "/control-tower/ai-actions" },
-    { title: "Proactive Alerts", href: "/control-tower/proactive" },
+    { title: "Real-time Overview", href: "/control-tower" },
+    { title: "Exception Management", href: "/control-tower/exceptions" },
+    { title: "SLA Monitor", href: "/control-tower/sla" },
+    { title: "AI Insights", href: "/control-tower/ai-actions" },
   ],
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// OPERATIONS (Day-to-day activities)
+// ORDER LIFECYCLE
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Orders Section
 const ordersNav: NavItemWithSub = {
   title: "Orders",
   icon: ShoppingCart,
   items: [
     { title: "All Orders", href: "/orders" },
     { title: "Order Import", href: "/orders/import" },
-    { title: "B2B Orders", href: "/b2b/quotations" },
+    { title: "Bulk Actions", href: "/orders/bulk" },
   ],
 };
 
-// Fulfillment Section (Outbound Operations)
-const fulfillmentNav: NavItemWithSub = {
-  title: "Fulfillment",
-  icon: PackageOpen,
+const b2bSalesNav: NavItemWithSub = {
+  title: "B2B Sales",
+  icon: Handshake,
   items: [
-    { title: "Wave Planning", href: "/wms/waves" },
-    { title: "Pick Lists", href: "/wms/picklist" },
-    { title: "Packing Station", href: "/wms/packing" },
-    { title: "Manifest & Handover", href: "/wms/manifest" },
-    { title: "Gate Pass", href: "/wms/gate-pass" },
+    { title: "Quotations", href: "/b2b/quotations" },
+    { title: "B2B Orders", href: "/b2b/orders" },
+    { title: "Price Lists", href: "/b2b/price-lists" },
+    { title: "Credit Management", href: "/b2b/credit" },
+    { title: "B2B Customers", href: "/b2b/customers" },
   ],
 };
 
-// Inbound Section (Receiving Operations)
+// ═══════════════════════════════════════════════════════════════════════════
+// WAREHOUSE OPERATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
 const inboundNav: NavItemWithSub = {
   title: "Inbound",
   icon: ArrowDownToLine,
   items: [
     { title: "Purchase Orders", href: "/inbound/purchase-orders" },
-    { title: "ASN / Receiving", href: "/inbound/receiving" },
+    { title: "ASN Management", href: "/inbound/asn" },
+    { title: "Receiving", href: "/inbound/receiving" },
+    { title: "Inbound QC", href: "/inbound/qc" },
   ],
 };
 
-// Inventory Section
+const fulfillmentNav: NavItemWithSub = {
+  title: "Outbound (Fulfillment)",
+  icon: PackageOpen,
+  items: [
+    { title: "Wave Planning", href: "/fulfillment/waves" },
+    { title: "Picking", href: "/fulfillment/picklist" },
+    { title: "Packing", href: "/fulfillment/packing" },
+    { title: "Outbound QC", href: "/fulfillment/qc" },
+    { title: "Manifest", href: "/fulfillment/manifest" },
+    { title: "Gate Pass", href: "/fulfillment/gate-pass" },
+  ],
+};
+
 const inventoryNav: NavItemWithSub = {
   title: "Inventory",
   icon: Boxes,
   items: [
-    { title: "Stock View", href: "/inventory" },
+    { title: "Stock Overview", href: "/inventory" },
     { title: "Stock Adjustments", href: "/inventory/adjustment" },
     { title: "Cycle Count", href: "/inventory/cycle-count" },
     { title: "Movement History", href: "/inventory/movements" },
+    { title: "Virtual Inventory", href: "/inventory/virtual" },
   ],
 };
 
-// Shipping & Logistics Section
-const shippingNav: NavItemWithSub = {
-  title: "Shipping & Logistics",
+// ═══════════════════════════════════════════════════════════════════════════
+// LOGISTICS & DELIVERY
+// ═══════════════════════════════════════════════════════════════════════════
+
+const shipmentsNav: NavItemWithSub = {
+  title: "Shipments",
   icon: Truck,
   items: [
-    { title: "Shipment Tracking", href: "/logistics/tracking" },
+    { title: "Tracking Dashboard", href: "/logistics/tracking" },
     { title: "AWB Management", href: "/logistics/awb" },
-    { title: "NDR Management", href: "/control-tower/ndr" },
+    { title: "Delivery Performance", href: "/logistics/performance" },
   ],
 };
 
-// Returns Section
+const ndrNav: NavItemWithSub = {
+  title: "NDR Management",
+  icon: AlertCircle,
+  items: [
+    { title: "NDR Queue", href: "/ndr" },
+    { title: "Reattempt Actions", href: "/ndr/reattempts" },
+    { title: "Escalations", href: "/ndr/escalations" },
+  ],
+};
+
 const returnsNav: NavItemWithSub = {
-  title: "Returns",
+  title: "Returns & RTO",
   icon: RotateCcw,
   items: [
     { title: "Customer Returns", href: "/returns" },
     { title: "RTO Management", href: "/returns/rto" },
-    { title: "Return QC", href: "/returns/qc" },
+    { title: "Returns QC", href: "/returns/qc" },
     { title: "Refund Processing", href: "/returns/refunds" },
   ],
 };
 
-// Quality Control Section (Unified)
-const qcNav: NavItemWithSub = {
-  title: "Quality Control",
-  icon: BadgeCheck,
+// ═══════════════════════════════════════════════════════════════════════════
+// PROCUREMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+const procurementNav: NavItemWithSub = {
+  title: "Procurement",
+  icon: ClipboardList,
   items: [
-    { title: "QC Queue", href: "/wms/qc/executions" },
-    { title: "Inbound QC", href: "/inbound/qc" },
-    { title: "QC Templates", href: "/wms/qc/templates" },
+    { title: "Purchase Orders", href: "/procurement/purchase-orders" },
+    { title: "Vendors", href: "/procurement/vendors" },
+    { title: "Vendor Performance", href: "/procurement/performance" },
   ],
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ANALYTICS & FINANCE
+// FINANCE & ANALYTICS
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Finance Section
 const financeNav: NavItemWithSub = {
   title: "Finance",
   icon: CreditCard,
   items: [
+    { title: "Finance Dashboard", href: "/finance/dashboard" },
     { title: "COD Reconciliation", href: "/finance/cod-reconciliation" },
     { title: "Freight Billing", href: "/finance/freight-billing" },
     { title: "Weight Discrepancy", href: "/finance/weight-discrepancy" },
@@ -201,94 +259,127 @@ const financeNav: NavItemWithSub = {
   ],
 };
 
-// Reports Section
 const reportsNav: NavItemWithSub = {
-  title: "Reports",
+  title: "Reports & Analytics",
   icon: BarChart3,
   items: [
-    { title: "Sales Reports", href: "/reports/sales" },
-    { title: "Inventory Reports", href: "/reports/inventory" },
-    { title: "Logistics Reports", href: "/reports/logistics" },
-    { title: "Finance Reports", href: "/reports/finance" },
+    { title: "Reports Hub", href: "/reports" },
     { title: "Scheduled Reports", href: "/reports/scheduled" },
+    { title: "Custom Reports", href: "/reports/custom" },
   ],
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CONFIGURATION (Masters & Settings)
-// ═══════════════════════════════════════════════════════════════════════════
-
-// Catalog Section (Masters)
-const catalogNav: NavItemWithSub = {
-  title: "Catalog",
-  icon: Tags,
+const analyticsNav: NavItemWithSub = {
+  title: "Analytics",
+  icon: TrendingUp,
   items: [
-    { title: "SKU Master", href: "/settings/skus" },
-    { title: "SKU Bundles / Kits", href: "/settings/bundles" },
-    { title: "B2B Customers", href: "/b2b/customers" },
+    { title: "Sales Analytics", href: "/analytics/sales" },
+    { title: "Operations Analytics", href: "/analytics/operations" },
+    { title: "Carrier Analytics", href: "/analytics/carriers" },
   ],
 };
 
-// Warehouse Setup Section
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIGURATION (COLLAPSIBLE SECTION)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const mastersNav: NavItemWithSub = {
+  title: "Masters",
+  icon: Database,
+  items: [
+    { title: "SKU Master", href: "/masters/skus" },
+    { title: "SKU Bundles / Kits", href: "/masters/bundles" },
+    { title: "Categories", href: "/masters/categories" },
+  ],
+};
+
 const warehouseSetupNav: NavItemWithSub = {
   title: "Warehouse Setup",
   icon: Warehouse,
   items: [
-    { title: "Locations / Warehouses", href: "/settings/locations" },
+    { title: "Locations", href: "/setup/locations" },
+    { title: "Zones & Bins", href: "/setup/zones" },
   ],
 };
 
-// Logistics Setup Section
 const logisticsSetupNav: NavItemWithSub = {
   title: "Logistics Setup",
   icon: Route,
   items: [
-    { title: "Courier Partners", href: "/logistics/transporters" },
-    { title: "Rate Cards", href: "/logistics/rate-cards" },
-    { title: "Shipping Rules", href: "/logistics/shipping-rules" },
-    { title: "Allocation Rules", href: "/logistics/allocation-rules" },
-    { title: "Serviceability", href: "/logistics/pincodes" },
+    { title: "Transporters", href: "/setup/transporters" },
+    { title: "Rate Cards", href: "/setup/rate-cards" },
+    { title: "Shipping Rules", href: "/setup/shipping-rules" },
+    { title: "Allocation Rules", href: "/setup/allocation-rules" },
+    { title: "Serviceability", href: "/setup/pincodes" },
   ],
 };
 
-// Channels Section
 const channelsNav: NavItemWithSub = {
   title: "Channels",
   icon: Store,
   items: [
-    { title: "Marketplace Integrations", href: "/channels" },
-    { title: "Sync Settings", href: "/channels/sync" },
+    { title: "Marketplace Integrations", href: "/setup/channels" },
+    { title: "Sync Settings", href: "/setup/channels/sync" },
   ],
 };
 
-// Settings Section
+const qcSetupNav: NavItemWithSub = {
+  title: "Quality Control",
+  icon: BadgeCheck,
+  items: [
+    { title: "QC Templates", href: "/setup/qc-templates" },
+    { title: "QC Parameters", href: "/setup/qc-parameters" },
+  ],
+};
+
+const notificationsNav: NavItemWithSub = {
+  title: "Notifications",
+  icon: Bell,
+  items: [
+    { title: "Alert Rules", href: "/setup/alerts" },
+    { title: "Communication Templates", href: "/setup/templates" },
+  ],
+};
+
 const settingsNav: NavItemWithSub = {
   title: "Settings",
   icon: Settings,
   items: [
     { title: "Company Profile", href: "/settings/company" },
     { title: "Users & Roles", href: "/settings/users" },
-    { title: "API Integrations", href: "/settings/integrations" },
+    { title: "API & Integrations", href: "/settings/integrations" },
   ],
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SUPER ADMIN ONLY
+// ADMIN (SUPER ADMIN ONLY)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const adminPanelNav: NavItemWithHref = {
-  title: "All Companies",
+const platformAdminNav: NavItemWithSub = {
+  title: "Platform Admin",
   icon: Shield,
-  href: "/master/brands",
+  items: [
+    { title: "All Companies", href: "/master/companies" },
+    { title: "All Brands/Tenants", href: "/master/brands" },
+    { title: "System Health", href: "/master/health" },
+    { title: "Audit Logs", href: "/master/audit" },
+  ],
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER COMPONENT: Collapsible Menu Item
 // ═══════════════════════════════════════════════════════════════════════════
 
-function CollapsibleNavItem({ item, pathname }: { item: NavItemWithSub; pathname: string }) {
+function CollapsibleNavItem({
+  item,
+  pathname,
+}: {
+  item: NavItemWithSub;
+  pathname: string;
+}) {
   const isActive = item.items.some(
-    (subItem) => pathname === subItem.href || pathname.startsWith(subItem.href + "/")
+    (subItem) =>
+      pathname === subItem.href || pathname.startsWith(subItem.href + "/")
   );
 
   return (
@@ -307,7 +398,10 @@ function CollapsibleNavItem({ item, pathname }: { item: NavItemWithSub; pathname
               <SidebarMenuSubItem key={subItem.href}>
                 <SidebarMenuSubButton
                   asChild
-                  isActive={pathname === subItem.href || pathname.startsWith(subItem.href + "/")}
+                  isActive={
+                    pathname === subItem.href ||
+                    pathname.startsWith(subItem.href + "/")
+                  }
                 >
                   <Link href={subItem.href}>{subItem.title}</Link>
                 </SidebarMenuSubButton>
@@ -316,6 +410,69 @@ function CollapsibleNavItem({ item, pathname }: { item: NavItemWithSub; pathname
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
+    </Collapsible>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER COMPONENT: Collapsible Section Group
+// ═══════════════════════════════════════════════════════════════════════════
+
+function CollapsibleSectionGroup({
+  label,
+  labelColor,
+  items,
+  pathname,
+  defaultOpen = true,
+}: {
+  label: string;
+  labelColor?: string;
+  items: NavItemWithSub[];
+  pathname: string;
+  defaultOpen?: boolean;
+}) {
+  const hasActiveItem = items.some((item) =>
+    item.items.some(
+      (subItem) =>
+        pathname === subItem.href || pathname.startsWith(subItem.href + "/")
+    )
+  );
+
+  const [isOpen, setIsOpen] = useState(defaultOpen || hasActiveItem);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <SidebarGroup>
+        <CollapsibleTrigger asChild>
+          <SidebarGroupLabel
+            className={cn(
+              "text-xs font-semibold cursor-pointer hover:text-foreground transition-colors flex items-center justify-between",
+              labelColor || "text-muted-foreground"
+            )}
+          >
+            {label}
+            <ChevronRight
+              className={cn(
+                "h-3 w-3 transition-transform",
+                isOpen && "rotate-90"
+              )}
+            />
+          </SidebarGroupLabel>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <CollapsibleNavItem
+                  key={item.title}
+                  item={item}
+                  pathname={pathname}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
     </Collapsible>
   );
 }
@@ -358,30 +515,24 @@ export function AppSidebar() {
         {session?.user?.role === "SUPER_ADMIN" && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs font-semibold text-orange-600">
-              Admin Panel
+              Admin
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === adminPanelNav.href || pathname.startsWith(adminPanelNav.href + "/")}
-                  >
-                    <Link href={adminPanelNav.href}>
-                      <adminPanelNav.icon className="h-4 w-4" />
-                      <span>{adminPanelNav.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <CollapsibleNavItem item={platformAdminNav} pathname={pathname} />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
-        {/* ═══ DASHBOARD ═══ */}
+        {/* ═══ COMMAND CENTER ═══ */}
         <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-blue-600">
+            Command Center
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* Dashboard - Direct Link */}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -393,68 +544,95 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* ═══ CONTROL TOWER ═══ */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-blue-600">
-            Control Tower
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
+              {/* Control Tower */}
               <CollapsibleNavItem item={controlTowerNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* ═══ OPERATIONS ═══ */}
+        {/* ═══ ORDER LIFECYCLE ═══ */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground">
-            Operations
+          <SidebarGroupLabel className="text-xs font-semibold text-green-600">
+            Order Lifecycle
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <CollapsibleNavItem item={ordersNav} pathname={pathname} />
-              <CollapsibleNavItem item={fulfillmentNav} pathname={pathname} />
-              <CollapsibleNavItem item={inboundNav} pathname={pathname} />
-              <CollapsibleNavItem item={inventoryNav} pathname={pathname} />
-              <CollapsibleNavItem item={shippingNav} pathname={pathname} />
-              <CollapsibleNavItem item={returnsNav} pathname={pathname} />
-              <CollapsibleNavItem item={qcNav} pathname={pathname} />
+              <CollapsibleNavItem item={b2bSalesNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* ═══ ANALYTICS & FINANCE ═══ */}
+        {/* ═══ WAREHOUSE OPERATIONS ═══ */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground">
-            Analytics & Finance
+          <SidebarGroupLabel className="text-xs font-semibold text-purple-600">
+            Warehouse Operations
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <CollapsibleNavItem item={inboundNav} pathname={pathname} />
+              <CollapsibleNavItem item={fulfillmentNav} pathname={pathname} />
+              <CollapsibleNavItem item={inventoryNav} pathname={pathname} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* ═══ LOGISTICS & DELIVERY ═══ */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-amber-600">
+            Logistics & Delivery
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <CollapsibleNavItem item={shipmentsNav} pathname={pathname} />
+              <CollapsibleNavItem item={ndrNav} pathname={pathname} />
+              <CollapsibleNavItem item={returnsNav} pathname={pathname} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* ═══ PROCUREMENT ═══ */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-teal-600">
+            Procurement
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <CollapsibleNavItem item={procurementNav} pathname={pathname} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* ═══ FINANCE & ANALYTICS ═══ */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-rose-600">
+            Finance & Analytics
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <CollapsibleNavItem item={financeNav} pathname={pathname} />
               <CollapsibleNavItem item={reportsNav} pathname={pathname} />
+              <CollapsibleNavItem item={analyticsNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* ═══ CONFIGURATION ═══ */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground">
-            Configuration
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <CollapsibleNavItem item={catalogNav} pathname={pathname} />
-              <CollapsibleNavItem item={warehouseSetupNav} pathname={pathname} />
-              <CollapsibleNavItem item={logisticsSetupNav} pathname={pathname} />
-              <CollapsibleNavItem item={channelsNav} pathname={pathname} />
-              <CollapsibleNavItem item={settingsNav} pathname={pathname} />
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* ═══ CONFIGURATION (COLLAPSIBLE) ═══ */}
+        <CollapsibleSectionGroup
+          label="Configuration"
+          labelColor="text-slate-500"
+          items={[
+            mastersNav,
+            warehouseSetupNav,
+            logisticsSetupNav,
+            channelsNav,
+            qcSetupNav,
+            notificationsNav,
+            settingsNav,
+          ]}
+          pathname={pathname}
+          defaultOpen={false}
+        />
       </SidebarContent>
 
       <SidebarFooter className="border-t">

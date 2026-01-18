@@ -1,3 +1,5 @@
+"use client";
+
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -7,6 +9,8 @@ import {
   BreadcrumbLink,
   BreadcrumbList,
 } from "@/components/ui/breadcrumb";
+import { CommandPalette } from "@/components/layout/command-palette";
+import { QuickActionsBar } from "@/components/layout/quick-actions-bar";
 
 export default function DashboardLayout({
   children,
@@ -27,10 +31,13 @@ export default function DashboardLayout({
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="flex-1" />
+          <CommandPalette />
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6">
           {children}
         </main>
+        <QuickActionsBar />
       </SidebarInset>
     </SidebarProvider>
   );
