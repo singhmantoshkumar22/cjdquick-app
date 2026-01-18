@@ -322,16 +322,27 @@ async def detect_exceptions(
                     exceptions_created += 1
                     rule_result["exceptionsCreated"] += 1
 
-                    # Create AI Action if enabled
+                    # Create AI Action if enabled (map rule action types to DB enum values)
                     if rule.aiActionEnabled and rule.aiActionType:
+                        # Map detection rule action types to database enum values
+                        action_type_map = {
+                            "RECOMMEND": "NDR_CLASSIFICATION",
+                            "AUTO_CLASSIFY": "NDR_CLASSIFICATION",
+                            "AUTO_OUTREACH": "NDR_RESOLUTION",
+                            "AUTO_ESCALATE": "NDR_RESOLUTION",
+                            "AUTO_RESOLVE": "NDR_RESOLUTION",
+                            "PREDICT": "DEMAND_FORECAST",
+                        }
+                        mapped_action_type = action_type_map.get(rule.aiActionType, "NDR_CLASSIFICATION")
+
                         ai_action = AIActionLog(
                             id=uuid4(),
-                            actionType=rule.aiActionType,
+                            actionType=mapped_action_type,
                             entityType=rule.entityType,
                             entityId=entity_id,
                             companyId=getattr(entity, 'companyId', company_id),
                             ndrId=entity.id if rule.entityType == "NDR" else None,
-                            decision=f"Triggered by rule: {rule.ruleCode}",
+                            decision=f"Triggered by rule: {rule.ruleCode} ({rule.aiActionType})",
                             reasoning=f"Rule '{rule.name}' detected an issue that requires {rule.aiActionType}",
                             confidence=0.85,
                             riskLevel=severity,
