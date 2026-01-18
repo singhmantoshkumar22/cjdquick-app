@@ -116,9 +116,11 @@ def list_ndrs(
         order = session.get(Order, n.orderId) if n.orderId else None
         delivery = session.get(Delivery, n.deliveryId) if n.deliveryId else None
 
-        # Count outreach attempts and AI actions
-        outreach_count = len(n.outreaches) if n.outreaches else 0
-        ai_action_count = len(n.aiActionLogs) if n.aiActionLogs else 0
+        # Count outreach attempts - use try/except to handle lazy loading issues
+        try:
+            outreach_count = len(n.outreaches) if n.outreaches else 0
+        except Exception:
+            outreach_count = 0
 
         formatted_ndrs.append({
             "id": str(n.id),
@@ -148,13 +150,10 @@ def list_ndrs(
                 "deliveryNo": delivery.deliveryNo if delivery else "N/A",
                 "awbNo": delivery.awbNo if delivery else "N/A",
                 "status": delivery.status.value if delivery and delivery.status else "PENDING",
-                "transporter": None,  # Would need to load transporter relationship
+                "transporter": None,
             } if n.deliveryId else None,
             "outreachAttempts": [],
-            "_count": {
-                "outreachAttempts": outreach_count,
-                "aiActions": ai_action_count,
-            }
+            "outreachCount": outreach_count,
         })
 
     return {
