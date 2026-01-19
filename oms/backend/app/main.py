@@ -8,6 +8,9 @@ from .core.config import settings
 from .api.routes import api_router
 from .services.scheduler import start_scheduler, shutdown_scheduler, get_last_scan_result
 
+# Import all models to register them with SQLModel before table creation
+from . import models  # noqa: F401
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -21,6 +24,16 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events for the FastAPI app."""
     # Startup
     logger.info("Starting CJDQuick OMS API...")
+
+    # Create any missing database tables
+    from .core.database import create_db_and_tables
+    try:
+        logger.info("Ensuring database tables exist...")
+        create_db_and_tables()
+        logger.info("Database tables verified")
+    except Exception as e:
+        logger.warning(f"Table creation warning (tables may already exist): {e}")
+
     start_scheduler()
     logger.info("Scheduler started - Detection Engine will run every 15 minutes")
     yield
