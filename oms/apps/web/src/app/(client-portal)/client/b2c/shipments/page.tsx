@@ -63,7 +63,8 @@ export default function B2CShipmentsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (paymentFilter !== "all") params.set("paymentMode", paymentFilter);
 
-      const response = await fetch(`/api/v1/deliveries?${params}`);
+      // Use orders API - shipped orders represent shipments in B2C context
+      const response = await fetch(`/api/v1/orders?${params}&status=SHIPPED`);
       if (response.ok) {
         const data = await response.json();
         const items = Array.isArray(data) ? data : data.items || [];

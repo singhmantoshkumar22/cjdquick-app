@@ -54,10 +54,10 @@ export default function B2CCourierDashboard() {
     try {
       setIsLoading(true);
 
-      // Fetch shipment stats
+      // Fetch shipment stats - uses orders/stats as deliveries are part of orders
       const [statsRes, shipmentsRes] = await Promise.all([
-        fetch("/api/v1/logistics/stats"),
-        fetch("/api/v1/deliveries?limit=5&sort=-createdAt"),
+        fetch("/api/v1/orders/stats"),
+        fetch("/api/v1/orders?limit=5&status=SHIPPED"),
       ]);
 
       if (statsRes.ok) {

@@ -74,7 +74,8 @@ export default function BulkShipmentUploadPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/v1/deliveries/bulk-import", {
+      // Use orders import endpoint - shipments are created from orders
+      const response = await fetch("/api/v1/orders/import", {
         method: "POST",
         body: formData,
       });

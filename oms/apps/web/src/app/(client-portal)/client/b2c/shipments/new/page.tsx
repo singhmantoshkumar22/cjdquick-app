@@ -189,10 +189,16 @@ export default function CreateShipmentPage() {
         orderNumber: formData.orderNumber || `SHP-${Date.now()}`,
       };
 
-      const response = await fetch("/api/v1/deliveries", {
+      // Create order first, then delivery will be associated
+      const response = await fetch("/api/v1/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          channel: "DIRECT",
+          orderType: "B2C",
+          status: "CONFIRMED",
+        }),
       });
 
       if (response.ok) {
