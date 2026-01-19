@@ -98,7 +98,8 @@ def create_detection_rule(
     data: DetectionRuleCreate,
     company_filter: CompanyFilter = Depends(),
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_admin)
+    _: None = Depends(require_admin()),
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new detection rule. Admin only."""
     # Generate rule code
@@ -125,7 +126,8 @@ def update_detection_rule(
     rule_id: UUID,
     data: DetectionRuleUpdate,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_admin)
+    _: None = Depends(require_admin()),
+    current_user: User = Depends(get_current_user)
 ):
     """Update detection rule. Admin only."""
     rule = session.get(DetectionRule, rule_id)
@@ -148,7 +150,7 @@ def update_detection_rule(
 def delete_detection_rule(
     rule_id: UUID,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_admin)
+    _: None = Depends(require_admin())
 ):
     """Delete detection rule. Admin only."""
     rule = session.get(DetectionRule, rule_id)
@@ -165,7 +167,7 @@ def delete_detection_rule(
 def toggle_detection_rule(
     rule_id: UUID,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_admin)
+    _: None = Depends(require_admin())
 ):
     """Toggle detection rule active status. Admin only."""
     rule = session.get(DetectionRule, rule_id)
