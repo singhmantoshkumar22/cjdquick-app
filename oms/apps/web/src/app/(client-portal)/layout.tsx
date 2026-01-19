@@ -28,6 +28,7 @@ import {
   Route,
   Store,
   Settings,
+  Gauge,
 } from "lucide-react";
 
 interface NavItem {
@@ -46,6 +47,20 @@ const dashboardNav: NavItem = {
   name: "Dashboard",
   href: "/client",
   icon: LayoutDashboard,
+};
+
+// Control Tower
+const controlTowerNav: NavItem = {
+  name: "Control Tower",
+  href: "/client/control-tower",
+  icon: Gauge,
+  children: [
+    { name: "Overview", href: "/client/control-tower" },
+    { name: "Exception Management", href: "/client/control-tower/exceptions" },
+    { name: "NDR Command Center", href: "/client/control-tower/ndr" },
+    { name: "AI Actions", href: "/client/control-tower/ai-actions" },
+    { name: "Detection Rules", href: "/client/control-tower/rules" },
+  ],
 };
 
 // ═══ OPERATIONS ═══
@@ -239,7 +254,7 @@ export default function ClientPortalLayout({
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   // All navigation items combined for active detection
-  const allNavItems = [dashboardNav, ...operationsNav, ...analyticsNav, ...configNav];
+  const allNavItems = [dashboardNav, controlTowerNav, ...operationsNav, ...analyticsNav, ...configNav];
 
   // Auto-expand the active section based on current path
   useEffect(() => {
@@ -395,6 +410,10 @@ export default function ClientPortalLayout({
           {/* Dashboard */}
           {renderNavItem(dashboardNav)}
 
+          {/* Control Tower Section */}
+          {renderSectionLabel("Control Tower")}
+          {renderNavItem(controlTowerNav)}
+
           {/* Operations Section */}
           {renderSectionLabel("Operations")}
           {operationsNav.map(item => renderNavItem(item))}
@@ -465,6 +484,14 @@ export default function ClientPortalLayout({
             <nav className="py-2">
               {/* Dashboard */}
               {renderNavItem(dashboardNav, true)}
+
+              {/* Control Tower Section */}
+              <div className="px-4 py-2 mt-4">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Control Tower
+                </span>
+              </div>
+              {renderNavItem(controlTowerNav, true)}
 
               {/* Operations Section */}
               <div className="px-4 py-2 mt-4">

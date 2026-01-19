@@ -2,22 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
   ArrowRight,
+  Bot,
   CheckCircle,
   Clock,
   Gauge,
   Lightbulb,
   Package,
   RefreshCw,
+  Settings,
   ShieldAlert,
   Target,
   Truck,
   TrendingDown,
   TrendingUp,
   XCircle,
+  Zap,
 } from "lucide-react";
 
 interface SLAPredictions {
@@ -85,100 +89,67 @@ interface PredictiveInsight {
   }[];
 }
 
-// Mock data for initial rendering
-const mockSnapshot: ControlTowerSnapshot = {
+// Default empty state for initial rendering
+const defaultSnapshot: ControlTowerSnapshot = {
   timestamp: new Date(),
-  activeOrders: 1247,
-  ordersAtRisk: 45,
-  ordersBreached: 12,
+  activeOrders: 0,
+  ordersAtRisk: 0,
+  ordersBreached: 0,
   slaPredictions: {
-    onTrack: 1156,
-    atRisk: 67,
-    breached: 12,
-    critical: 12,
+    onTrack: 0,
+    atRisk: 0,
+    breached: 0,
+    critical: 0,
   },
   dayPerformance: {
     d0: {
       metric: "D0",
       date: new Date().toISOString(),
-      predictedOrders: 234,
-      predictedOnTime: 218,
-      predictedDelayed: 16,
-      predictedPercentage: 93,
+      predictedOrders: 0,
+      predictedOnTime: 0,
+      predictedDelayed: 0,
+      predictedPercentage: 0,
       targetPercentage: 95,
-      status: "BELOW_TARGET",
-      riskFactors: ["High order volume", "Packing capacity stretched"],
+      status: "ON_TARGET",
+      riskFactors: [],
     },
     d1: {
       metric: "D1",
       date: new Date(Date.now() + 86400000).toISOString(),
-      predictedOrders: 567,
-      predictedOnTime: 561,
-      predictedDelayed: 6,
-      predictedPercentage: 99,
+      predictedOrders: 0,
+      predictedOnTime: 0,
+      predictedDelayed: 0,
+      predictedPercentage: 0,
       targetPercentage: 98,
-      status: "EXCEEDING",
+      status: "ON_TARGET",
       riskFactors: [],
     },
     d2: {
       metric: "D2",
       date: new Date(Date.now() + 172800000).toISOString(),
-      predictedOrders: 389,
-      predictedOnTime: 385,
-      predictedDelayed: 4,
-      predictedPercentage: 99,
+      predictedOrders: 0,
+      predictedOnTime: 0,
+      predictedDelayed: 0,
+      predictedPercentage: 0,
       targetPercentage: 99,
       status: "ON_TARGET",
       riskFactors: [],
     },
   },
-  carrierHealth: [
-    { carrierId: "delhivery", carrierName: "Delhivery", status: "HEALTHY", avgDelay: 0.5, ndrRate: 2.3 },
-    { carrierId: "bluedart", carrierName: "BlueDart", status: "DEGRADED", avgDelay: 4.2, ndrRate: 5.1 },
-    { carrierId: "xpressbees", carrierName: "XpressBees", status: "HEALTHY", avgDelay: 1.1, ndrRate: 3.2 },
-  ],
+  carrierHealth: [],
   inventoryHealth: {
-    stockoutRisk: 15,
-    lowStockSkus: 23,
-    criticalSkus: 5,
+    stockoutRisk: 0,
+    lowStockSkus: 0,
+    criticalSkus: 0,
   },
 };
 
-const mockInsights: PredictiveInsight[] = [
-  {
-    type: "SLA_RISK",
-    severity: "CRITICAL",
-    title: "45 orders at SLA breach risk",
-    description: "Orders from Delhi NCR region facing delays due to carrier capacity constraints",
-    predictedImpact: { affectedOrders: 45, revenueAtRisk: 125000, slaImpact: 3.6 },
-    timeToImpact: 120,
-    confidence: 0.87,
-    recommendations: [
-      { action: "Switch to alternate carrier for Delhi NCR", effort: "LOW", impact: "HIGH" },
-      { action: "Prioritize high-value orders for expedited shipping", effort: "MEDIUM", impact: "MEDIUM" },
-    ],
-  },
-  {
-    type: "CARRIER_ISSUE",
-    severity: "WARNING",
-    title: "BlueDart showing elevated delays",
-    description: "Average delay increased from 1.2 to 4.2 hours over past 24 hours",
-    predictedImpact: { affectedOrders: 67, slaImpact: 2.1 },
-    timeToImpact: 60,
-    confidence: 0.91,
-    recommendations: [
-      { action: "Route new orders to Delhivery for affected pincodes", effort: "LOW", impact: "HIGH" },
-      { action: "Contact BlueDart operations for status update", effort: "LOW", impact: "LOW" },
-    ],
-  },
-];
-
 export default function ClientControlTowerPage() {
   const { data: session } = useSession();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [snapshot, setSnapshot] = useState<ControlTowerSnapshot>(mockSnapshot);
-  const [insights, setInsights] = useState<PredictiveInsight[]>(mockInsights);
+  const [snapshot, setSnapshot] = useState<ControlTowerSnapshot>(defaultSnapshot);
+  const [insights, setInsights] = useState<PredictiveInsight[]>([]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -219,6 +190,17 @@ export default function ClientControlTowerPage() {
   };
 
   const overallStatus = getOverallStatus();
+
+  if (isLoading && snapshot.activeOrders === 0) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <RefreshCw className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-500">Loading Control Tower data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -264,6 +246,70 @@ export default function ClientControlTowerPage() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Quick Access Links */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Link
+          href="/client/control-tower/exceptions"
+          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="font-medium">Exception Management</p>
+              <p className="text-sm text-gray-500">Monitor & resolve issues</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-gray-400" />
+        </Link>
+        <Link
+          href="/client/control-tower/ndr"
+          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <Truck className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="font-medium">NDR Command Center</p>
+              <p className="text-sm text-gray-500">Manage non-deliveries</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-gray-400" />
+        </Link>
+        <Link
+          href="/client/control-tower/ai-actions"
+          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Bot className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="font-medium">AI Actions</p>
+              <p className="text-sm text-gray-500">AI automation log</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-gray-400" />
+        </Link>
+        <Link
+          href="/client/control-tower/rules"
+          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:border-blue-300 hover:bg-blue-50/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <Settings className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <p className="font-medium">Detection Rules</p>
+              <p className="text-sm text-gray-500">View active rules</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-gray-400" />
+        </Link>
       </div>
 
       {/* SLA Status Cards */}
