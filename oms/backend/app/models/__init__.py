@@ -506,6 +506,33 @@ from .shipment import (
     ShipmentStats,
 )
 
+# B2B Logistics models and schemas
+from .b2b_logistics import (
+    # Enums
+    LRStatus,
+    VehicleType,
+    FreightPaymentMode,
+    BookingType,
+    BookingStatus,
+    ProductType,
+    # Models
+    B2BConsignee,
+    LorryReceipt,
+    B2BBooking,
+    # Schemas
+    B2BConsigneeCreate,
+    B2BConsigneeUpdate,
+    B2BConsigneeResponse,
+    LorryReceiptCreate,
+    LorryReceiptUpdate,
+    LorryReceiptResponse,
+    LorryReceiptBrief,
+    B2BBookingCreate,
+    B2BBookingUpdate,
+    B2BBookingResponse,
+    B2BLogisticsStats,
+)
+
 __all__ = [
     # Base
     "BaseModel",
@@ -970,4 +997,29 @@ __all__ = [
     "ShipmentResponse",
     "ShipmentBrief",
     "ShipmentStats",
+    # B2B Logistics Enums
+    "LRStatus",
+    "VehicleType",
+    "FreightPaymentMode",
+    "BookingType",
+    "BookingStatus",
+    "ProductType",
+    # B2BConsignee
+    "B2BConsignee",
+    "B2BConsigneeCreate",
+    "B2BConsigneeUpdate",
+    "B2BConsigneeResponse",
+    # LorryReceipt
+    "LorryReceipt",
+    "LorryReceiptCreate",
+    "LorryReceiptUpdate",
+    "LorryReceiptResponse",
+    "LorryReceiptBrief",
+    # B2BBooking
+    "B2BBooking",
+    "B2BBookingCreate",
+    "B2BBookingUpdate",
+    "B2BBookingResponse",
+    # B2B Logistics Stats
+    "B2BLogisticsStats",
 ]
