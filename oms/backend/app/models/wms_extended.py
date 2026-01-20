@@ -227,12 +227,23 @@ class StockAdjustmentBase(SQLModel):
     """Stock Adjustment base fields"""
     adjustmentNo: str = Field(unique=True)
     locationId: UUID = Field(foreign_key="Location.id", index=True)
-    reason: str = Field(index=True)
-    status: str = Field(default="PENDING", index=True)
+    reason: str = Field(index=True)  # CYCLE_COUNT, DAMAGE, THEFT, EXPIRED, FOUND, CORRECTION, WRITE_OFF, OTHER
+    status: str = Field(default="DRAFT", index=True)  # DRAFT, PENDING, APPROVED, REJECTED, POSTED
     remarks: Optional[str] = None
+    createdById: UUID = Field(foreign_key="User.id")
+    # Approval workflow
+    submittedById: Optional[UUID] = Field(default=None, foreign_key="User.id")
+    submittedAt: Optional[datetime] = None
     approvedById: Optional[UUID] = Field(default=None, foreign_key="User.id")
     approvedAt: Optional[datetime] = None
-    createdById: UUID = Field(foreign_key="User.id")
+    rejectedById: Optional[UUID] = Field(default=None, foreign_key="User.id")
+    rejectedAt: Optional[datetime] = None
+    rejectionReason: Optional[str] = None
+    # Posting
+    postedById: Optional[UUID] = Field(default=None, foreign_key="User.id")
+    postedAt: Optional[datetime] = None
+    # Company for multi-tenant
+    companyId: Optional[UUID] = Field(default=None, foreign_key="Company.id", index=True)
 
 
 class StockAdjustment(StockAdjustmentBase, BaseModel, table=True):

@@ -21,6 +21,8 @@ from .enums import (
     BrandUserRole,
     LocationType,
     ZoneType,
+    BinType,
+    TemperatureType,
     Channel,
     OrderType,
     PaymentMode,
@@ -30,6 +32,12 @@ from .enums import (
     InventoryValuationMethod,
     InboundType,
     InboundStatus,
+    GoodsReceiptStatus,
+    PutawayTaskStatus,
+    AllocationStatus,
+    StockAdjustmentStatus,
+    AdjustmentReasonCode,
+    MovementType,
     CustomerType,
     CustomerStatus,
     CreditStatus,
@@ -93,10 +101,14 @@ from .company import (
     ZoneCreate,
     ZoneUpdate,
     ZoneResponse,
+    ZoneBrief,
     Bin,
     BinCreate,
     BinUpdate,
     BinResponse,
+    BinBrief,
+    BinBulkCreate,
+    BinCapacityResponse,
 )
 
 # Brand model and schemas
@@ -326,6 +338,35 @@ from .b2b import (
     B2BCreditTransactionResponse,
 )
 
+# Goods Receipt models and schemas
+from .goods_receipt import (
+    GoodsReceipt,
+    GoodsReceiptCreate,
+    GoodsReceiptUpdate,
+    GoodsReceiptResponse,
+    GoodsReceiptBrief,
+    GoodsReceiptWithItems,
+    GoodsReceiptItem,
+    GoodsReceiptItemCreate,
+    GoodsReceiptItemUpdate,
+    GoodsReceiptItemResponse,
+)
+
+# Inventory Allocation models and schemas
+from .inventory_allocation import (
+    InventoryAllocation,
+    InventoryAllocationCreate,
+    InventoryAllocationUpdate,
+    InventoryAllocationResponse,
+    InventoryAllocationBrief,
+    AllocationRequest,
+    AllocationResult,
+    BulkAllocationRequest,
+    BulkAllocationResult,
+    DeallocationRequest,
+    ConfirmPickRequest,
+)
+
 # WMS Extended models and schemas
 from .wms_extended import (
     CycleCount,
@@ -533,6 +574,23 @@ from .b2b_logistics import (
     B2BLogisticsStats,
 )
 
+# Putaway models and schemas
+from .putaway import (
+    PutawayTask,
+    PutawayTaskCreate,
+    PutawayTaskUpdate,
+    PutawayTaskAssign,
+    PutawayTaskComplete,
+    PutawayTaskCancel,
+    PutawayTaskResponse,
+    PutawayTaskBrief,
+    BinSuggestion,
+    BinSuggestionRequest,
+    BinSuggestionResponse,
+    BulkPutawayTaskCreate,
+    BulkPutawayTaskResponse,
+)
+
 __all__ = [
     # Base
     "BaseModel",
@@ -616,11 +674,24 @@ __all__ = [
     "ZoneCreate",
     "ZoneUpdate",
     "ZoneResponse",
+    "ZoneBrief",
     # Bin
     "Bin",
     "BinCreate",
     "BinUpdate",
     "BinResponse",
+    "BinBrief",
+    "BinBulkCreate",
+    "BinCapacityResponse",
+    # WMS Enums
+    "BinType",
+    "TemperatureType",
+    "GoodsReceiptStatus",
+    "PutawayTaskStatus",
+    "AllocationStatus",
+    "StockAdjustmentStatus",
+    "AdjustmentReasonCode",
+    "MovementType",
     # Brand
     "Brand",
     "BrandCreate",
@@ -865,6 +936,30 @@ __all__ = [
     "VirtualInventoryCreate",
     "VirtualInventoryUpdate",
     "VirtualInventoryResponse",
+    # GoodsReceipt
+    "GoodsReceipt",
+    "GoodsReceiptCreate",
+    "GoodsReceiptUpdate",
+    "GoodsReceiptResponse",
+    "GoodsReceiptBrief",
+    "GoodsReceiptWithItems",
+    # GoodsReceiptItem
+    "GoodsReceiptItem",
+    "GoodsReceiptItemCreate",
+    "GoodsReceiptItemUpdate",
+    "GoodsReceiptItemResponse",
+    # InventoryAllocation
+    "InventoryAllocation",
+    "InventoryAllocationCreate",
+    "InventoryAllocationUpdate",
+    "InventoryAllocationResponse",
+    "InventoryAllocationBrief",
+    "AllocationRequest",
+    "AllocationResult",
+    "BulkAllocationRequest",
+    "BulkAllocationResult",
+    "DeallocationRequest",
+    "ConfirmPickRequest",
     # CODReconciliation
     "CODReconciliation",
     "CODReconciliationCreate",
@@ -1022,4 +1117,19 @@ __all__ = [
     "B2BBookingResponse",
     # B2B Logistics Stats
     "B2BLogisticsStats",
+    # PutawayTask
+    "PutawayTask",
+    "PutawayTaskCreate",
+    "PutawayTaskUpdate",
+    "PutawayTaskAssign",
+    "PutawayTaskComplete",
+    "PutawayTaskCancel",
+    "PutawayTaskResponse",
+    "PutawayTaskBrief",
+    # Bin Suggestion
+    "BinSuggestion",
+    "BinSuggestionRequest",
+    "BinSuggestionResponse",
+    "BulkPutawayTaskCreate",
+    "BulkPutawayTaskResponse",
 ]

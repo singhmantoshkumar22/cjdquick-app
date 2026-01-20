@@ -106,6 +106,12 @@ class SKU(BaseModel, table=True):
     # Status
     isActive: bool = Field(default=True)
 
+    # Inventory Valuation - Override for this SKU
+    valuationMethod: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, default=None)
+    )  # FIFO, LIFO, FEFO, WAC - overrides company/location default
+
     # Variant flags
     isVariantParent: bool = Field(default=False)
     isVariant: bool = Field(default=False)
@@ -155,6 +161,7 @@ class SKUBase(SQLModel):
     images: List[str] = []
     attributes: Optional[dict] = None
     isActive: bool = True
+    valuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC
     isVariantParent: bool = False
     isVariant: bool = False
 
@@ -183,6 +190,7 @@ class SKUCreate(CreateBase):
     barcodes: List[str] = []
     images: List[str] = []
     attributes: Optional[dict] = None
+    valuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC
     companyId: UUID
 
 
@@ -211,6 +219,7 @@ class SKUUpdate(UpdateBase):
     images: Optional[List[str]] = None
     attributes: Optional[dict] = None
     isActive: Optional[bool] = None
+    valuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC
     isVariantParent: Optional[bool] = None
     isVariant: Optional[bool] = None
 
@@ -241,6 +250,7 @@ class SKUResponse(ResponseBase):
     images: List[str] = []
     attributes: Optional[dict] = None
     isActive: bool
+    valuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC
     isVariantParent: bool
     isVariant: bool
     companyId: UUID

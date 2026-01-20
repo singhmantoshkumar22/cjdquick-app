@@ -49,6 +49,31 @@ class ZoneType(str, Enum):
     QC = "QC"
     RETURNS = "RETURNS"
     DISPATCH = "DISPATCH"
+    RECEIVING = "RECEIVING"
+    BULK = "BULK"
+    PICK = "PICK"
+    STAGING = "STAGING"
+    COLD = "COLD"
+    FROZEN = "FROZEN"
+    HAZMAT = "HAZMAT"
+
+
+class BinType(str, Enum):
+    """Types of storage bins"""
+    FLOOR = "FLOOR"
+    SHELF = "SHELF"
+    PALLET = "PALLET"
+    PICK_FACE = "PICK_FACE"
+    RESERVE = "RESERVE"
+    STAGING = "STAGING"
+    QC_HOLD = "QC_HOLD"
+
+
+class TemperatureType(str, Enum):
+    """Temperature classification for zones"""
+    AMBIENT = "AMBIENT"
+    COLD = "COLD"
+    FROZEN = "FROZEN"
 
 
 # ============================================================================
@@ -164,6 +189,63 @@ class InboundStatus(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+
+
+class GoodsReceiptStatus(str, Enum):
+    """Goods receipt document status"""
+    DRAFT = "DRAFT"
+    RECEIVING = "RECEIVING"
+    POSTED = "POSTED"
+    REVERSED = "REVERSED"
+    CANCELLED = "CANCELLED"
+
+
+class PutawayTaskStatus(str, Enum):
+    """Putaway task status"""
+    PENDING = "PENDING"
+    ASSIGNED = "ASSIGNED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class AllocationStatus(str, Enum):
+    """Inventory allocation status"""
+    ALLOCATED = "ALLOCATED"
+    PICKED = "PICKED"
+    CANCELLED = "CANCELLED"
+
+
+class StockAdjustmentStatus(str, Enum):
+    """Stock adjustment workflow status"""
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    POSTED = "POSTED"
+
+
+class AdjustmentReasonCode(str, Enum):
+    """Reason codes for stock adjustments"""
+    CYCLE_COUNT = "CYCLE_COUNT"
+    DAMAGE = "DAMAGE"
+    THEFT = "THEFT"
+    EXPIRED = "EXPIRED"
+    FOUND = "FOUND"
+    CORRECTION = "CORRECTION"
+    WRITE_OFF = "WRITE_OFF"
+    OTHER = "OTHER"
+
+
+class MovementType(str, Enum):
+    """Goods movement type codes"""
+    GR_PURCHASE = "101"      # Goods Receipt from Purchase Order
+    GR_REVERSAL = "102"      # Reversal of Goods Receipt
+    GR_RETURN = "103"        # Goods Receipt from Return
+    GI_SALES = "201"         # Goods Issue for Sales
+    GI_REVERSAL = "202"      # Reversal of Goods Issue
+    TRANSFER = "301"         # Stock Transfer between locations
+    ADJUSTMENT_PLUS = "501"  # Positive Adjustment
+    ADJUSTMENT_MINUS = "502" # Negative Adjustment
 
 
 # ============================================================================

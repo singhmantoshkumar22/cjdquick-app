@@ -8,6 +8,7 @@ from .auth import router as auth_router
 from .users import router as users_router
 from .companies import router as companies_router
 from .locations import router as locations_router
+from .locations import zones_router, bins_router  # Direct zone/bin endpoints
 from .skus import router as skus_router
 from .inventory import router as inventory_router
 from .orders import router as orders_router
@@ -17,9 +18,15 @@ from .customers import router as customers_router
 from .ndr import router as ndr_router
 from .waves import router as waves_router
 from .inbound import router as inbound_router
+from .goods_receipt import router as goods_receipt_router
+from .allocation import router as allocation_router
+from .putaway import router as putaway_router
 from .returns import router as returns_router
 from .qc import router as qc_router
 from .transporters import router as transporters_router
+
+# Settings routers
+from .settings import router as settings_router
 
 # Extended module routers
 from .procurement import router as procurement_router
@@ -47,6 +54,8 @@ router.include_router(auth_router)
 router.include_router(users_router)
 router.include_router(companies_router)
 router.include_router(locations_router)
+router.include_router(zones_router)  # Direct /zones endpoints
+router.include_router(bins_router)   # Direct /bins endpoints
 router.include_router(skus_router)
 router.include_router(inventory_router)
 router.include_router(orders_router)
@@ -56,9 +65,15 @@ router.include_router(customers_router)
 router.include_router(ndr_router)
 router.include_router(waves_router)
 router.include_router(inbound_router)
+router.include_router(goods_receipt_router)
+router.include_router(allocation_router)
+router.include_router(putaway_router)
 router.include_router(returns_router)
 router.include_router(qc_router)
 router.include_router(transporters_router)
+
+# Include settings routers
+router.include_router(settings_router)
 
 # Include extended module routers
 router.include_router(procurement_router)

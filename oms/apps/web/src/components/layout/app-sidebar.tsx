@@ -165,6 +165,7 @@ const inboundNav: NavItemWithSub = {
   icon: ArrowDownToLine,
   items: [
     { title: "Purchase Orders", href: "/inbound/purchase-orders" },
+    { title: "Goods Receipt", href: "/inbound/goods-receipt" },
     { title: "ASN Management", href: "/inbound/asn" },
     { title: "Receiving", href: "/inbound/receiving" },
     { title: "Inbound QC", href: "/inbound/qc" },
@@ -181,6 +182,16 @@ const fulfillmentNav: NavItemWithSub = {
     { title: "Outbound QC", href: "/fulfillment/qc" },
     { title: "Manifest", href: "/fulfillment/manifest" },
     { title: "Gate Pass", href: "/fulfillment/gate-pass" },
+  ],
+};
+
+const wmsNav: NavItemWithSub = {
+  title: "WMS Operations",
+  icon: Warehouse,
+  items: [
+    { title: "Putaway Tasks", href: "/wms/putaway" },
+    { title: "Stock Adjustments", href: "/wms/stock-adjustments" },
+    { title: "Cycle Counts", href: "/wms/cycle-counts" },
   ],
 };
 
@@ -350,6 +361,7 @@ const settingsNav: NavItemWithSub = {
     { title: "Company Profile", href: "/settings/company" },
     { title: "Users & Roles", href: "/settings/users" },
     { title: "API & Integrations", href: "/settings/integrations" },
+    { title: "Inventory Valuation", href: "/settings/inventory/valuation" },
   ],
 };
 
@@ -574,6 +586,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <CollapsibleNavItem item={inboundNav} pathname={pathname} />
               <CollapsibleNavItem item={fulfillmentNav} pathname={pathname} />
+              <CollapsibleNavItem item={wmsNav} pathname={pathname} />
               <CollapsibleNavItem item={inventoryNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>

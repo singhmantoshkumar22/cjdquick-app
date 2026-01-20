@@ -16,8 +16,11 @@ from app.models import (
     WaveOrder, WaveOrderCreate, WaveOrderUpdate, WaveOrderResponse,
     Picklist, PicklistCreate, PicklistUpdate, PicklistResponse,
     PicklistItem, PicklistItemCreate, PicklistItemUpdate, PicklistItemResponse,
-    User, Location, Order, WaveType, WaveStatus, PicklistStatus
+    User, Location, Order, OrderItem, SKU, Bin, Inventory,
+    WaveType, WaveStatus, PicklistStatus, OrderStatus,
+    AllocationRequest, InventoryAllocation
 )
+from app.services.inventory_allocation import InventoryAllocationService
 
 router = APIRouter(prefix="/waves", tags=["Waves"])
 
@@ -451,3 +454,269 @@ def add_order_to_wave(
     session.commit()
     session.refresh(wave_order)
     return WaveOrderResponse.model_validate(wave_order)
+
+
+# ============================================================================
+# Picklist Generation with FIFO/LIFO/FEFO Allocation
+# ============================================================================
+
+def generate_picklist_number(session: Session) -> str:
+    """Generate unique picklist number."""
+    count = session.exec(select(func.count(Picklist.id))).one()
+    return f"PL-{count + 1:06d}"
+
+
+@router.post("/{wave_id}/generate-picklists")
+def generate_picklists_with_allocation(
+    wave_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_manager)
+):
+    """
+    Generate picklists for a wave with automatic FIFO/LIFO/FEFO allocation.
+
+    This endpoint:
+    1. Gets all orders in the wave
+    2. For each order's items, allocates inventory using configured valuation method
+    3. Creates picklist items with bin locations
+    4. Updates order status to ALLOCATED or PARTIALLY_ALLOCATED
+
+    Returns summary of allocation results.
+    """
+    # Get the wave
+    wave = session.get(Wave, wave_id)
+    if not wave:
+        raise HTTPException(status_code=404, detail="Wave not found")
+
+    if wave.status not in [WaveStatus.DRAFT, WaveStatus.PLANNED, WaveStatus.RELEASED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot generate picklists for wave in {wave.status} status"
+        )
+
+    # Get location for the wave
+    location = session.get(Location, wave.locationId)
+    if not location:
+        raise HTTPException(status_code=404, detail="Wave location not found")
+
+    company_id = location.companyId
+
+    # Get all orders in the wave
+    wave_orders = session.exec(
+        select(WaveOrder).where(WaveOrder.waveId == wave_id)
+    ).all()
+
+    if not wave_orders:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No orders in this wave"
+        )
+
+    # Initialize allocation service
+    allocation_service = InventoryAllocationService(session)
+
+    # Track results
+    results = {
+        "wave_id": str(wave_id),
+        "orders_processed": 0,
+        "orders_fully_allocated": 0,
+        "orders_partially_allocated": 0,
+        "orders_not_allocated": 0,
+        "picklists_created": 0,
+        "items_allocated": 0,
+        "total_quantity_allocated": 0,
+        "shortfalls": []
+    }
+
+    # Process each order
+    for wave_order in wave_orders:
+        order = session.get(Order, wave_order.orderId)
+        if not order:
+            continue
+
+        results["orders_processed"] += 1
+
+        # Get order items
+        order_items = session.exec(
+            select(OrderItem).where(OrderItem.orderId == order.id)
+        ).all()
+
+        if not order_items:
+            continue
+
+        # Create a picklist for this order
+        picklist = Picklist(
+            picklistNo=generate_picklist_number(session),
+            waveId=wave_id,
+            orderId=order.id,
+            status=PicklistStatus.PENDING,
+            companyId=company_id,
+            locationId=wave.locationId,
+        )
+        session.add(picklist)
+        session.flush()  # Get picklist ID
+
+        order_fully_allocated = True
+        order_has_allocations = False
+
+        # Process each order item
+        for order_item in order_items:
+            # Create allocation request
+            request = AllocationRequest(
+                skuId=order_item.skuId,
+                requiredQty=order_item.quantity,
+                locationId=wave.locationId,
+                orderId=order.id,
+                orderItemId=order_item.id,
+                waveId=wave_id,
+                picklistId=picklist.id,
+            )
+
+            # Allocate inventory
+            result = allocation_service.allocate_inventory(
+                request=request,
+                company_id=company_id,
+                allocated_by_id=current_user.id
+            )
+
+            if result.allocatedQty > 0:
+                order_has_allocations = True
+                results["items_allocated"] += len(result.allocations)
+                results["total_quantity_allocated"] += result.allocatedQty
+
+                # Create picklist items from allocations
+                for alloc in result.allocations:
+                    # Get bin code
+                    bin_obj = session.get(Bin, alloc.binId)
+
+                    picklist_item = PicklistItem(
+                        picklistId=picklist.id,
+                        skuId=alloc.skuId,
+                        binId=alloc.binId,
+                        quantity=alloc.allocatedQty,
+                        pickedQty=0,
+                        batchNo=None,  # Can be enhanced to pull from allocation
+                    )
+                    session.add(picklist_item)
+
+            if result.shortfallQty > 0:
+                order_fully_allocated = False
+                # Get SKU info for shortfall report
+                sku = session.get(SKU, order_item.skuId)
+                results["shortfalls"].append({
+                    "order_id": str(order.id),
+                    "order_no": order.orderNo,
+                    "sku_id": str(order_item.skuId),
+                    "sku_code": sku.code if sku else "Unknown",
+                    "required_qty": order_item.quantity,
+                    "allocated_qty": result.allocatedQty,
+                    "shortfall_qty": result.shortfallQty
+                })
+
+        # Update order status
+        if order_has_allocations:
+            if order_fully_allocated:
+                order.status = OrderStatus.ALLOCATED
+                results["orders_fully_allocated"] += 1
+            else:
+                order.status = OrderStatus.PARTIALLY_ALLOCATED
+                results["orders_partially_allocated"] += 1
+            session.add(order)
+            results["picklists_created"] += 1
+        else:
+            results["orders_not_allocated"] += 1
+            # Remove empty picklist
+            session.delete(picklist)
+
+    # Update wave status if all orders have allocations
+    if results["orders_processed"] > 0:
+        wave.status = WaveStatus.RELEASED
+        wave.releasedAt = datetime.utcnow()
+        session.add(wave)
+
+    session.commit()
+
+    return results
+
+
+@router.post("/{wave_id}/deallocate")
+def deallocate_wave_inventory(
+    wave_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_manager)
+):
+    """
+    Deallocate all inventory allocations for a wave.
+    Used when cancelling a wave or re-planning.
+    """
+    wave = session.get(Wave, wave_id)
+    if not wave:
+        raise HTTPException(status_code=404, detail="Wave not found")
+
+    allocation_service = InventoryAllocationService(session)
+    cancelled_count = allocation_service.deallocate_by_wave(
+        wave_id=wave_id,
+        cancelled_by_id=current_user.id
+    )
+
+    # Reset wave status if needed
+    if wave.status in [WaveStatus.RELEASED, WaveStatus.IN_PROGRESS]:
+        wave.status = WaveStatus.PLANNED
+        session.add(wave)
+        session.commit()
+
+    return {
+        "success": True,
+        "wave_id": str(wave_id),
+        "allocations_cancelled": cancelled_count,
+        "message": f"Released {cancelled_count} inventory allocation(s)"
+    }
+
+
+@router.get("/{wave_id}/allocations")
+def get_wave_allocations(
+    wave_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all inventory allocations for a wave.
+    Shows what inventory has been reserved and from which bins.
+    """
+    wave = session.get(Wave, wave_id)
+    if not wave:
+        raise HTTPException(status_code=404, detail="Wave not found")
+
+    allocations = session.exec(
+        select(InventoryAllocation)
+        .where(InventoryAllocation.waveId == wave_id)
+        .order_by(InventoryAllocation.allocatedAt)
+    ).all()
+
+    # Build response with SKU and Bin info
+    result = []
+    for alloc in allocations:
+        sku = session.get(SKU, alloc.skuId)
+        bin_obj = session.get(Bin, alloc.binId)
+
+        result.append({
+            "id": str(alloc.id),
+            "allocationNo": alloc.allocationNo,
+            "skuId": str(alloc.skuId),
+            "skuCode": sku.code if sku else None,
+            "skuName": sku.name if sku else None,
+            "binId": str(alloc.binId),
+            "binCode": bin_obj.code if bin_obj else None,
+            "allocatedQty": alloc.allocatedQty,
+            "pickedQty": alloc.pickedQty,
+            "valuationMethod": alloc.valuationMethod,
+            "fifoSequence": alloc.fifoSequence,
+            "status": alloc.status,
+            "allocatedAt": alloc.allocatedAt.isoformat() if alloc.allocatedAt else None,
+        })
+
+    return {
+        "wave_id": str(wave_id),
+        "total_allocations": len(result),
+        "allocations": result
+    }

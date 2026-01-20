@@ -3,15 +3,16 @@ Company, Location, Zone, Bin Models - SQLModel Implementation
 Core organizational structure for multi-tenant OMS
 """
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional, List, Any, TYPE_CHECKING
 from uuid import UUID
 
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, String, JSON, ForeignKey, text
+from sqlalchemy import Column, String, JSON, ForeignKey, text, Integer, Boolean, Numeric
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from .base import BaseModel, ResponseBase, CreateBase, UpdateBase
-from .enums import LocationType, ZoneType
+from .enums import LocationType, ZoneType, BinType, TemperatureType
 
 if TYPE_CHECKING:
     from .user import User
@@ -59,6 +60,12 @@ class Company(BaseModel, table=True):
         default=None,
         sa_column=Column(JSON)
     )
+
+    # Inventory Valuation - Default method for the company
+    defaultValuationMethod: Optional[str] = Field(
+        default="FIFO",
+        sa_column=Column(String, default="FIFO")
+    )  # FIFO, LIFO, FEFO, WAC
 
     # Status
     isActive: bool = Field(default=True)
@@ -113,6 +120,12 @@ class Location(BaseModel, table=True):
         sa_column=Column(JSON)
     )
 
+    # Inventory Valuation - Override for this location
+    valuationMethod: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String, default=None)
+    )  # FIFO, LIFO, FEFO, WAC - overrides company default
+
     # Multi-tenant
     companyId: UUID = Field(
         sa_column=Column(
@@ -149,6 +162,26 @@ class Zone(BaseModel, table=True):
     # Details
     description: Optional[str] = Field(default=None)
 
+    # Temperature Control
+    temperatureType: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String)
+    )  # AMBIENT, COLD, FROZEN
+    minTemp: Optional[Decimal] = Field(
+        default=None,
+        sa_column=Column(Numeric(10, 2))
+    )  # Minimum temperature in Celsius
+    maxTemp: Optional[Decimal] = Field(
+        default=None,
+        sa_column=Column(Numeric(10, 2))
+    )  # Maximum temperature in Celsius
+
+    # Putaway Priority (lower = higher priority)
+    priority: int = Field(
+        default=100,
+        sa_column=Column(Integer, nullable=False, default=100)
+    )
+
     # Status
     isActive: bool = Field(default=True)
 
@@ -184,7 +217,67 @@ class Bin(BaseModel, table=True):
 
     # Details
     description: Optional[str] = Field(default=None)
-    capacity: Optional[int] = Field(default=None)
+
+    # Bin Type
+    binType: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String)
+    )  # FLOOR, SHELF, PALLET, PICK_FACE, RESERVE, STAGING, QC_HOLD
+
+    # Capacity Limits
+    capacity: Optional[int] = Field(default=None)  # Legacy field (general capacity)
+    maxWeight: Optional[Decimal] = Field(
+        default=None,
+        sa_column=Column(Numeric(10, 2))
+    )  # Maximum weight in kg
+    maxVolume: Optional[Decimal] = Field(
+        default=None,
+        sa_column=Column(Numeric(10, 4))
+    )  # Maximum volume in cubic meters
+    maxUnits: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer)
+    )  # Maximum number of units
+
+    # Current Utilization
+    currentWeight: Optional[Decimal] = Field(
+        default=Decimal("0"),
+        sa_column=Column(Numeric(10, 2), default=0)
+    )  # Current weight in kg
+    currentVolume: Optional[Decimal] = Field(
+        default=Decimal("0"),
+        sa_column=Column(Numeric(10, 4), default=0)
+    )  # Current volume in cubic meters
+    currentUnits: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, default=0)
+    )  # Current number of units
+
+    # Physical Location (for bin addressing: Aisle-Rack-Level-Position)
+    aisle: Optional[str] = Field(default=None, sa_column=Column(String))
+    rack: Optional[str] = Field(default=None, sa_column=Column(String))
+    level: Optional[str] = Field(default=None, sa_column=Column(String))
+    position: Optional[str] = Field(default=None, sa_column=Column(String))
+
+    # Pick Sequence (for optimized picking path)
+    pickSequence: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, default=0, index=True)
+    )
+
+    # Bin Flags
+    isPickFace: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, default=False)
+    )  # Primary picking location
+    isReserve: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, default=False)
+    )  # Bulk/reserve storage
+    isStaging: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, default=False)
+    )  # Temporary staging area
 
     # Status
     isActive: bool = Field(default=True)
@@ -201,6 +294,33 @@ class Bin(BaseModel, table=True):
 
     # Relationships
     zone: Optional["Zone"] = Relationship(back_populates="bins")
+
+    @property
+    def availableWeight(self) -> Optional[Decimal]:
+        """Calculate available weight capacity"""
+        if self.maxWeight is None:
+            return None
+        return self.maxWeight - (self.currentWeight or Decimal("0"))
+
+    @property
+    def availableVolume(self) -> Optional[Decimal]:
+        """Calculate available volume capacity"""
+        if self.maxVolume is None:
+            return None
+        return self.maxVolume - (self.currentVolume or Decimal("0"))
+
+    @property
+    def availableUnits(self) -> Optional[int]:
+        """Calculate available unit capacity"""
+        if self.maxUnits is None:
+            return None
+        return self.maxUnits - (self.currentUnits or 0)
+
+    @property
+    def fullAddress(self) -> str:
+        """Return full bin address as Aisle-Rack-Level-Position"""
+        parts = [self.aisle, self.rack, self.level, self.position]
+        return "-".join(p for p in parts if p) or self.code
 
 
 # ============================================================================
@@ -220,6 +340,7 @@ class CompanyCreate(CreateBase):
     phone: Optional[str] = None
     address: Optional[dict] = None
     settings: Optional[dict] = None
+    defaultValuationMethod: Optional[str] = "FIFO"  # FIFO, LIFO, FEFO, WAC
 
 
 class CompanyUpdate(UpdateBase):
@@ -234,6 +355,7 @@ class CompanyUpdate(UpdateBase):
     phone: Optional[str] = None
     address: Optional[dict] = None
     settings: Optional[dict] = None
+    defaultValuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC
     isActive: Optional[bool] = None
 
 
@@ -250,6 +372,7 @@ class CompanyResponse(ResponseBase):
     phone: Optional[str] = None
     address: Optional[dict] = None
     settings: Optional[dict] = None
+    defaultValuationMethod: Optional[str] = "FIFO"  # FIFO, LIFO, FEFO, WAC
     isActive: bool
     createdAt: datetime
     updatedAt: datetime
@@ -273,6 +396,7 @@ class LocationCreate(CreateBase):
     contactEmail: Optional[str] = None
     gst: Optional[str] = None
     settings: Optional[dict] = None
+    valuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC - overrides company default
     companyId: UUID
 
 
@@ -286,6 +410,7 @@ class LocationUpdate(UpdateBase):
     contactEmail: Optional[str] = None
     gst: Optional[str] = None
     settings: Optional[dict] = None
+    valuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC - overrides company default
     isActive: Optional[bool] = None
 
 
@@ -300,6 +425,7 @@ class LocationResponse(ResponseBase):
     contactEmail: Optional[str] = None
     gst: Optional[str] = None
     settings: Optional[dict] = None
+    valuationMethod: Optional[str] = None  # FIFO, LIFO, FEFO, WAC
     isActive: bool
     companyId: UUID
     createdAt: datetime
@@ -319,6 +445,10 @@ class ZoneCreate(CreateBase):
     name: str
     type: ZoneType
     description: Optional[str] = None
+    temperatureType: Optional[str] = None
+    minTemp: Optional[Decimal] = None
+    maxTemp: Optional[Decimal] = None
+    priority: int = 100
     locationId: UUID
 
 
@@ -327,6 +457,10 @@ class ZoneUpdate(UpdateBase):
     name: Optional[str] = None
     type: Optional[ZoneType] = None
     description: Optional[str] = None
+    temperatureType: Optional[str] = None
+    minTemp: Optional[Decimal] = None
+    maxTemp: Optional[Decimal] = None
+    priority: Optional[int] = None
     isActive: Optional[bool] = None
 
 
@@ -336,10 +470,23 @@ class ZoneResponse(ResponseBase):
     name: str
     type: ZoneType
     description: Optional[str] = None
+    temperatureType: Optional[str] = None
+    minTemp: Optional[Decimal] = None
+    maxTemp: Optional[Decimal] = None
+    priority: int
     isActive: bool
     locationId: UUID
     createdAt: datetime
     updatedAt: datetime
+    binCount: Optional[int] = None  # Computed field for bin count
+
+
+class ZoneBrief(ResponseBase):
+    id: UUID
+    code: str
+    name: str
+    type: ZoneType
+    temperatureType: Optional[str] = None
 
 
 # Bin Schemas
@@ -347,7 +494,19 @@ class BinCreate(CreateBase):
     code: str
     name: Optional[str] = None
     description: Optional[str] = None
+    binType: Optional[str] = None
     capacity: Optional[int] = None
+    maxWeight: Optional[Decimal] = None
+    maxVolume: Optional[Decimal] = None
+    maxUnits: Optional[int] = None
+    aisle: Optional[str] = None
+    rack: Optional[str] = None
+    level: Optional[str] = None
+    position: Optional[str] = None
+    pickSequence: int = 0
+    isPickFace: bool = False
+    isReserve: bool = False
+    isStaging: bool = False
     zoneId: UUID
 
 
@@ -355,7 +514,22 @@ class BinUpdate(UpdateBase):
     code: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
+    binType: Optional[str] = None
     capacity: Optional[int] = None
+    maxWeight: Optional[Decimal] = None
+    maxVolume: Optional[Decimal] = None
+    maxUnits: Optional[int] = None
+    currentWeight: Optional[Decimal] = None
+    currentVolume: Optional[Decimal] = None
+    currentUnits: Optional[int] = None
+    aisle: Optional[str] = None
+    rack: Optional[str] = None
+    level: Optional[str] = None
+    position: Optional[str] = None
+    pickSequence: Optional[int] = None
+    isPickFace: Optional[bool] = None
+    isReserve: Optional[bool] = None
+    isStaging: Optional[bool] = None
     isActive: Optional[bool] = None
 
 
@@ -364,8 +538,67 @@ class BinResponse(ResponseBase):
     code: str
     name: Optional[str] = None
     description: Optional[str] = None
+    binType: Optional[str] = None
     capacity: Optional[int] = None
+    maxWeight: Optional[Decimal] = None
+    maxVolume: Optional[Decimal] = None
+    maxUnits: Optional[int] = None
+    currentWeight: Optional[Decimal] = None
+    currentVolume: Optional[Decimal] = None
+    currentUnits: int = 0
+    aisle: Optional[str] = None
+    rack: Optional[str] = None
+    level: Optional[str] = None
+    position: Optional[str] = None
+    pickSequence: int = 0
+    isPickFace: bool = False
+    isReserve: bool = False
+    isStaging: bool = False
     isActive: bool
     zoneId: UUID
     createdAt: datetime
     updatedAt: datetime
+    # Computed fields
+    availableWeight: Optional[Decimal] = None
+    availableVolume: Optional[Decimal] = None
+    availableUnits: Optional[int] = None
+    fullAddress: Optional[str] = None
+
+
+class BinBrief(ResponseBase):
+    id: UUID
+    code: str
+    name: Optional[str] = None
+    binType: Optional[str] = None
+    fullAddress: Optional[str] = None
+
+
+class BinBulkCreate(CreateBase):
+    """Schema for bulk bin creation"""
+    zoneId: UUID
+    prefix: str  # e.g., "A" for bins A-01, A-02, etc.
+    binType: Optional[str] = None
+    count: int  # Number of bins to create
+    startNumber: int = 1
+    aisle: Optional[str] = None
+    maxWeight: Optional[Decimal] = None
+    maxVolume: Optional[Decimal] = None
+    maxUnits: Optional[int] = None
+    isPickFace: bool = False
+    isReserve: bool = False
+
+
+class BinCapacityResponse(ResponseBase):
+    """Response for bin capacity information"""
+    id: UUID
+    code: str
+    maxWeight: Optional[Decimal] = None
+    maxVolume: Optional[Decimal] = None
+    maxUnits: Optional[int] = None
+    currentWeight: Optional[Decimal] = None
+    currentVolume: Optional[Decimal] = None
+    currentUnits: int = 0
+    availableWeight: Optional[Decimal] = None
+    availableVolume: Optional[Decimal] = None
+    availableUnits: Optional[int] = None
+    utilizationPercent: Optional[Decimal] = None

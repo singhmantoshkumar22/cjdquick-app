@@ -304,10 +304,20 @@ def get_stock_adjustment(
 @router.post("/stock-adjustments", response_model=StockAdjustmentResponse, status_code=status.HTTP_201_CREATED)
 def create_stock_adjustment(
     data: StockAdjustmentCreate,
+    company_filter: CompanyFilter = Depends(),
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(get_current_user)
 ):
-    """Create stock adjustment."""
+    """Create stock adjustment (starts as DRAFT)."""
+    from app.models import Inventory, Location
+
+    # Get company ID
+    company_id = company_filter.company_id
+    if not company_id:
+        location = session.get(Location, data.locationId)
+        if location:
+            company_id = location.companyId
+
     # Generate adjustment number
     count = session.exec(select(func.count(StockAdjustment.id))).one()
     adjustment_no = f"SA-{count + 1:06d}"
@@ -316,8 +326,10 @@ def create_stock_adjustment(
         adjustmentNo=adjustment_no,
         locationId=data.locationId,
         reason=data.reason,
+        status="DRAFT",
         remarks=data.remarks,
-        createdById=current_user.id
+        createdById=current_user.id,
+        companyId=company_id
     )
 
     session.add(adjustment)
@@ -327,14 +339,138 @@ def create_stock_adjustment(
     # Add items if provided
     if data.items:
         for item_data in data.items:
+            # Get current inventory quantity
+            inventory = session.exec(
+                select(Inventory)
+                .where(Inventory.skuId == item_data.skuId)
+                .where(Inventory.binId == item_data.binId)
+            ).first()
+
+            quantity_before = inventory.quantity if inventory else 0
+
             item = StockAdjustmentItem(
                 adjustmentId=adjustment.id,
-                **item_data.model_dump()
+                skuId=item_data.skuId,
+                binId=item_data.binId,
+                batchNo=item_data.batchNo,
+                quantityBefore=quantity_before,
+                quantityChange=item_data.quantityChange,
+                quantityAfter=quantity_before + item_data.quantityChange
             )
             session.add(item)
         session.commit()
         session.refresh(adjustment)
 
+    return StockAdjustmentResponse.model_validate(adjustment)
+
+
+@router.post("/stock-adjustments/{adjustment_id}/items", status_code=status.HTTP_201_CREATED)
+def add_stock_adjustment_item(
+    adjustment_id: UUID,
+    data: StockAdjustmentItemCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Add item to stock adjustment."""
+    from app.models import Inventory
+
+    adjustment = session.get(StockAdjustment, adjustment_id)
+    if not adjustment:
+        raise HTTPException(status_code=404, detail="Stock adjustment not found")
+
+    if adjustment.status not in ["DRAFT", "PENDING"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot add items to adjustment in current status"
+        )
+
+    # Get current inventory quantity
+    inventory = session.exec(
+        select(Inventory)
+        .where(Inventory.skuId == data.skuId)
+        .where(Inventory.binId == data.binId)
+    ).first()
+
+    quantity_before = inventory.quantity if inventory else 0
+
+    item = StockAdjustmentItem(
+        adjustmentId=adjustment_id,
+        skuId=data.skuId,
+        binId=data.binId,
+        batchNo=data.batchNo,
+        quantityBefore=quantity_before,
+        quantityChange=data.quantityChange,
+        quantityAfter=quantity_before + data.quantityChange
+    )
+
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return StockAdjustmentItemResponse.model_validate(item)
+
+
+@router.delete("/stock-adjustments/{adjustment_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_stock_adjustment_item(
+    adjustment_id: UUID,
+    item_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Remove item from stock adjustment."""
+    adjustment = session.get(StockAdjustment, adjustment_id)
+    if not adjustment:
+        raise HTTPException(status_code=404, detail="Stock adjustment not found")
+
+    if adjustment.status not in ["DRAFT", "PENDING"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot remove items from adjustment in current status"
+        )
+
+    item = session.get(StockAdjustmentItem, item_id)
+    if not item or item.adjustmentId != adjustment_id:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    session.delete(item)
+    session.commit()
+
+
+@router.post("/stock-adjustments/{adjustment_id}/submit", response_model=StockAdjustmentResponse)
+def submit_stock_adjustment(
+    adjustment_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Submit stock adjustment for approval."""
+    adjustment = session.get(StockAdjustment, adjustment_id)
+    if not adjustment:
+        raise HTTPException(status_code=404, detail="Stock adjustment not found")
+
+    if adjustment.status != "DRAFT":
+        raise HTTPException(
+            status_code=400,
+            detail="Only draft adjustments can be submitted"
+        )
+
+    # Check if adjustment has items
+    items = session.exec(
+        select(StockAdjustmentItem)
+        .where(StockAdjustmentItem.adjustmentId == adjustment_id)
+    ).all()
+
+    if not items:
+        raise HTTPException(
+            status_code=400,
+            detail="Adjustment must have at least one item before submitting"
+        )
+
+    adjustment.status = "PENDING"
+    adjustment.submittedById = current_user.id
+    adjustment.submittedAt = datetime.utcnow()
+
+    session.add(adjustment)
+    session.commit()
+    session.refresh(adjustment)
     return StockAdjustmentResponse.model_validate(adjustment)
 
 
@@ -349,6 +485,12 @@ def approve_stock_adjustment(
     if not adjustment:
         raise HTTPException(status_code=404, detail="Stock adjustment not found")
 
+    if adjustment.status != "PENDING":
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending adjustments can be approved"
+        )
+
     adjustment.status = "APPROVED"
     adjustment.approvedById = current_user.id
     adjustment.approvedAt = datetime.utcnow()
@@ -357,6 +499,166 @@ def approve_stock_adjustment(
     session.commit()
     session.refresh(adjustment)
     return StockAdjustmentResponse.model_validate(adjustment)
+
+
+@router.post("/stock-adjustments/{adjustment_id}/reject", response_model=StockAdjustmentResponse)
+def reject_stock_adjustment(
+    adjustment_id: UUID,
+    reason: str = Query(..., min_length=1, description="Rejection reason"),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_manager)
+):
+    """Reject stock adjustment with reason."""
+    adjustment = session.get(StockAdjustment, adjustment_id)
+    if not adjustment:
+        raise HTTPException(status_code=404, detail="Stock adjustment not found")
+
+    if adjustment.status != "PENDING":
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending adjustments can be rejected"
+        )
+
+    adjustment.status = "REJECTED"
+    adjustment.rejectedById = current_user.id
+    adjustment.rejectedAt = datetime.utcnow()
+    adjustment.rejectionReason = reason
+
+    session.add(adjustment)
+    session.commit()
+    session.refresh(adjustment)
+    return StockAdjustmentResponse.model_validate(adjustment)
+
+
+@router.post("/stock-adjustments/{adjustment_id}/post", response_model=StockAdjustmentResponse)
+def post_stock_adjustment(
+    adjustment_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_manager)
+):
+    """Post approved stock adjustment to inventory."""
+    from uuid import uuid4
+    from app.models import Inventory, Location
+
+    adjustment = session.get(StockAdjustment, adjustment_id)
+    if not adjustment:
+        raise HTTPException(status_code=404, detail="Stock adjustment not found")
+
+    if adjustment.status != "APPROVED":
+        raise HTTPException(
+            status_code=400,
+            detail="Only approved adjustments can be posted"
+        )
+
+    # Get adjustment items
+    items = session.exec(
+        select(StockAdjustmentItem)
+        .where(StockAdjustmentItem.adjustmentId == adjustment_id)
+    ).all()
+
+    if not items:
+        raise HTTPException(
+            status_code=400,
+            detail="Adjustment has no items to post"
+        )
+
+    # Get location for company ID
+    location = session.get(Location, adjustment.locationId)
+    company_id = adjustment.companyId or (location.companyId if location else None)
+
+    # Process each item
+    for item in items:
+        # Find or create inventory record
+        inventory = session.exec(
+            select(Inventory)
+            .where(Inventory.skuId == item.skuId)
+            .where(Inventory.binId == item.binId)
+            .where(Inventory.batchNo == item.batchNo if item.batchNo else True)
+        ).first()
+
+        if inventory:
+            # Update existing inventory
+            inventory.quantity += item.quantityChange
+            if inventory.quantity < 0:
+                inventory.quantity = 0  # Prevent negative inventory
+            session.add(inventory)
+        else:
+            # Create new inventory record (only for positive adjustments)
+            if item.quantityChange > 0:
+                new_inventory = Inventory(
+                    id=uuid4(),
+                    skuId=item.skuId,
+                    binId=item.binId,
+                    locationId=adjustment.locationId,
+                    companyId=company_id,
+                    quantity=item.quantityChange,
+                    reservedQty=0,
+                    batchNo=item.batchNo,
+                    createdAt=datetime.utcnow(),
+                    updatedAt=datetime.utcnow()
+                )
+                session.add(new_inventory)
+
+        # Create inventory movement record
+        movement_count = session.exec(select(func.count(InventoryMovement.id))).one()
+        movement = InventoryMovement(
+            id=uuid4(),
+            movementNo=f"MV-{movement_count + 1:06d}",
+            skuId=item.skuId,
+            locationId=adjustment.locationId,
+            fromBinId=item.binId if item.quantityChange < 0 else None,
+            toBinId=item.binId if item.quantityChange > 0 else None,
+            movementType="ADJUSTMENT",
+            referenceType="STOCK_ADJUSTMENT",
+            referenceId=adjustment_id,
+            quantity=abs(item.quantityChange),
+            batchNo=item.batchNo,
+            performedById=current_user.id,
+            performedAt=datetime.utcnow(),
+            remarks=f"Stock adjustment: {adjustment.reason}"
+        )
+        session.add(movement)
+
+    # Update adjustment status
+    adjustment.status = "POSTED"
+    adjustment.postedById = current_user.id
+    adjustment.postedAt = datetime.utcnow()
+
+    session.add(adjustment)
+    session.commit()
+    session.refresh(adjustment)
+    return StockAdjustmentResponse.model_validate(adjustment)
+
+
+@router.get("/stock-adjustments/summary")
+def get_stock_adjustment_summary(
+    location_id: Optional[UUID] = None,
+    company_filter: CompanyFilter = Depends(),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get summary of stock adjustments by status."""
+    base_query = select(func.count(StockAdjustment.id))
+
+    if company_filter.company_id:
+        base_query = base_query.where(StockAdjustment.companyId == company_filter.company_id)
+    if location_id:
+        base_query = base_query.where(StockAdjustment.locationId == location_id)
+
+    draft = session.exec(base_query.where(StockAdjustment.status == "DRAFT")).one()
+    pending = session.exec(base_query.where(StockAdjustment.status == "PENDING")).one()
+    approved = session.exec(base_query.where(StockAdjustment.status == "APPROVED")).one()
+    rejected = session.exec(base_query.where(StockAdjustment.status == "REJECTED")).one()
+    posted = session.exec(base_query.where(StockAdjustment.status == "POSTED")).one()
+
+    return {
+        "draft": draft,
+        "pending": pending,
+        "approved": approved,
+        "rejected": rejected,
+        "posted": posted,
+        "total": draft + pending + approved + rejected + posted
+    }
 
 
 # ============================================================================
