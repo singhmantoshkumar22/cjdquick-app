@@ -45,6 +45,7 @@ from .control_tower import router as control_tower_router
 from .detection_rules import router as detection_rules_router
 from .shipments import router as shipments_router
 from .b2b_logistics import router as b2b_logistics_router
+from .channel_inventory import router as channel_inventory_router
 
 # Main v1 router
 router = APIRouter(prefix="/v1")
@@ -92,3 +93,4 @@ router.include_router(control_tower_router)
 router.include_router(detection_rules_router)
 router.include_router(shipments_router)
 router.include_router(b2b_logistics_router)
+router.include_router(channel_inventory_router)

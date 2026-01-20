@@ -591,6 +591,21 @@ from .putaway import (
     BulkPutawayTaskResponse,
 )
 
+# Channel Inventory models and schemas
+from .channel_inventory import (
+    ChannelInventoryRule,
+    ChannelInventoryRuleCreate,
+    ChannelInventoryRuleUpdate,
+    ChannelInventoryRuleResponse,
+    ChannelInventory,
+    ChannelInventoryCreate,
+    ChannelInventoryUpdate,
+    ChannelInventoryResponse,
+    ChannelInventorySummary,
+    ChannelAllocationItem,
+    GRNChannelAllocationRequest,
+)
+
 __all__ = [
     # Base
     "BaseModel",
@@ -1132,4 +1147,18 @@ __all__ = [
     "BinSuggestionResponse",
     "BulkPutawayTaskCreate",
     "BulkPutawayTaskResponse",
+    # ChannelInventoryRule
+    "ChannelInventoryRule",
+    "ChannelInventoryRuleCreate",
+    "ChannelInventoryRuleUpdate",
+    "ChannelInventoryRuleResponse",
+    # ChannelInventory
+    "ChannelInventory",
+    "ChannelInventoryCreate",
+    "ChannelInventoryUpdate",
+    "ChannelInventoryResponse",
+    "ChannelInventorySummary",
+    # Channel Allocation
+    "ChannelAllocationItem",
+    "GRNChannelAllocationRequest",
 ]

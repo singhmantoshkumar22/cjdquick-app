@@ -16,7 +16,8 @@ from app.models import (
     GoodsReceiptResponse, GoodsReceiptBrief, GoodsReceiptWithItems,
     GoodsReceiptItem, GoodsReceiptItemCreate, GoodsReceiptItemUpdate,
     GoodsReceiptItemResponse,
-    GoodsReceiptStatus, Location, User, SKU, Inventory, Bin, Zone
+    GoodsReceiptStatus, Location, User, SKU, Inventory, Bin, Zone,
+    ChannelInventoryRule, ChannelInventory
 )
 from app.services.fifo_sequence import FifoSequenceService
 
@@ -395,6 +396,11 @@ def post_goods_receipt(
     """
     Post the goods receipt - creates inventory records with FIFO sequences.
     This is the final step that actually adds inventory to the system.
+
+    Channel-wise Inventory Allocation:
+    - If ChannelInventoryRule exists for SKU + Location, splits inventory by channel
+    - Creates ChannelInventory records for each channel allocation
+    - Unallocated quantity goes to 'UNALLOCATED' channel pool
     """
     gr = session.exec(select(GoodsReceipt).where(GoodsReceipt.id == gr_id)).first()
     if not gr:
@@ -453,7 +459,7 @@ def post_goods_receipt(
         # Get next FIFO sequence
         fifo_seq = fifo_service.get_next_sequence(item.skuId, gr.locationId)
 
-        # Create inventory record
+        # Create main inventory record (unified warehouse inventory)
         inventory = Inventory(
             skuId=item.skuId,
             binId=target_bin_id,
@@ -474,6 +480,77 @@ def post_goods_receipt(
         # Update item with assigned FIFO sequence
         item.fifoSequence = fifo_seq
         session.add(item)
+
+        # ================================================================
+        # CHANNEL-WISE INVENTORY ALLOCATION
+        # ================================================================
+        # Get channel allocation rules for this SKU + Location
+        channel_rules = session.exec(
+            select(ChannelInventoryRule)
+            .where(ChannelInventoryRule.skuId == item.skuId)
+            .where(ChannelInventoryRule.locationId == gr.locationId)
+            .where(ChannelInventoryRule.isActive == True)
+            .order_by(ChannelInventoryRule.priority)
+        ).all()
+
+        remaining_qty = item.acceptedQty
+        channel_fifo_offset = 0
+
+        if channel_rules:
+            # Allocate based on rules (absolute quantities per channel)
+            for rule in channel_rules:
+                if remaining_qty <= 0:
+                    break
+
+                # Allocate up to the rule's allocatedQty or remaining, whichever is less
+                qty_for_channel = min(rule.allocatedQty, remaining_qty)
+
+                if qty_for_channel > 0:
+                    # Get next FIFO sequence for channel inventory
+                    channel_fifo_seq = fifo_seq + channel_fifo_offset
+                    channel_fifo_offset += 1
+
+                    channel_inv = ChannelInventory(
+                        skuId=item.skuId,
+                        locationId=gr.locationId,
+                        binId=target_bin_id,
+                        channel=rule.channel,
+                        quantity=qty_for_channel,
+                        reservedQty=0,
+                        batchNo=item.batchNo,
+                        lotNo=item.lotNo,
+                        expiryDate=item.expiryDate,
+                        mfgDate=item.mfgDate,
+                        costPrice=item.costPrice or Decimal("0"),
+                        fifoSequence=channel_fifo_seq,
+                        grNo=gr.grNo,
+                        goodsReceiptId=gr.id,
+                        companyId=gr.companyId,
+                    )
+                    session.add(channel_inv)
+                    remaining_qty -= qty_for_channel
+
+        # Any remaining quantity goes to UNALLOCATED channel pool
+        if remaining_qty > 0:
+            channel_fifo_seq = fifo_seq + channel_fifo_offset
+            unallocated_inv = ChannelInventory(
+                skuId=item.skuId,
+                locationId=gr.locationId,
+                binId=target_bin_id,
+                channel="UNALLOCATED",
+                quantity=remaining_qty,
+                reservedQty=0,
+                batchNo=item.batchNo,
+                lotNo=item.lotNo,
+                expiryDate=item.expiryDate,
+                mfgDate=item.mfgDate,
+                costPrice=item.costPrice or Decimal("0"),
+                fifoSequence=channel_fifo_seq,
+                grNo=gr.grNo,
+                goodsReceiptId=gr.id,
+                companyId=gr.companyId,
+            )
+            session.add(unallocated_inv)
 
     # Update GR status
     gr.status = GoodsReceiptStatus.POSTED.value

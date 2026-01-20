@@ -14,6 +14,7 @@ from app.models import (
     InventoryAllocation, InventoryAllocationBrief,
     AllocationRequest, AllocationResult,
     BulkAllocationRequest, BulkAllocationResult,
+    ChannelInventory, Order,
 )
 from app.services.fifo_sequence import FifoSequenceService
 
@@ -120,6 +121,102 @@ class InventoryAllocationService:
 
         return inventory_records
 
+    def get_channel_inventory(
+        self,
+        sku_id: UUID,
+        location_id: UUID,
+        channel: str,
+        valuation_method: str,
+        preferred_bin_id: Optional[UUID] = None
+    ) -> List[ChannelInventory]:
+        """
+        Get channel-specific inventory records ordered by valuation method.
+        Used for channel-wise allocation before falling back to general inventory.
+        """
+        # Base query for available channel inventory
+        query = (
+            select(ChannelInventory)
+            .where(ChannelInventory.skuId == sku_id)
+            .where(ChannelInventory.locationId == location_id)
+            .where(ChannelInventory.channel == channel)
+            .where((ChannelInventory.quantity - ChannelInventory.reservedQty) > 0)
+        )
+
+        # Prefer specific bin if provided
+        if preferred_bin_id:
+            preferred = self.session.exec(
+                query.where(ChannelInventory.binId == preferred_bin_id)
+            ).all()
+            others = self.session.exec(
+                query.where(ChannelInventory.binId != preferred_bin_id)
+            ).all()
+            channel_records = list(preferred) + list(others)
+        else:
+            channel_records = list(self.session.exec(query).all())
+
+        # Sort by valuation method
+        if valuation_method == "FIFO":
+            channel_records.sort(key=lambda x: x.fifoSequence or 0)
+        elif valuation_method == "LIFO":
+            channel_records.sort(key=lambda x: x.fifoSequence or 0, reverse=True)
+        elif valuation_method == "FEFO":
+            channel_records.sort(
+                key=lambda x: (x.expiryDate is None, x.expiryDate or datetime.max)
+            )
+
+        return channel_records
+
+    def get_order_channel(self, order_id: Optional[UUID]) -> Optional[str]:
+        """Get channel from order if order_id is provided."""
+        if not order_id:
+            return None
+        order = self.session.exec(
+            select(Order).where(Order.id == order_id)
+        ).first()
+        if order and hasattr(order, 'channel'):
+            channel = order.channel
+            # Handle both enum and string values
+            return channel.value if hasattr(channel, 'value') else str(channel)
+        return None
+
+    def allocate_from_channel_inventory(
+        self,
+        sku_id: UUID,
+        location_id: UUID,
+        channel: str,
+        required_qty: int,
+        valuation_method: str,
+        preferred_bin_id: Optional[UUID] = None
+    ) -> Tuple[int, List[ChannelInventory]]:
+        """
+        Allocate from channel-specific inventory.
+        Returns (allocated_qty, list of channel_inventory records used)
+        """
+        channel_inventory = self.get_channel_inventory(
+            sku_id, location_id, channel, valuation_method, preferred_bin_id
+        )
+
+        allocated_qty = 0
+        used_records = []
+
+        for ch_inv in channel_inventory:
+            if required_qty <= 0:
+                break
+
+            available = ch_inv.quantity - ch_inv.reservedQty
+            if available <= 0:
+                continue
+
+            qty_to_reserve = min(available, required_qty)
+            ch_inv.reservedQty += qty_to_reserve
+            self.session.add(ch_inv)
+
+            allocated_qty += qty_to_reserve
+            required_qty -= qty_to_reserve
+            used_records.append(ch_inv)
+
+        return (allocated_qty, used_records)
+
     def allocate_inventory(
         self,
         request: AllocationRequest,
@@ -129,23 +226,64 @@ class InventoryAllocationService:
         """
         Allocate inventory for a single SKU request.
         Creates allocation records and updates reserved quantities.
+
+        Channel-wise Allocation Priority:
+        1. First allocate from channel-specific inventory (based on order's channel)
+        2. Then from UNALLOCATED channel pool
+        3. Finally from general inventory if needed
         """
         # Determine valuation method
         valuation_method = request.valuationMethod or self.get_valuation_method(
             request.skuId, request.locationId, company_id
         )
 
-        # Get available inventory
+        allocations: List[InventoryAllocationBrief] = []
+        allocated_qty = 0
+        remaining_qty = request.requiredQty
+
+        # Get order channel if order_id is provided
+        order_channel = self.get_order_channel(request.orderId)
+
+        # ================================================================
+        # STEP 1: Try to allocate from channel-specific inventory first
+        # ================================================================
+        if order_channel and remaining_qty > 0:
+            channel_allocated, _ = self.allocate_from_channel_inventory(
+                request.skuId,
+                request.locationId,
+                order_channel,
+                remaining_qty,
+                valuation_method,
+                request.preferredBinId
+            )
+            allocated_qty += channel_allocated
+            remaining_qty -= channel_allocated
+
+        # ================================================================
+        # STEP 2: Try UNALLOCATED channel pool if still need more
+        # ================================================================
+        if remaining_qty > 0:
+            unalloc_allocated, _ = self.allocate_from_channel_inventory(
+                request.skuId,
+                request.locationId,
+                "UNALLOCATED",
+                remaining_qty,
+                valuation_method,
+                request.preferredBinId
+            )
+            allocated_qty += unalloc_allocated
+            remaining_qty -= unalloc_allocated
+
+        # ================================================================
+        # STEP 3: Allocate from general inventory (unified pool)
+        # ================================================================
+        # Get available inventory from unified Inventory table
         available_inventory = self.get_available_inventory(
             request.skuId,
             request.locationId,
             valuation_method,
             request.preferredBinId
         )
-
-        allocations: List[InventoryAllocationBrief] = []
-        allocated_qty = 0
-        remaining_qty = request.requiredQty
 
         for inventory in available_inventory:
             if remaining_qty <= 0:
