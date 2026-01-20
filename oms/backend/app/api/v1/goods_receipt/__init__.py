@@ -558,8 +558,15 @@ def post_goods_receipt(
     gr.postedAt = datetime.utcnow()
     session.add(gr)
 
-    session.commit()
-    session.refresh(gr)
+    try:
+        session.commit()
+        session.refresh(gr)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to post goods receipt: {str(e)}"
+        )
 
     return build_gr_response(gr, session)
 

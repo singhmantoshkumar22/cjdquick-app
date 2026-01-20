@@ -1,0 +1,28 @@
+# B2C Client Backend Deployment Configuration
+# This is a separate deployment using the same codebase but different database
+# Each B2C client gets their own deployment with isolated database
+
+services:
+  - type: web
+    name: cjdquick-b2c-api
+    env: python
+    region: singapore
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: SECRET_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: FRONTEND_URL
+        value: https://b2c-client.vercel.app
+      - key: ENVIRONMENT
+        value: production
+      - key: APP_NAME
+        value: CJDQuick B2C API

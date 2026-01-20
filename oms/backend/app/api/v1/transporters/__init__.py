@@ -14,7 +14,8 @@ from app.models import (
     Transporter, TransporterCreate, TransporterUpdate, TransporterResponse, TransporterBrief,
     TransporterConfig, TransporterConfigCreate, TransporterConfigUpdate, TransporterConfigResponse,
     Manifest, ManifestCreate, ManifestUpdate, ManifestResponse, ManifestBrief,
-    User, TransporterType, ManifestStatus
+    User, TransporterType, ManifestStatus,
+    Delivery, Order, OrderStatus, DeliveryStatus
 )
 
 router = APIRouter(prefix="/transporters", tags=["Transporters"])
@@ -336,14 +337,35 @@ def close_manifest(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Close manifest (ready for handover)."""
+    """
+    Close manifest (ready for handover).
+
+    Updates:
+    - Manifest status → CLOSED
+    - All orders with deliveries in this manifest → MANIFESTED
+    """
     manifest = session.get(Manifest, manifest_id)
     if not manifest:
         raise HTTPException(status_code=404, detail="Manifest not found")
 
     manifest.status = ManifestStatus.CLOSED
-
     session.add(manifest)
+
+    # Update all orders with deliveries in this manifest to MANIFESTED status
+    deliveries = session.exec(
+        select(Delivery).where(Delivery.manifestId == manifest_id)
+    ).all()
+
+    order_ids_updated = set()
+    for delivery in deliveries:
+        if delivery.orderId and delivery.orderId not in order_ids_updated:
+            order = session.get(Order, delivery.orderId)
+            if order and order.status == OrderStatus.PACKED:
+                order.status = OrderStatus.MANIFESTED
+                order.updatedAt = datetime.utcnow()
+                session.add(order)
+                order_ids_updated.add(delivery.orderId)
+
     session.commit()
     session.refresh(manifest)
     return ManifestResponse.model_validate(manifest)
@@ -358,7 +380,14 @@ def handover_manifest(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Mark manifest as handed over to carrier."""
+    """
+    Mark manifest as handed over to carrier.
+
+    Updates:
+    - Manifest status → HANDED_OVER
+    - All deliveries in manifest → SHIPPED
+    - All orders for those deliveries → SHIPPED
+    """
     manifest = session.get(Manifest, manifest_id)
     if not manifest:
         raise HTTPException(status_code=404, detail="Manifest not found")
@@ -375,6 +404,27 @@ def handover_manifest(
         manifest.driverPhone = driver_phone
 
     session.add(manifest)
+
+    # Update all deliveries in this manifest to SHIPPED status
+    deliveries = session.exec(
+        select(Delivery).where(Delivery.manifestId == manifest_id)
+    ).all()
+
+    order_ids_updated = set()
+    for delivery in deliveries:
+        delivery.status = DeliveryStatus.SHIPPED
+        delivery.shippedAt = datetime.utcnow()
+        session.add(delivery)
+
+        # Also update the order status to SHIPPED
+        if delivery.orderId and delivery.orderId not in order_ids_updated:
+            order = session.get(Order, delivery.orderId)
+            if order and order.status in [OrderStatus.PACKED, OrderStatus.MANIFESTED]:
+                order.status = OrderStatus.SHIPPED
+                order.updatedAt = datetime.utcnow()
+                session.add(order)
+                order_ids_updated.add(delivery.orderId)
+
     session.commit()
     session.refresh(manifest)
     return ManifestResponse.model_validate(manifest)

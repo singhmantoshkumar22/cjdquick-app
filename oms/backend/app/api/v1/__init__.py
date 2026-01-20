@@ -46,6 +46,7 @@ from .detection_rules import router as detection_rules_router
 from .shipments import router as shipments_router
 from .b2b_logistics import router as b2b_logistics_router
 from .channel_inventory import router as channel_inventory_router
+from .packing import router as packing_router
 
 # Main v1 router
 router = APIRouter(prefix="/v1")
@@ -94,3 +95,4 @@ router.include_router(detection_rules_router)
 router.include_router(shipments_router)
 router.include_router(b2b_logistics_router)
 router.include_router(channel_inventory_router)
+router.include_router(packing_router)

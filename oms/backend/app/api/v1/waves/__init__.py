@@ -358,15 +358,33 @@ def start_wave(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Start wave picking."""
+    """
+    Start wave picking.
+
+    Updates:
+    - Wave status → IN_PROGRESS
+    - All orders in wave → PICKING
+    """
     wave = session.get(Wave, wave_id)
     if not wave:
         raise HTTPException(status_code=404, detail="Wave not found")
 
     wave.status = WaveStatus.IN_PROGRESS
     wave.startedAt = datetime.utcnow()
-
     session.add(wave)
+
+    # Update all orders in this wave to PICKING status
+    wave_orders = session.exec(
+        select(WaveOrder).where(WaveOrder.waveId == wave_id)
+    ).all()
+
+    for wo in wave_orders:
+        order = session.get(Order, wo.orderId)
+        if order and order.status in [OrderStatus.ALLOCATED, OrderStatus.PARTIALLY_ALLOCATED, OrderStatus.PICKLIST_GENERATED]:
+            order.status = OrderStatus.PICKING
+            order.updatedAt = datetime.utcnow()
+            session.add(order)
+
     session.commit()
     session.refresh(wave)
     return WaveResponse.model_validate(wave)
@@ -378,15 +396,33 @@ def complete_wave(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Complete wave picking."""
+    """
+    Complete wave picking.
+
+    Updates:
+    - Wave status → COMPLETED
+    - All orders in wave with PICKING status → PICKED
+    """
     wave = session.get(Wave, wave_id)
     if not wave:
         raise HTTPException(status_code=404, detail="Wave not found")
 
     wave.status = WaveStatus.COMPLETED
     wave.completedAt = datetime.utcnow()
-
     session.add(wave)
+
+    # Update all orders in this wave to PICKED status
+    wave_orders = session.exec(
+        select(WaveOrder).where(WaveOrder.waveId == wave_id)
+    ).all()
+
+    for wo in wave_orders:
+        order = session.get(Order, wo.orderId)
+        if order and order.status == OrderStatus.PICKING:
+            order.status = OrderStatus.PICKED
+            order.updatedAt = datetime.utcnow()
+            session.add(order)
+
     session.commit()
     session.refresh(wave)
     return WaveResponse.model_validate(wave)
