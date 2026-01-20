@@ -123,10 +123,20 @@ const controlTowerNav: NavItemWithSub = {
   items: [
     { title: "Real-time Overview", href: "/control-tower" },
     { title: "Exception Management", href: "/control-tower/exceptions" },
-    { title: "NDR Command Center", href: "/control-tower/ndr" },
-    { title: "Detection Rules", href: "/control-tower/rules" },
     { title: "SLA Monitor", href: "/control-tower/sla" },
+    { title: "Detection Rules", href: "/control-tower/rules" },
     { title: "AI Insights", href: "/control-tower/ai-actions" },
+  ],
+};
+
+const ndrManagementNav: NavItemWithSub = {
+  title: "NDR Management",
+  icon: AlertCircle,
+  items: [
+    { title: "NDR Command Center", href: "/control-tower/ndr" },
+    { title: "NDR Queue", href: "/ndr" },
+    { title: "Reattempt Actions", href: "/ndr/reattempts" },
+    { title: "Escalations", href: "/ndr/escalations" },
   ],
 };
 
@@ -221,15 +231,6 @@ const shipmentsNav: NavItemWithSub = {
   ],
 };
 
-const ndrNav: NavItemWithSub = {
-  title: "NDR Management",
-  icon: AlertCircle,
-  items: [
-    { title: "NDR Queue", href: "/ndr" },
-    { title: "Reattempt Actions", href: "/ndr/reattempts" },
-    { title: "Escalations", href: "/ndr/escalations" },
-  ],
-};
 
 const returnsNav: NavItemWithSub = {
   title: "Returns & RTO",
@@ -560,6 +561,8 @@ export function AppSidebar() {
               </SidebarMenuItem>
               {/* Control Tower */}
               <CollapsibleNavItem item={controlTowerNav} pathname={pathname} />
+              {/* NDR Management */}
+              <CollapsibleNavItem item={ndrManagementNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -588,6 +591,7 @@ export function AppSidebar() {
               <CollapsibleNavItem item={fulfillmentNav} pathname={pathname} />
               <CollapsibleNavItem item={wmsNav} pathname={pathname} />
               <CollapsibleNavItem item={inventoryNav} pathname={pathname} />
+              <CollapsibleNavItem item={returnsNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -600,8 +604,6 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <CollapsibleNavItem item={shipmentsNav} pathname={pathname} />
-              <CollapsibleNavItem item={ndrNav} pathname={pathname} />
-              <CollapsibleNavItem item={returnsNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
