@@ -138,7 +138,16 @@ def create_channel_inventory_rule(
     current_user: User = Depends(get_current_user)
 ):
     """Create a channel inventory allocation rule."""
-    if not company_filter.company_id:
+    # For SUPER_ADMIN, use their assigned company or fall back to location's company
+    company_id = company_filter.company_id
+    if not company_id and hasattr(current_user, 'companyId') and current_user.companyId:
+        company_id = current_user.companyId
+    if not company_id:
+        # Try to get company from location
+        location = session.get(Location, data.locationId)
+        if location:
+            company_id = location.companyId
+    if not company_id:
         raise HTTPException(status_code=400, detail="Company context required")
 
     # Validate SKU exists
@@ -171,7 +180,7 @@ def create_channel_inventory_rule(
         allocatedQty=data.allocatedQty,
         priority=data.priority,
         isActive=data.isActive,
-        companyId=company_filter.company_id,
+        companyId=company_id,
     )
     session.add(rule)
     session.commit()
@@ -246,7 +255,11 @@ def bulk_create_channel_inventory_rules(
     Bulk create channel inventory rules for a SKU.
     Used to define how GRN inventory should be split across channels.
     """
-    if not company_filter.company_id:
+    # For SUPER_ADMIN, use their assigned company
+    company_id = company_filter.company_id
+    if not company_id and hasattr(current_user, 'companyId') and current_user.companyId:
+        company_id = current_user.companyId
+    if not company_id:
         raise HTTPException(status_code=400, detail="Company context required")
 
     created = []
@@ -278,7 +291,7 @@ def bulk_create_channel_inventory_rules(
                 allocatedQty=data.allocatedQty,
                 priority=data.priority,
                 isActive=data.isActive,
-                companyId=company_filter.company_id,
+                companyId=company_id,
             )
             session.add(rule)
             created.append({
