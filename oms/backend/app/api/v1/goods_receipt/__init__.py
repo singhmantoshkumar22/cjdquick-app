@@ -563,9 +563,11 @@ def post_goods_receipt(
         session.refresh(gr)
     except Exception as e:
         session.rollback()
+        import traceback
+        error_details = traceback.format_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to post goods receipt: {str(e)}"
+            detail=f"Failed to post goods receipt: {type(e).__name__}: {str(e)}. Traceback: {error_details[:500]}"
         )
 
     return build_gr_response(gr, session)

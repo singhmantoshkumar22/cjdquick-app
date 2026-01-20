@@ -567,3 +567,63 @@ Sidebar Navigation:
     ├── Channels (Marketplace, Sync)
     └── Settings (Company, Users, API)
 ```
+
+---
+
+## B2C CLIENT DEPLOYMENT (Multi-Tenant)
+
+### B2C Architecture
+
+Each B2C client gets their own isolated deployment:
+- **Separate Supabase project** (isolated database)
+- **Separate Render backend** (same codebase)
+- **Separate Vercel frontend** (same codebase)
+
+### B2C Supabase Project
+
+| Setting | Value |
+|---------|-------|
+| Project Name | CJD QUICK B2C |
+| Project Ref | `qfqztrmnvbdmejyclvvc` |
+| Region | ap-southeast-1 (Singapore) |
+| Dashboard | https://supabase.com/dashboard/project/qfqztrmnvbdmejyclvvc |
+
+**Database Connection:**
+```
+postgresql://postgres:Aquapurite2026@db.qfqztrmnvbdmejyclvvc.supabase.co:5432/postgres
+```
+
+**Pooler Connection (for production):**
+```
+postgresql://postgres.qfqztrmnvbdmejyclvvc:Aquapurite2026@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
+```
+
+### B2C Deployment Files
+
+| File | Purpose |
+|------|---------|
+| `backend/render-b2c.yaml` | Render deployment config |
+| `backend/.env.b2c.example` | Backend environment template |
+| `backend/migrations/b2c_schema.sql` | Database schema |
+| `apps/web/.env.b2c.example` | Frontend environment template |
+| `scripts/deploy-b2c.sh` | Deployment helper script |
+
+### B2C Default Credentials
+
+| Panel | Email | Password |
+|-------|-------|----------|
+| B2C Admin | admin@b2c-client.com | admin123 |
+
+### Deploy New B2C Client
+
+```bash
+# Run deployment helper
+./scripts/deploy-b2c.sh [client-name]
+
+# Steps:
+# 1. Create Supabase project
+# 2. Run backend/migrations/b2c_schema.sql in SQL Editor
+# 3. Create Render service with render-b2c.yaml
+# 4. Create Vercel deployment
+# 5. Set environment variables
+```
