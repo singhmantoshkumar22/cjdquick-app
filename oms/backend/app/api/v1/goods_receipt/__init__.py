@@ -528,17 +528,16 @@ def post_goods_receipt(
         session.add(item)
 
         # ================================================================
-        # CHANNEL-WISE INVENTORY ALLOCATION (TEMPORARILY DISABLED FOR DEBUGGING)
+        # CHANNEL-WISE INVENTORY ALLOCATION
         # ================================================================
-        # Skip channel allocation for now to isolate the issue
-        channel_rules = []  # Temporarily disabled
-        # channel_rules = session.exec(
-        #     select(ChannelInventoryRule)
-        #     .where(ChannelInventoryRule.skuId == item.skuId)
-        #     .where(ChannelInventoryRule.locationId == gr.locationId)
-        #     .where(ChannelInventoryRule.isActive == True)
-        #     .order_by(ChannelInventoryRule.priority)
-        # ).all()
+        # Allocate inventory to channels based on rules defined per SKU + Location
+        channel_rules = session.exec(
+            select(ChannelInventoryRule)
+            .where(ChannelInventoryRule.skuId == item.skuId)
+            .where(ChannelInventoryRule.locationId == gr.locationId)
+            .where(ChannelInventoryRule.isActive == True)
+            .order_by(ChannelInventoryRule.priority)
+        ).all()
 
         remaining_qty = item.acceptedQty
         channel_fifo_offset = 0
@@ -579,30 +578,29 @@ def post_goods_receipt(
                         )
                     remaining_qty -= qty_for_channel
 
-        # Any remaining quantity goes to UNALLOCATED channel pool (TEMPORARILY DISABLED)
-        # if remaining_qty > 0:
-        #     channel_fifo_seq = fifo_seq + channel_fifo_offset
-        #     try:
-        #         unallocated_inv = ChannelInventory(
-        #             skuId=item.skuId,
-        #             locationId=gr.locationId,
-        #             binId=target_bin_id,
-        #             channel="UNALLOCATED",
-        #             quantity=remaining_qty,
-        #             reservedQty=0,
-        #             fifoSequence=channel_fifo_seq,
-        #             grNo=gr.grNo,
-        #             goodsReceiptId=gr.id,
-        #             companyId=gr.companyId,
-        #         )
-        #         session.add(unallocated_inv)
-        #         session.flush()  # Force immediate insert
-        #     except Exception as e:
-        #         raise HTTPException(
-        #             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        #             detail=f"Failed to create UNALLOCATED channel inventory: {type(e).__name__}: {str(e)}"
-        #         )
-        pass  # Temporarily skip channel inventory creation
+        # Any remaining quantity goes to UNALLOCATED channel pool
+        if remaining_qty > 0:
+            channel_fifo_seq = fifo_seq + channel_fifo_offset
+            try:
+                unallocated_inv = ChannelInventory(
+                    skuId=item.skuId,
+                    locationId=gr.locationId,
+                    binId=target_bin_id,
+                    channel="UNALLOCATED",
+                    quantity=remaining_qty,
+                    reservedQty=0,
+                    fifoSequence=channel_fifo_seq,
+                    grNo=gr.grNo,
+                    goodsReceiptId=gr.id,
+                    companyId=gr.companyId,
+                )
+                session.add(unallocated_inv)
+                session.flush()  # Force immediate insert
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create UNALLOCATED channel inventory: {type(e).__name__}: {str(e)}"
+                )
 
     # Update GR status
     gr.status = GoodsReceiptStatus.POSTED.value
