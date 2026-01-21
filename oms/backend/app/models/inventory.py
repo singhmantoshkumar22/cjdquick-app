@@ -11,7 +11,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, String, Integer, ForeignKey, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, ARRAY, NUMERIC
 
-from .base import BaseModel, ResponseBase, CreateBase, UpdateBase
+from .base import BaseModel, CompanyMixin, ResponseBase, CreateBase, UpdateBase
 from .enums import InventoryValuationMethod
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # Database Model
 # ============================================================================
 
-class Inventory(BaseModel, table=True):
+class Inventory(BaseModel, CompanyMixin, table=True):
     """
     Inventory model - Stock quantities at bin level.
     Tracks quantity, batch, serial numbers, and valuation.
