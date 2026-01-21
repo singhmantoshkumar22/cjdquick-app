@@ -385,7 +385,7 @@ def start_receiving(
     return build_gr_response(gr, session)
 
 
-@router.post("/{gr_id}/post", response_model=GoodsReceiptResponse)
+@router.post("/{gr_id}/post")  # Temporarily removed response_model for debugging
 def post_goods_receipt(
     gr_id: UUID,
     company_filter: CompanyFilter = Depends(),
@@ -591,7 +591,8 @@ def post_goods_receipt(
             detail=f"Failed to post goods receipt: {type(e).__name__}: {str(e)}. Traceback: {error_details[:500]}"
         )
 
-    return build_gr_response(gr, session)
+    # For debugging, return a simple dict instead of using response model
+    return {"status": "posted", "id": str(gr.id), "grNo": gr.grNo}
 
 
 @router.post("/{gr_id}/reverse", response_model=GoodsReceiptResponse)
