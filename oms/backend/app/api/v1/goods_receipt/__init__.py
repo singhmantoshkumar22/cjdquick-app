@@ -41,6 +41,7 @@ def test_inventory_creation_debug(
             skuId=PyUUID("8e3f1bfb-8b52-410d-956c-0bf5f66b5148"),  # SKU-001
             binId=PyUUID("de6d1773-3105-485f-9f42-ade3f360fef0"),  # A-01-01
             locationId=PyUUID("49363e31-c1c5-4cd4-a312-a7177c0bf07c"),  # Mumbai
+            companyId=PyUUID("43ab19ee-2f42-44ae-bcf2-792274d15bd8"),  # Demo Company
             quantity=1,
             reservedQty=0,
             fifoSequence=9999  # Test sequence
@@ -497,6 +498,7 @@ def post_goods_receipt(
                 skuId=item.skuId,
                 binId=target_bin_id,
                 locationId=gr.locationId,
+                companyId=gr.companyId,  # Required field
                 quantity=item.acceptedQty,
                 reservedQty=0,
                 batchNo=item.batchNo,
