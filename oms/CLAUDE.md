@@ -167,6 +167,22 @@ CJDQuick offers **3 distinct services** to clients. These are **completely indep
 | B2B Logistics | CJDQuick B2B | Mumbai (ap-south-1) | ngrjnhfxrmcclqxorjwl | ✅ Created |
 | B2C Courier | CJD QUICK B2C | Singapore (ap-southeast-1) | qfqztrmnvbdmejyclvvc | ✅ Live |
 
+## GIT REPOSITORY CONFIGURATION
+
+| Remote | Repository | Purpose |
+|--------|------------|---------|
+| **origin** | singhmantoshkumar22/cjdquick-app | PRIMARY - Development & Deployment |
+| **puneet** | puneet1409/CJDQuickApp | BACKUP - Sync & Collaboration |
+
+**Push to both repositories:**
+```bash
+./scripts/push-all.sh
+# OR manually:
+git push origin master && git push puneet master
+```
+
+**All Vercel & Render deployments connect to: `singhmantoshkumar22/cjdquick-app`**
+
 ---
 
 ## STEP-BY-STEP DEPLOYMENT GUIDE
