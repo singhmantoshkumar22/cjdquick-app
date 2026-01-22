@@ -77,10 +77,28 @@ RENDER_DEPLOY_HOOK_URL=https://api.render.com/deploy/srv-xxxxx?key=xxxxx
 
 | Service | URL | Platform |
 |---------|-----|----------|
-| Frontend | https://oms-sable.vercel.app | Vercel |
+| Frontend (Vercel) | https://oms-sable.vercel.app | Vercel |
+| Frontend (Render) | https://cjdquick-oms.onrender.com | Render |
 | Backend API | https://cjdquick-api-vr4w.onrender.com | Render |
 | API Docs | https://cjdquick-api-vr4w.onrender.com/docs | Render |
 | Database | aws-1-ap-northeast-1.pooler.supabase.com | Supabase |
+
+## Database Connection (Main OMS)
+
+| Setting | Value |
+|---------|-------|
+| Project Ref | `rilakxywitslblkgikzf` |
+| Region | ap-northeast-1 (Tokyo) |
+| Host | aws-1-ap-northeast-1.pooler.supabase.com |
+| Port | 6543 |
+| Database | postgres |
+| User | postgres.rilakxywitslblkgikzf |
+| Password | Aquapurite2026 |
+
+**Full Connection String (Pooler - for production):**
+```
+postgresql://postgres.rilakxywitslblkgikzf:Aquapurite2026@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
+```
 
 ## Git Remotes (IMPORTANT)
 
@@ -219,12 +237,21 @@ AUTH_TRUST_HOST=true
 INTERNAL_API_KEY=<service-key>
 ```
 
-### Render (Backend) - Set in Render Dashboard
+### Render (Backend - cjdquick-api) - Set in Render Dashboard
 ```
-DATABASE_URL=postgresql://...@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DATABASE_URL=postgresql://postgres.rilakxywitslblkgikzf:Aquapurite2026@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
 SECRET_KEY=<secret>
 FRONTEND_URL=https://oms-sable.vercel.app
 INTERNAL_API_KEY=<service-key>
+```
+
+### Render (Frontend - cjdquick-oms) - Set in Render Dashboard
+```
+DATABASE_URL=postgresql://postgres.rilakxywitslblkgikzf:Aquapurite2026@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
+NEXTAUTH_SECRET=<same-as-AUTH_SECRET>
+NEXT_PUBLIC_API_URL=https://cjdquick-api-vr4w.onrender.com
+NODE_VERSION=20.11.0
+AUTH_TRUST_HOST=true
 ```
 
 ## Login Credentials (Development)
