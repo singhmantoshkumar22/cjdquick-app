@@ -2,10 +2,9 @@
   "name": "oms",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/integrations"
   ],
   "scripts": {
     "dev": "turbo run dev",
