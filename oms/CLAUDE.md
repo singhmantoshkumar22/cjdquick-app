@@ -75,13 +75,55 @@ RENDER_DEPLOY_HOOK_URL=https://api.render.com/deploy/srv-xxxxx?key=xxxxx
 
 ## Live URLs
 
-| Service | URL | Platform |
-|---------|-----|----------|
-| Frontend (Vercel) | https://oms-sable.vercel.app | Vercel |
-| Frontend (Render) | https://cjdquick-oms.onrender.com | Render |
-| Backend API | https://cjdquick-api-vr4w.onrender.com | Render |
-| API Docs | https://cjdquick-api-vr4w.onrender.com/docs | Render |
-| Database | aws-1-ap-northeast-1.pooler.supabase.com | Supabase |
+| Service | URL | Platform | Status |
+|---------|-----|----------|--------|
+| **Frontend (PRIMARY)** | https://oms-sable.vercel.app | Vercel | ✅ Active |
+| Frontend (Backup) | https://cjdquick-oms.onrender.com | Render | ⏸️ Needs pipeline minutes |
+| **Backend API (PRIMARY)** | https://cjdquick-api-vr4w.onrender.com | Render | ✅ Active |
+| Backend API (B2C) | https://cjdquick-b2c-api.onrender.com | Render | ✅ Active |
+| API Docs | https://cjdquick-api-vr4w.onrender.com/docs | Render | ✅ Active |
+| Database | aws-1-ap-northeast-1.pooler.supabase.com | Supabase | ✅ Active |
+
+---
+
+## RENDER SERVICES INVENTORY (Updated: 2026-01-22)
+
+### Active Services
+
+| Service Name | Type | Runtime | Region | URL | Purpose |
+|--------------|------|---------|--------|-----|---------|
+| `cjdquick-api` | Web Service | Python 3 | Virginia | https://cjdquick-api-vr4w.onrender.com | **Main OMS Backend API** |
+| `cjdquick-b2c-api` | Web Service | Python 3 | Singapore | https://cjdquick-b2c-api.onrender.com | B2C Client Backend API |
+
+### Project-Grouped Services
+
+| Project | Service | Type | Runtime | Status | Notes |
+|---------|---------|------|---------|--------|-------|
+| My project | `cjdquick-oms` | Web Service | Node | ❌ Failed | Needs pipeline minutes to deploy |
+
+### Suspended Services (Can be deleted)
+
+| Service Name | Runtime | Region | Reason |
+|--------------|---------|--------|--------|
+| `cjdquick-api` | Python 3 | Singapore | Duplicate - use Virginia instance |
+| `cjdquick-app` | Python 3 | Virginia | Old/unused |
+
+### Recommended Actions
+
+1. **Use Vercel as primary frontend** - No pipeline minute limits, already working
+2. **Keep `cjdquick-api` (Virginia)** - Main backend, fully deployed
+3. **Keep `cjdquick-b2c-api` (Singapore)** - B2C backend
+4. **Optional:** Delete suspended services to clean up
+5. **Optional:** Delete `cjdquick-oms` from Render (use Vercel instead)
+
+### To Add Pipeline Minutes (if needed for cjdquick-oms):
+
+1. Go to: https://dashboard.render.com → Billing
+2. Click "Pipeline Minutes" section
+3. Purchase additional minutes (~$0.004/minute)
+4. Return to cjdquick-oms → Manual Deploy
+
+---
 
 ## Database Connection (Main OMS)
 
@@ -945,3 +987,422 @@ class ShippingAllocationService:
    - All new tables include `companyId`
    - CSR weights configurable per company
    - Lane rates can be company-specific or global
+
+---
+
+## DEVELOPMENT STRUCTURAL RULES (MANDATORY)
+
+### Rule 1: Schema-First Development
+
+**ALWAYS follow this order when adding new features:**
+
+```
+1. Database Schema → 2. Backend Model → 3. Backend API → 4. Regenerate Types → 5. Frontend UI
+```
+
+#### Step-by-Step Process:
+
+```bash
+# Step 1: Define Database Schema (if new table)
+# Create migration SQL in: backend/migrations/
+
+# Step 2: Create Backend Model
+# Location: backend/app/models/
+# Always include:
+class NewEntity(SQLModel, table=True):
+    __tablename__ = "new_entity"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    # ... fields ...
+    companyId: UUID = Field(foreign_key="Company.id", index=True)  # REQUIRED
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    updatedAt: datetime = Field(default_factory=datetime.utcnow)
+
+# Step 3: Create Backend API
+# Location: backend/app/api/v1/new_entity/__init__.py
+# Register in: backend/app/api/v1/__init__.py
+
+# Step 4: Regenerate Frontend Types
+cd apps/web && npm run generate-api:prod
+
+# Step 5: Create Frontend UI
+# Location: apps/web/src/app/(dashboard)/new-feature/page.tsx
+```
+
+### Rule 2: Type Consistency (CRITICAL)
+
+**Backend-Frontend Type Mapping:**
+
+| Backend (Python) | Frontend (TypeScript) | Serialization |
+|------------------|----------------------|---------------|
+| `UUID` | `string` | Automatic |
+| `datetime` | `string` (ISO 8601) | Automatic |
+| `Decimal` | `string` | ⚠️ Parse to number in frontend |
+| `int` | `number` | Automatic |
+| `bool` | `boolean` | Automatic |
+| `List[str]` | `Array<string>` | Automatic |
+| `Enum` | `string` (enum value) | Automatic |
+
+**Decimal Handling Rule:**
+```typescript
+// ALWAYS parse Decimal strings before calculations
+const parseDecimal = (value: string | number | null | undefined): number => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  return value;
+};
+
+// Usage in frontend
+const total = parseDecimal(order.subtotal) + parseDecimal(order.taxAmount);
+```
+
+### Rule 3: API Endpoint Naming Convention
+
+```
+# Pattern: /api/v1/{resource}/{action?}/{id?}
+
+# CRUD Operations:
+GET    /api/v1/orders           # List all
+POST   /api/v1/orders           # Create
+GET    /api/v1/orders/{id}      # Get one
+PATCH  /api/v1/orders/{id}      # Update
+DELETE /api/v1/orders/{id}      # Delete
+
+# Actions:
+POST   /api/v1/orders/{id}/items        # Add item to order
+POST   /api/v1/waves/{id}/start         # Start wave
+POST   /api/v1/waves/{id}/complete      # Complete wave
+
+# Nested Resources:
+GET    /api/v1/orders/{id}/deliveries   # Get order's deliveries
+POST   /api/v1/orders/{id}/deliveries   # Create delivery for order
+
+# Summary/Stats:
+GET    /api/v1/orders/stats             # Order statistics
+GET    /api/v1/dashboard/summary        # Dashboard summary
+```
+
+### Rule 4: Response Format Standard
+
+**All API responses must follow:**
+
+```python
+# Success Response (Single Item)
+{
+    "id": "uuid",
+    "field1": "value",
+    "createdAt": "2026-01-21T10:00:00Z",
+    "updatedAt": "2026-01-21T10:00:00Z"
+}
+
+# Success Response (List)
+[
+    {"id": "uuid1", ...},
+    {"id": "uuid2", ...}
+]
+
+# Error Response
+{
+    "detail": "Error message describing what went wrong"
+}
+
+# Validation Error
+{
+    "detail": [
+        {"loc": ["body", "field"], "msg": "Field required", "type": "value_error"}
+    ]
+}
+```
+
+### Rule 5: Frontend Component Structure
+
+```
+apps/web/src/app/(dashboard)/feature-name/
+├── page.tsx          # Main page (list view)
+├── [id]/
+│   └── page.tsx      # Detail view
+├── new/
+│   └── page.tsx      # Create form
+└── components/       # Feature-specific components (optional)
+    ├── FeatureTable.tsx
+    └── FeatureForm.tsx
+```
+
+**Page Template:**
+```typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { FeatureService } from "@/lib/api/generated";
+
+export default function FeaturePage() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["feature"],
+    queryFn: () => FeatureService.listFeatures(),
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error loading data</div>;
+
+  return (
+    <div>
+      {/* UI Components */}
+    </div>
+  );
+}
+```
+
+### Rule 6: Error Handling Standard
+
+**Backend:**
+```python
+from fastapi import HTTPException
+
+# Use appropriate status codes
+raise HTTPException(status_code=404, detail="Order not found")
+raise HTTPException(status_code=400, detail="Invalid order status transition")
+raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+```
+
+**Frontend:**
+```typescript
+try {
+  const result = await FeatureService.createFeature(data);
+  toast.success("Feature created successfully");
+} catch (error: any) {
+  const message = error?.body?.detail || "An error occurred";
+  toast.error(message);
+}
+```
+
+---
+
+## TESTING PROTOCOLS (MANDATORY)
+
+### Protocol 1: Pre-Commit Validation
+
+**ALWAYS run before committing:**
+
+```bash
+# 1. Backend Type Check
+cd backend && python -c "from app.main import app; print('Backend OK')"
+
+# 2. Frontend Build Test
+npm run vercel-build
+
+# 3. If both pass, proceed with commit
+```
+
+### Protocol 2: API Endpoint Testing
+
+**For every new API endpoint, test with curl:**
+
+```bash
+# Template
+curl -X METHOD https://cjdquick-api-vr4w.onrender.com/api/v1/endpoint \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {token}" \
+  -d '{"field": "value"}'
+
+# Example: Test order creation
+curl -X POST https://cjdquick-api-vr4w.onrender.com/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderNo": "TEST-001",
+    "channel": "MANUAL",
+    "paymentMode": "PREPAID",
+    "locationId": "uuid",
+    "companyId": "uuid",
+    "items": [{"skuId": "uuid", "quantity": 1, "unitPrice": "100.00"}]
+  }'
+```
+
+### Protocol 3: E2E Flow Testing
+
+**Test complete flows, not just individual endpoints:**
+
+```bash
+# Order Flow Test
+1. POST /orders                    → Create order (status: CREATED)
+2. POST /waves                     → Create wave (status: DRAFT)
+3. POST /waves/{id}/orders         → Add order to wave
+4. POST /waves/{id}/generate-picklists → Generate picklist
+5. POST /waves/{id}/start          → Start picking (status: PICKING)
+6. POST /waves/{id}/complete       → Complete picking (status: PICKED)
+7. POST /orders/{id}/pack          → Pack order (status: PACKED)
+8. POST /orders/{id}/ship          → Ship order (status: SHIPPED)
+9. Verify: Order status transitions correctly at each step
+```
+
+### Protocol 4: Schema Mismatch Detection
+
+**Run this audit weekly or after major changes:**
+
+```bash
+# 1. Compare backend models with frontend types
+# Check: backend/app/models/*.py vs apps/web/src/lib/api/generated/types.gen.ts
+
+# 2. Verify all required fields exist in both
+# Check: companyId, createdAt, updatedAt present in all Response types
+
+# 3. Verify Decimal fields are handled correctly
+# Check: Frontend code parses Decimal strings before calculations
+
+# 4. Regenerate types if mismatches found
+cd apps/web && npm run generate-api:prod
+```
+
+### Protocol 5: Multi-Tenancy Validation
+
+**Every new feature must:**
+
+1. ✅ Include `companyId` field in model
+2. ✅ Filter by `companyId` in all queries
+3. ✅ Validate `companyId` matches user's company
+4. ✅ Test with multiple companies
+
+```python
+# Backend query pattern
+def get_orders(company_id: UUID, db: Session):
+    return db.query(Order).filter(Order.companyId == company_id).all()
+```
+
+---
+
+## KNOWN SCHEMA MISMATCHES (Updated: 2026-01-22)
+
+### Critical Issues to Fix:
+
+| Issue | Entities Affected | Priority |
+|-------|------------------|----------|
+| Decimal → string conversion | Order, OrderItem, SKU, Inventory, Delivery | HIGH |
+| Missing `locationAccess` in UserResponse | User | HIGH |
+| Missing `companyId` in WaveResponse | Wave | HIGH |
+| `availableQty` marked optional | Inventory | MEDIUM |
+| Role enum lost in UserResponse | User | MEDIUM |
+
+### Decimal Fields Requiring Frontend Parsing:
+
+```typescript
+// These fields are returned as strings and need parseDecimal():
+Order: subtotal, taxAmount, shippingCharges, discount, codCharges, totalAmount
+OrderItem: unitPrice, taxAmount, discount, totalPrice
+SKU: mrp, costPrice, sellingPrice, taxRate, weight, length, width, height
+Inventory: mrp, costPrice
+Delivery: weight, length, width, height, volumetricWeight
+```
+
+---
+
+## AUDIT CHECKLIST (Run Monthly)
+
+### Backend Audit:
+
+- [ ] All models have `companyId` field
+- [ ] All models have `createdAt` and `updatedAt` fields
+- [ ] All Response schemas include all model fields
+- [ ] All enums are properly exported
+- [ ] All API endpoints have proper error handling
+- [ ] All endpoints check authentication
+- [ ] All endpoints filter by company
+
+### Frontend Audit:
+
+- [ ] Generated types match backend models
+- [ ] Decimal strings are parsed before calculations
+- [ ] API calls handle errors gracefully
+- [ ] Loading states exist for all async operations
+- [ ] Error boundaries exist for all route groups
+- [ ] All forms validate required fields
+
+### Integration Audit:
+
+- [ ] Frontend API calls match backend endpoints
+- [ ] Request/Response types match
+- [ ] Status transitions work correctly
+- [ ] Multi-tenancy isolation works
+- [ ] Authentication flow works
+
+---
+
+## DEPLOYMENT CHECKLIST
+
+### Before Deploying:
+
+```bash
+# 1. Run local build test
+npm run vercel-build
+
+# 2. Check for TypeScript errors
+cd apps/web && npx tsc --noEmit
+
+# 3. Test backend locally
+cd backend && python -c "from app.main import app"
+
+# 4. Run E2E flow test on staging
+# (Use curl commands from Protocol 3)
+
+# 5. Commit and push
+./scripts/deploy-all.sh
+```
+
+### After Deploying:
+
+```bash
+# 1. Verify backend health
+curl https://cjdquick-api-vr4w.onrender.com/health
+
+# 2. Verify frontend loads
+curl -s https://oms-sable.vercel.app | head -50
+
+# 3. Test login flow
+# Login via UI and verify dashboard loads
+
+# 4. Run quick E2E test
+# Create test order and verify it appears in UI
+```
+
+---
+
+## TROUBLESHOOTING COMMON ISSUES
+
+### Issue: Frontend shows "undefined" for fields
+
+**Cause:** Field missing in Response type or not returned by API
+
+**Fix:**
+1. Check backend model has the field
+2. Check backend schema includes the field
+3. Regenerate frontend types: `npm run generate-api:prod`
+
+### Issue: Calculations show wrong results (e.g., "10.505.25")
+
+**Cause:** Decimal strings being concatenated instead of added
+
+**Fix:**
+```typescript
+// Wrong
+const total = order.subtotal + order.taxAmount;
+
+// Correct
+const total = parseDecimal(order.subtotal) + parseDecimal(order.taxAmount);
+```
+
+### Issue: API returns 500 Internal Server Error
+
+**Cause:** Usually database or enum conversion issue
+
+**Fix:**
+1. Check Render logs for actual error
+2. Common: Enum value not matching database value
+3. Use `safe_enum_value()` helper for enum serialization
+
+### Issue: Multi-tenancy leak (seeing other company's data)
+
+**Cause:** Missing or incorrect `companyId` filter
+
+**Fix:**
+1. Verify all queries filter by `companyId`
+2. Verify `companyId` is extracted from authenticated user
+3. Add test for cross-company access attempt
