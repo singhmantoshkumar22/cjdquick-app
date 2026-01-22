@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class User(BaseModel, table=True):
     """User model for B2B Logistics"""
-    __tablename__ = "User"
+    __tablename__ = "B2BUser"
 
     email: str = Field(
         sa_column=Column(String, unique=True, nullable=False, index=True)
@@ -37,7 +37,7 @@ class User(BaseModel, table=True):
         default=None,
         sa_column=Column(
             PG_UUID(as_uuid=True),
-            ForeignKey("Company.id"),
+            ForeignKey("B2BCompany.id"),
             nullable=True,
             index=True
         )

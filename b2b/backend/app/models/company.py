@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 class Company(BaseModel, table=True):
     """Company model - represents tenant organizations"""
-    __tablename__ = "Company"
+    __tablename__ = "B2BCompany"
 
     code: str = Field(
         sa_column=Column(String, unique=True, nullable=False, index=True)

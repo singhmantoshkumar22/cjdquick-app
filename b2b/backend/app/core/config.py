@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     ENVIRONMENT: str = Field(default="development")
 
-    # Database - Supabase Mumbai (ngrjnhfxrmcclqxorjwl)
+    # Database - Using OMS Tokyo temporarily (rilakxywitslblkgikzf)
+    # TODO: Switch to B2B Mumbai once project is configured
     DATABASE_URL: str = Field(
         default="postgresql://postgres:postgres@localhost:5432/b2b"
     )
