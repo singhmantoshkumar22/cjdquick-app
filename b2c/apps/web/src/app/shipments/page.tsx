@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import {
@@ -39,7 +39,7 @@ interface Shipment {
   deliveredAt: string | null;
 }
 
-export default function B2CShipmentsPage() {
+function ShipmentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -398,5 +398,17 @@ export default function B2CShipmentsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function B2CShipmentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-6 flex items-center justify-center">
+        <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    }>
+      <ShipmentsContent />
+    </Suspense>
   );
 }
