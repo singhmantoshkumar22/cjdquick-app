@@ -185,6 +185,11 @@ def require_manager() -> Callable:
     return require_roles(["SUPER_ADMIN", "ADMIN", "MANAGER"])
 
 
+def require_client() -> Callable:
+    """Require CLIENT, MANAGER, ADMIN, or SUPER_ADMIN role (any authenticated user with company)"""
+    return require_roles(["SUPER_ADMIN", "ADMIN", "MANAGER", "CLIENT"])
+
+
 class CompanyFilter:
     """
     Multi-tenant company filter dependency.

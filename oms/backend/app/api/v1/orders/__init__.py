@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session, select, func
 
 from app.core.database import get_session
-from app.core.deps import get_current_user, require_manager, CompanyFilter
+from app.core.deps import get_current_user, require_manager, require_client, CompanyFilter
 from app.models import (
     Order, OrderCreate, OrderUpdate, OrderResponse, OrderBrief,
     OrderItem, OrderItemCreate, OrderItemUpdate, OrderItemResponse,
@@ -253,9 +253,9 @@ def create_order(
     order_data: OrderCreate,
     company_filter: CompanyFilter = Depends(),
     session: Session = Depends(get_session),
-    _: None = Depends(require_manager())
+    _: None = Depends(require_client())
 ):
-    """Create a new order. Requires MANAGER or higher role."""
+    """Create a new order. Requires CLIENT or higher role."""
     # Validate location
     location = session.exec(
         select(Location).where(Location.id == order_data.locationId)
