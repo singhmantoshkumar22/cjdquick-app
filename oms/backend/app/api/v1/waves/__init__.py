@@ -123,12 +123,21 @@ def create_wave(
 
         # Auto-generate waveNo if not provided
         if not wave_dict.get("waveNo"):
-            # Get count for today to generate unique wave number
+            # Get next wave number for today
             today = datetime.utcnow().strftime("%Y%m%d")
-            count = session.exec(
-                select(func.count(Wave.id)).where(Wave.waveNo.like(f"WAVE-{today}%"))
-            ).one()
-            wave_dict["waveNo"] = f"WAVE-{today}-{count + 1:03d}"
+            # Find the maximum existing wave number for today
+            existing_waves = session.exec(
+                select(Wave.waveNo).where(Wave.waveNo.like(f"WAVE-{today}-%"))
+            ).all()
+            max_num = 0
+            for wn in existing_waves:
+                try:
+                    num = int(wn.split("-")[-1])
+                    if num > max_num:
+                        max_num = num
+                except (ValueError, IndexError):
+                    pass
+            wave_dict["waveNo"] = f"WAVE-{today}-{max_num + 1:03d}"
 
         # Set createdById from current user if not provided
         if not wave_dict.get("createdById"):
