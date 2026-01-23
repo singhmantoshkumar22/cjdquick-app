@@ -309,19 +309,19 @@ function NewQuotationPageContent() {
         body: JSON.stringify({
           customerId: formData.customerId,
           validUntil: formData.validUntil.toISOString(),
-          notes: formData.notes,
-          termsAndConditions: formData.termsAndConditions,
+          remarks: formData.notes,
           items: items.map((item) => ({
             skuId: item.skuId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discount: item.discount,
-            discountType: item.discountType,
-            taxRate: item.taxRate,
-            notes: item.notes,
+            quantity: parseInt(String(item.quantity)),
+            unitPrice: parseFloat(String(item.unitPrice)).toFixed(2),
+            discount: parseFloat(String(item.discount)).toFixed(2),
+            taxRate: parseFloat(String(item.taxRate)).toFixed(2),
           })),
-          ...totals,
-          submitForApproval: submit,
+          // Map frontend totals to backend field names
+          subtotal: parseFloat(String(totals.subtotal)).toFixed(2),
+          discount: parseFloat(String(totals.discountTotal)).toFixed(2),
+          taxAmount: parseFloat(String(totals.taxTotal)).toFixed(2),
+          totalAmount: parseFloat(String(totals.total)).toFixed(2),
         }),
       });
 

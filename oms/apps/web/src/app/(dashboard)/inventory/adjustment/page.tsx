@@ -181,7 +181,8 @@ export default function StockAdjustmentPage() {
       const response = await fetch("/api/v1/locations");
       if (response.ok) {
         const result = await response.json();
-        setLocations(result.locations || result);
+        // API returns array directly, not { locations: [...] }
+        setLocations(Array.isArray(result) ? result : result.locations || []);
       }
     } catch (error) {
       console.error("Error fetching locations:", error);
@@ -213,7 +214,8 @@ export default function StockAdjustmentPage() {
       const response = await fetch(`/api/v1/skus?${params}`);
       if (response.ok) {
         const result = await response.json();
-        setSkus(result.skus || result);
+        // API returns array directly, not { skus: [...] }
+        setSkus(Array.isArray(result) ? result : result.skus || []);
       }
     } catch (error) {
       console.error("Error fetching SKUs:", error);
@@ -266,7 +268,9 @@ export default function StockAdjustmentPage() {
       );
       if (response.ok) {
         const result = await response.json();
-        return result.inventory[0]?.quantity || 0;
+        // API returns array directly, not { inventory: [...] }
+        const inventory = Array.isArray(result) ? result : result.inventory || [];
+        return inventory[0]?.quantity || 0;
       }
     } catch (error) {
       console.error("Error fetching current stock:", error);

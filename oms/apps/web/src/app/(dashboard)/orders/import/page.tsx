@@ -338,8 +338,9 @@ export default function OrderImportPage() {
     URL.revokeObjectURL(url);
   };
 
-  const imports: OrderImport[] = data?.data || [];
-  const locations: Location[] = locationsData?.data || [];
+  // Handle both array and nested response formats
+  const imports: OrderImport[] = Array.isArray(data) ? data : (data?.data || data?.imports || []);
+  const locations: Location[] = Array.isArray(locationsData) ? locationsData : (locationsData?.data || locationsData?.locations || []);
   const totalPages = data?.totalPages || 1;
 
   return (
