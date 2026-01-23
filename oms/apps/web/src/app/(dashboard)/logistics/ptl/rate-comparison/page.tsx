@@ -213,7 +213,7 @@ export default function PTLRateComparisonPage() {
                   <SelectValue placeholder="All vendors" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All vendors</SelectItem>
+                  <SelectItem value="all">All vendors</SelectItem>
                   {vendors.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
                       {v.name}

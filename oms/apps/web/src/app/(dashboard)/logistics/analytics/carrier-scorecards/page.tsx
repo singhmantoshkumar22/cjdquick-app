@@ -59,7 +59,7 @@ interface CarrierPerformance {
 }
 
 const SHIPMENT_TYPES = [
-  { value: "", label: "All Types" },
+  { value: "all", label: "All Types" },
   { value: "FTL", label: "FTL" },
   { value: "B2B_PTL", label: "B2B/PTL" },
   { value: "B2C", label: "B2C" },
@@ -76,7 +76,7 @@ export default function CarrierScorecardsPage() {
   const [carriers, setCarriers] = useState<CarrierPerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("30d");
 
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function CarrierScorecardsPage() {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
-      if (typeFilter) params.set("shipment_type", typeFilter);
+      if (typeFilter && typeFilter !== "all") params.set("shipment_type", typeFilter);
       params.set("period", periodFilter);
       params.set("limit", "50");
 

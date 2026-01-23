@@ -176,7 +176,7 @@ export default function FTLRateComparisonPage() {
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All vehicle types</SelectItem>
+                  <SelectItem value="all">All vehicle types</SelectItem>
                   {vehicleTypes.map((vt) => (
                     <SelectItem key={vt.id} value={vt.id}>
                       {vt.name}

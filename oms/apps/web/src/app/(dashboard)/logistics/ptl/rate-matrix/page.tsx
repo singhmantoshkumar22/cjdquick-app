@@ -108,9 +108,9 @@ export default function PTLRateMatrixPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [vendorFilter, setVendorFilter] = useState("");
-  const [originFilter, setOriginFilter] = useState("");
-  const [destinationFilter, setDestinationFilter] = useState("");
+  const [vendorFilter, setVendorFilter] = useState("all");
+  const [originFilter, setOriginFilter] = useState("all");
+  const [destinationFilter, setDestinationFilter] = useState("all");
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRate, setEditingRate] = useState<PTLRateMatrix | null>(null);
@@ -412,7 +412,7 @@ export default function PTLRateMatrixPage() {
                 <SelectValue placeholder="All Vendors" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Vendors</SelectItem>
+                <SelectItem value="all">All Vendors</SelectItem>
                 {vendors.map((vendor) => (
                   <SelectItem key={vendor.id} value={vendor.id}>
                     {vendor.name}
@@ -425,7 +425,7 @@ export default function PTLRateMatrixPage() {
                 <SelectValue placeholder="Origin Zone" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Origins</SelectItem>
+                <SelectItem value="all">All Origins</SelectItem>
                 {ZONES.map((zone) => (
                   <SelectItem key={zone} value={zone}>
                     {zone}
@@ -438,7 +438,7 @@ export default function PTLRateMatrixPage() {
                 <SelectValue placeholder="Dest Zone" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Destinations</SelectItem>
+                <SelectItem value="all">All Destinations</SelectItem>
                 {ZONES.map((zone) => (
                   <SelectItem key={zone} value={zone}>
                     {zone}

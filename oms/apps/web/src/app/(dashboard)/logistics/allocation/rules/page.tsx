@@ -105,7 +105,7 @@ export default function AllocationRulesPage() {
   const [rules, setRules] = useState<AllocationRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AllocationRule | null>(null);
@@ -126,7 +126,7 @@ export default function AllocationRulesPage() {
       setIsLoading(true);
       const params = new URLSearchParams();
       if (searchQuery) params.set("search", searchQuery);
-      if (typeFilter) params.set("shipment_type", typeFilter);
+      if (typeFilter && typeFilter !== "all") params.set("shipment_type", typeFilter);
       params.set("limit", "100");
 
       const response = await fetch(`/api/v1/allocation-config/rules?${params}`);
@@ -387,7 +387,7 @@ export default function AllocationRulesPage() {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {SHIPMENT_TYPES.map((type) => (
                   <SelectItem key={type.value} value={type.value}>
                     {type.label}

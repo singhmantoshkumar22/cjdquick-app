@@ -98,8 +98,8 @@ export default function AllocationAuditPage() {
   const [audits, setAudits] = useState<AllocationAudit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [modeFilter, setModeFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [modeFilter, setModeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
 
   const [selectedAudit, setSelectedAudit] = useState<AllocationAudit | null>(null);
@@ -110,8 +110,8 @@ export default function AllocationAuditPage() {
       setIsLoading(true);
       const params = new URLSearchParams();
       if (searchQuery) params.set("search", searchQuery);
-      if (typeFilter) params.set("shipment_type", typeFilter);
-      if (modeFilter) params.set("allocation_mode", modeFilter);
+      if (typeFilter && typeFilter !== "all") params.set("shipment_type", typeFilter);
+      if (modeFilter && modeFilter !== "all") params.set("allocation_mode", modeFilter);
       if (dateFilter) params.set("date", dateFilter);
       params.set("limit", "100");
 
@@ -270,7 +270,7 @@ export default function AllocationAuditPage() {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {SHIPMENT_TYPES.map((type) => (
                   <SelectItem key={type.value} value={type.value}>
                     {type.label}
@@ -283,7 +283,7 @@ export default function AllocationAuditPage() {
                 <SelectValue placeholder="All Modes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Modes</SelectItem>
+                <SelectItem value="all">All Modes</SelectItem>
                 {ALLOCATION_MODES.map((mode) => (
                   <SelectItem key={mode.value} value={mode.value}>
                     {mode.label}

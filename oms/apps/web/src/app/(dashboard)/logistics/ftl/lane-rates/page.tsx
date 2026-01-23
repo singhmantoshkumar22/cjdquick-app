@@ -102,8 +102,8 @@ export default function LaneRatesPage() {
   // Filters
   const [filterOrigin, setFilterOrigin] = useState("");
   const [filterDestination, setFilterDestination] = useState("");
-  const [filterVendor, setFilterVendor] = useState("");
-  const [filterVehicleType, setFilterVehicleType] = useState("");
+  const [filterVendor, setFilterVendor] = useState("all");
+  const [filterVehicleType, setFilterVehicleType] = useState("all");
 
   const [formData, setFormData] = useState({
     originCity: "",
@@ -348,7 +348,7 @@ export default function LaneRatesPage() {
                   <SelectValue placeholder="All vendors" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All vendors</SelectItem>
+                  <SelectItem value="all">All vendors</SelectItem>
                   {vendors.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
                       {v.name}
@@ -364,7 +364,7 @@ export default function LaneRatesPage() {
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="all">All types</SelectItem>
                   {vehicleTypes.map((vt) => (
                     <SelectItem key={vt.id} value={vt.id}>
                       {vt.name}

@@ -62,7 +62,7 @@ interface LanePerformance {
 }
 
 const SHIPMENT_TYPES = [
-  { value: "", label: "All Types" },
+  { value: "all", label: "All Types" },
   { value: "FTL", label: "FTL" },
   { value: "B2B_PTL", label: "B2B/PTL" },
 ];
@@ -86,18 +86,18 @@ export default function LanePerformancePage() {
   const [lanes, setLanes] = useState<LanePerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [originFilter, setOriginFilter] = useState("");
-  const [destinationFilter, setDestinationFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [originFilter, setOriginFilter] = useState("all");
+  const [destinationFilter, setDestinationFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("30d");
 
   const fetchLanePerformance = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
-      if (typeFilter) params.set("shipment_type", typeFilter);
-      if (originFilter) params.set("origin_zone", originFilter);
-      if (destinationFilter) params.set("destination_zone", destinationFilter);
+      if (typeFilter && typeFilter !== "all") params.set("shipment_type", typeFilter);
+      if (originFilter && originFilter !== "all") params.set("origin_zone", originFilter);
+      if (destinationFilter && destinationFilter !== "all") params.set("destination_zone", destinationFilter);
       params.set("period", periodFilter);
       params.set("limit", "100");
 
@@ -307,7 +307,7 @@ export default function LanePerformancePage() {
                 <SelectValue placeholder="Origin" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Origins</SelectItem>
+                <SelectItem value="all">All Origins</SelectItem>
                 {ZONES.map((zone) => (
                   <SelectItem key={zone} value={zone}>
                     {zone}
@@ -320,7 +320,7 @@ export default function LanePerformancePage() {
                 <SelectValue placeholder="Destination" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Destinations</SelectItem>
+                <SelectItem value="all">All Destinations</SelectItem>
                 {ZONES.map((zone) => (
                   <SelectItem key={zone} value={zone}>
                     {zone}

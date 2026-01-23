@@ -70,14 +70,14 @@ const PERIODS = [
 ];
 
 const RISK_LEVELS = [
-  { value: "", label: "All Risk Levels" },
+  { value: "all", label: "All Risk Levels" },
   { value: "LOW", label: "Low Risk" },
   { value: "MEDIUM", label: "Medium Risk" },
   { value: "HIGH", label: "High Risk" },
 ];
 
 const ZONES = [
-  { value: "", label: "All Zones" },
+  { value: "all", label: "All Zones" },
   { value: "METRO", label: "Metro" },
   { value: "TIER_1", label: "Tier 1" },
   { value: "TIER_2", label: "Tier 2" },
@@ -89,8 +89,8 @@ export default function PincodePerformancePage() {
   const [pincodes, setPincodes] = useState<PincodePerformance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [zoneFilter, setZoneFilter] = useState("");
-  const [riskFilter, setRiskFilter] = useState("");
+  const [zoneFilter, setZoneFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("30d");
 
   const fetchPincodePerformance = useCallback(async () => {
@@ -98,8 +98,8 @@ export default function PincodePerformancePage() {
       setIsLoading(true);
       const params = new URLSearchParams();
       if (searchQuery) params.set("search", searchQuery);
-      if (zoneFilter) params.set("zone", zoneFilter);
-      if (riskFilter) params.set("risk_level", riskFilter);
+      if (zoneFilter && zoneFilter !== "all") params.set("zone", zoneFilter);
+      if (riskFilter && riskFilter !== "all") params.set("risk_level", riskFilter);
       params.set("period", periodFilter);
       params.set("limit", "100");
 
