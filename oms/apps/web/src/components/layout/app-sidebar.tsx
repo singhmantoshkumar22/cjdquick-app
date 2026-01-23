@@ -231,6 +231,65 @@ const shipmentsNav: NavItemWithSub = {
   ],
 };
 
+// FTL (Full Truck Load) Management
+const ftlNav: NavItemWithSub = {
+  title: "FTL Management",
+  icon: TruckIcon,
+  items: [
+    { title: "FTL Vendors", href: "/logistics/ftl/vendors" },
+    { title: "Vehicle Types", href: "/logistics/ftl/vehicle-types" },
+    { title: "Lane Rates", href: "/logistics/ftl/lane-rates" },
+    { title: "Indent Management", href: "/logistics/ftl/indents" },
+    { title: "FTL Rate Comparison", href: "/logistics/ftl/rate-comparison" },
+  ],
+};
+
+// PTL (Part Truck Load) / B2B Management
+const ptlNav: NavItemWithSub = {
+  title: "PTL / B2B",
+  icon: Boxes,
+  items: [
+    { title: "PTL Rate Matrix", href: "/logistics/ptl/rate-matrix" },
+    { title: "TAT Matrix", href: "/logistics/ptl/tat-matrix" },
+    { title: "PTL Rate Comparison", href: "/logistics/ptl/rate-comparison" },
+  ],
+};
+
+// B2C / Courier Management
+const b2cCourierNav: NavItemWithSub = {
+  title: "B2C / Courier",
+  icon: Package,
+  items: [
+    { title: "Courier Partners", href: "/logistics/b2c/partners" },
+    { title: "B2C Rate Cards", href: "/logistics/b2c/rate-cards" },
+    { title: "Pincode Serviceability", href: "/logistics/b2c/pincodes" },
+    { title: "B2C Rate Comparison", href: "/logistics/b2c/rate-comparison" },
+  ],
+};
+
+// Allocation Engine
+const allocationNav: NavItemWithSub = {
+  title: "Allocation Engine",
+  icon: Target,
+  items: [
+    { title: "Allocation Rules", href: "/logistics/allocation/rules" },
+    { title: "CSR Configuration", href: "/logistics/allocation/csr-config" },
+    { title: "Allocation Audit", href: "/logistics/allocation/audit" },
+  ],
+};
+
+// Logistics Analytics
+const logisticsAnalyticsNav: NavItemWithSub = {
+  title: "Logistics Analytics",
+  icon: LineChart,
+  items: [
+    { title: "Carrier Scorecards", href: "/logistics/analytics/carrier-scorecards" },
+    { title: "Lane Performance", href: "/logistics/analytics/lane-performance" },
+    { title: "Pincode Performance", href: "/logistics/analytics/pincode-performance" },
+    { title: "Cost Optimization", href: "/logistics/analytics/cost-optimization" },
+  ],
+};
+
 
 const returnsNav: NavItemWithSub = {
   title: "Returns & RTO",
@@ -604,6 +663,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <CollapsibleNavItem item={shipmentsNav} pathname={pathname} />
+              <CollapsibleNavItem item={ftlNav} pathname={pathname} />
+              <CollapsibleNavItem item={ptlNav} pathname={pathname} />
+              <CollapsibleNavItem item={b2cCourierNav} pathname={pathname} />
+              <CollapsibleNavItem item={allocationNav} pathname={pathname} />
+              <CollapsibleNavItem item={logisticsAnalyticsNav} pathname={pathname} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
