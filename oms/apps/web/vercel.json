@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "installCommand": "cd ../.. && npm install -g pnpm && pnpm install --no-frozen-lockfile",
-  "buildCommand": "cd ../.. && cd packages/database && npx prisma generate && cd ../.. && pnpm run build",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": ".next"
 }
