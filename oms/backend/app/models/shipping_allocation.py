@@ -1218,3 +1218,87 @@ class ShippingAllocationRuleUpdate(UpdateBase):
     csrConfigId: Optional[UUID] = None
     fallbackTransporterId: Optional[UUID] = None
     isActive: Optional[bool] = None
+
+
+# ============================================================================
+# Performance Response Schemas
+# ============================================================================
+
+class CarrierPerformanceResponse(ResponseBase):
+    """Carrier performance response schema"""
+    id: UUID
+    periodStart: datetime
+    periodEnd: datetime
+    shipmentType: ShipmentType
+    totalShipments: int
+    deliveredShipments: int
+    rtoShipments: int
+    costScore: Optional[Decimal] = None
+    speedScore: Optional[Decimal] = None
+    reliabilityScore: Optional[Decimal] = None
+    overallScore: Optional[Decimal] = None
+    avgTATDays: Optional[Decimal] = None
+    avgCostPerKg: Optional[Decimal] = None
+    successRate: Optional[Decimal] = None
+    rtoRate: Optional[Decimal] = None
+    onTimeRate: Optional[Decimal] = None
+    transporterId: UUID
+    companyId: UUID
+    createdAt: datetime
+    updatedAt: datetime
+    # Joined fields
+    transporterName: Optional[str] = None
+    transporterCode: Optional[str] = None
+
+
+class PincodePerformanceResponse(ResponseBase):
+    """Pincode performance response schema"""
+    id: UUID
+    pincode: str
+    periodStart: datetime
+    periodEnd: datetime
+    totalShipments: int
+    deliveredShipments: int
+    rtoShipments: int
+    costScore: Optional[Decimal] = None
+    speedScore: Optional[Decimal] = None
+    reliabilityScore: Optional[Decimal] = None
+    overallScore: Optional[Decimal] = None
+    avgTATDays: Optional[Decimal] = None
+    avgCost: Optional[Decimal] = None
+    successRate: Optional[Decimal] = None
+    rtoRate: Optional[Decimal] = None
+    onTimeRate: Optional[Decimal] = None
+    transporterId: UUID
+    companyId: UUID
+    createdAt: datetime
+    updatedAt: datetime
+    # Joined fields
+    transporterName: Optional[str] = None
+    zone: Optional[str] = None
+    riskLevel: Optional[str] = None
+
+
+class LanePerformanceResponse(ResponseBase):
+    """Lane performance response schema"""
+    id: UUID
+    originCity: str
+    destinationCity: str
+    shipmentType: ShipmentType
+    periodStart: datetime
+    periodEnd: datetime
+    totalShipments: int
+    deliveredShipments: int
+    costScore: Optional[Decimal] = None
+    speedScore: Optional[Decimal] = None
+    reliabilityScore: Optional[Decimal] = None
+    overallScore: Optional[Decimal] = None
+    avgTATDays: Optional[Decimal] = None
+    avgCost: Optional[Decimal] = None
+    onTimeRate: Optional[Decimal] = None
+    transporterId: UUID
+    companyId: UUID
+    createdAt: datetime
+    updatedAt: datetime
+    # Joined fields
+    transporterName: Optional[str] = None

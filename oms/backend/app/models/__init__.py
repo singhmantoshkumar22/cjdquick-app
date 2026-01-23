@@ -661,6 +661,10 @@ from .shipping_allocation import (
     CSRScoreConfigUpdate,
     ShippingAllocationRuleCreate,
     ShippingAllocationRuleUpdate,
+    # Performance Response Schemas
+    CarrierPerformanceResponse,
+    PincodePerformanceResponse,
+    LanePerformanceResponse,
 )
 
 __all__ = [
@@ -1271,4 +1275,8 @@ __all__ = [
     "CSRScoreConfigUpdate",
     "ShippingAllocationRuleCreate",
     "ShippingAllocationRuleUpdate",
+    # Performance Response Schemas
+    "CarrierPerformanceResponse",
+    "PincodePerformanceResponse",
+    "LanePerformanceResponse",
 ]
