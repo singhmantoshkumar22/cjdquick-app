@@ -23,10 +23,11 @@ if TYPE_CHECKING:
 # Database Model
 # ============================================================================
 
-class Inventory(BaseModel, CompanyMixin, table=True):
+class Inventory(BaseModel, table=True):
     """
     Inventory model - Stock quantities at bin level.
     Tracks quantity, batch, serial numbers, and valuation.
+    Note: Company filtering is done via locationId -> Location.companyId
     """
     __tablename__ = "Inventory"
 

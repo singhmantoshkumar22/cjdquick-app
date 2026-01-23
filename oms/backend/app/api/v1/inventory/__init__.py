@@ -258,10 +258,8 @@ def create_inventory(
             detail="Inventory record already exists for this SKU/Bin/Batch combination"
         )
 
-    # Create inventory with company from location
-    inventory_dict = inventory_data.model_dump()
-    inventory_dict["companyId"] = location.companyId
-    inventory = Inventory(**inventory_dict)
+    # Create inventory
+    inventory = Inventory(**inventory_data.model_dump())
     session.add(inventory)
     session.commit()
     session.refresh(inventory)
@@ -360,8 +358,7 @@ def adjust_inventory(
                 locationId=adjustment.locationId,
                 batchNo=adjustment.batchNo,
                 quantity=adjustment.adjustmentQty,
-                serialNumbers=adjustment.serialNumbers or [],
-                companyId=location.companyId  # Set company from location
+                serialNumbers=adjustment.serialNumbers or []
             )
             session.add(inventory)
         else:
@@ -512,8 +509,7 @@ def transfer_inventory(
             costPrice=source_inventory.costPrice,
             expiryDate=source_inventory.expiryDate,
             mfgDate=source_inventory.mfgDate,
-            valuationMethod=source_inventory.valuationMethod,
-            companyId=source_inventory.companyId  # Inherit company from source
+            valuationMethod=source_inventory.valuationMethod
         )
         session.add(dest_inventory)
 
