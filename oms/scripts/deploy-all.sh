@@ -3,9 +3,13 @@
 # Deploys to both Vercel (frontend) and Render (backend)
 #
 # Architecture:
-#   Frontend (Next.js) → Vercel  (auto-deploy from origin/master)
-#   Backend (FastAPI)  → Render  (auto-deploy from singh/main when oms/backend changes)
+#   Frontend (Next.js) → Vercel  (auto-deploy from origin/main)
+#   Backend (FastAPI)  → Render  (auto-deploy from origin/main when oms/backend changes)
 #   Database           → Supabase (PostgreSQL)
+#
+# Git Remotes:
+#   origin → singhmantoshkumar22/cjdquick-app (PRIMARY - Vercel & Render)
+#   puneet → puneet1409/CJDQuickApp (BACKUP)
 #
 # Usage: ./scripts/deploy-all.sh
 
@@ -24,8 +28,8 @@ echo "CJDQuick OMS - Unified Deployment"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "Architecture:"
-echo "  • Frontend → Vercel  (origin/master)"
-echo "  • Backend  → Render  (singh/main)"
+echo "  • Frontend → Vercel  (origin/main)"
+echo "  • Backend  → Render  (origin/main)"
 echo "  • Database → Supabase"
 echo ""
 
@@ -48,17 +52,17 @@ if [[ -n $(git status -s) ]]; then
 Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 fi
 
-# Step 3: Push to origin (GitHub → Vercel auto-deploy)
+# Step 3: Push to origin (PRIMARY - singhmantoshkumar22 → Vercel & Render auto-deploy)
 echo ""
-echo "[3/6] Pushing to origin (Vercel)..."
-git push origin master
+echo "[3/6] Pushing to origin (singhmantoshkumar22 - Vercel & Render)..."
+git push origin main
 echo "✓ Pushed to origin"
 
-# Step 4: Push to singh (GitHub → Render)
+# Step 4: Push to puneet (BACKUP)
 echo ""
-echo "[4/6] Pushing to singh (Render)..."
-git push singh master:main
-echo "✓ Pushed to singh"
+echo "[4/6] Pushing to puneet (backup)..."
+git push puneet main || echo "⚠ Failed to push to puneet (backup) - continuing..."
+echo "✓ Pushed to puneet"
 
 # Step 5: Trigger Render deploy via Deploy Hook (ensures deploy even if no backend changes)
 echo ""
