@@ -139,6 +139,33 @@ class PriceListItemResponse(PriceListItemBase):
 
 
 # ============================================================================
+# Pricing Tier (for quantity-based pricing)
+# ============================================================================
+
+class PricingTierBase(SQLModel):
+    """Pricing Tier base fields"""
+    priceListItemId: UUID = Field(foreign_key="PriceListItem.id", index=True)
+    minQty: int
+    maxQty: Optional[int] = None
+    unitPrice: Decimal
+
+
+class PricingTier(PricingTierBase, BaseModel, table=True):
+    """Pricing Tier model for quantity-based pricing"""
+    __tablename__ = "PricingTier"
+
+
+class PricingTierCreate(PricingTierBase):
+    """Pricing Tier creation schema"""
+    pass
+
+
+class PricingTierResponse(PricingTierBase):
+    """Pricing Tier response schema"""
+    id: UUID
+
+
+# ============================================================================
 # Quotation (matches existing database schema)
 # ============================================================================
 

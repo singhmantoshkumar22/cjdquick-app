@@ -7,6 +7,7 @@ from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, ARRAY, String
 
 from .base import BaseModel
 
@@ -141,11 +142,11 @@ class ShippingRuleBase(SQLModel):
     companyId: Optional[UUID] = Field(default=None, foreign_key="Company.id", index=True)
     minWeight: Optional[Decimal] = None
     maxWeight: Optional[Decimal] = None
-    fromPincodes: Optional[List[str]] = None
-    toPincodes: Optional[List[str]] = None
-    channels: Optional[List[str]] = None
-    orderTypes: Optional[List[str]] = None
-    paymentModes: Optional[List[str]] = None
+    fromPincodes: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
+    toPincodes: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
+    channels: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
+    orderTypes: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
+    paymentModes: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
     effectiveFrom: Optional[datetime] = None
     effectiveTo: Optional[datetime] = None
     isActive: bool = Field(default=True)
