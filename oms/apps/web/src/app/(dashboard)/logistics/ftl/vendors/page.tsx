@@ -13,6 +13,7 @@ import {
   MapPin,
   CheckCircle,
   XCircle,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 
 interface FTLVendor {
   id: string;
@@ -210,6 +212,30 @@ export default function FTLVendorsPage() {
     }
   }
 
+  // Export vendors to CSV
+  const handleExport = () => {
+    if (vendors.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "code", header: "Code" },
+      { key: "name", header: "Name" },
+      { key: "contactPerson", header: "Contact Person", formatter: (v) => v || "" },
+      { key: "phone", header: "Phone", formatter: (v) => v || "" },
+      { key: "email", header: "Email", formatter: (v) => v || "" },
+      { key: "city", header: "City", formatter: (v) => v || "" },
+      { key: "state", header: "State", formatter: (v) => v || "" },
+      { key: "gstNumber", header: "GST Number", formatter: (v) => v || "" },
+      { key: "paymentTermDays", header: "Payment Terms (Days)" },
+      { key: "defaultTATDays", header: "Default TAT (Days)" },
+      { key: "reliabilityScore", header: "Reliability %", formatter: (v) => v !== null ? `${v}%` : "N/A" },
+      { key: "isActive", header: "Status", formatter: (v) => v ? "Active" : "Inactive" },
+    ];
+    exportToCSV(vendors, columns, "ftl_vendors");
+    toast.success("Vendors exported successfully");
+  };
+
   async function handleToggleActive(vendor: FTLVendor) {
     try {
       const response = await fetch(`/api/v1/ftl/vendors/${vendor.id}`, {
@@ -238,6 +264,10 @@ export default function FTLVendorsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
           <Button variant="outline" onClick={fetchVendors}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh

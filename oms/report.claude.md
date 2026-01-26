@@ -123,15 +123,15 @@ All decimal fields properly handled with `parseDecimal()` helper in frontend.
 |------|--------|-----------------|----------|
 | **Logistics Performance** | ✅ LIVE | 3 endpoints | KPIs, carrier table, period filtering, **CSV Export** |
 | **Analytics Carriers** | ✅ LIVE | 2 endpoints | Summary cards, comparison table, badges, **CSV Export** |
-| **Inbound ASN** | ✅ LIVE | 3 endpoints | Full CRUD, create dialog, status filters |
-| **FTL Vendors** | ✅ LIVE | 2 endpoints | Full CRUD, contact & business details |
+| **Inbound ASN** | ✅ LIVE | 3 endpoints | Full CRUD, create dialog, status filters, **CSV Export** |
+| **FTL Vendors** | ✅ LIVE | 2 endpoints | Full CRUD, contact & business details, **CSV Export** |
 | **FTL Vehicle Types** | ✅ LIVE | 2 endpoints | Full CRUD, capacity formatting |
-| **FTL Lane Rates** | ✅ LIVE | 4 endpoints | Full CRUD, advanced filters, charges |
-| **FTL Indents** | ✅ LIVE | 3 endpoints | Full CRUD, status workflow, details view |
-| **FTL Rate Comparison** | ✅ LIVE | 2 endpoints | Search, ranking, best price highlight |
-| **PTL Rate Matrix** | ✅ LIVE | 3 endpoints | Full CRUD, zones, weight slabs |
-| **PTL TAT Matrix** | ✅ LIVE | 3 endpoints | Full CRUD, transit time management |
-| **PTL Rate Comparison** | ✅ LIVE | 2 endpoints | Search, ranking, reliability badges |
+| **FTL Lane Rates** | ✅ LIVE | 4 endpoints | Full CRUD, advanced filters, charges, **CSV Export** |
+| **FTL Indents** | ✅ LIVE | 3 endpoints | Full CRUD, status workflow, details view, **CSV Export** |
+| **FTL Rate Comparison** | ✅ LIVE | 2 endpoints | Search, ranking, best price highlight, **CSV Export** |
+| **PTL Rate Matrix** | ✅ LIVE | 3 endpoints | Full CRUD, zones, weight slabs, **CSV Export** |
+| **PTL TAT Matrix** | ✅ LIVE | 3 endpoints | Full CRUD, transit time management, **CSV Export** |
+| **PTL Rate Comparison** | ✅ LIVE | 2 endpoints | Search, ranking, reliability badges, **CSV Export** |
 
 ### Working Sections
 - ✅ Dashboard
@@ -164,8 +164,9 @@ All decimal fields properly handled with `parseDecimal()` helper in frontend.
 | `2e6ad3a` | fix: Align model field names with exact database columns | 2 |
 | `5bb7f6f` | fix: Re-add PricingTier model and fix ARRAY type for ShippingRule | 2 |
 | `db76bbb` | feat: Add CSV export functionality to analytics pages | 3 |
+| `TBD` | feat: Add CSV export to FTL, PTL, and Inbound pages | 10 |
 
-**Total:** 5 commits, 22 file changes
+**Total:** 6 commits, 32 file changes
 
 ---
 
@@ -177,7 +178,7 @@ All pages are fully functional. These are optional enhancements:
 | Feature | Pages Affected | Priority | Status |
 |---------|----------------|----------|--------|
 | Export to CSV/Excel | Logistics Performance, Analytics Carriers | LOW | ✅ DONE |
-| Export to CSV/Excel | FTL/PTL pages, Other analytics | LOW | Pending |
+| Export to CSV/Excel | FTL/PTL pages, Inbound ASN | LOW | ✅ DONE |
 | Bulk Import | FTL/PTL rate matrices | LOW | Pending |
 | Trend Charts | Performance, Analytics | LOW | Pending |
 | POD Integration | FTL Indents | LOW | Pending |
@@ -242,13 +243,17 @@ The OMS project is **100% production-ready** with all issues resolved:
 - PTL Module: Rate Matrix, TAT Matrix, Rate Comparison
 - Analytics: Logistics Performance, Carrier Analytics with CSV Export
 - Inbound: ASN Management with full CRUD
-- CSV Export utilities added to lib/utils.ts
+- CSV Export functionality added to all major data pages:
+  - Logistics Performance, Analytics Carriers
+  - FTL Vendors, Lane Rates, Indents, Rate Comparison
+  - PTL Rate Matrix, TAT Matrix, Rate Comparison
+  - Inbound ASN
 
 **Optional Enhancements (Nice to Have):**
-- Export to CSV/Excel for remaining pages (FTL/PTL)
 - Bulk import for rate matrices
 - Trend chart visualizations
 - POD integration for indents
+- Visual matrix editor for rate matrices
 
 **System Status: FULLY PRODUCTION READY** ✅
 
@@ -288,3 +293,11 @@ cd backend && uvicorn app.main:app --reload --port 8000
 - `apps/web/src/lib/utils.ts` - Added export utilities
 - `apps/web/src/app/(dashboard)/logistics/performance/page.tsx` - Added CSV export
 - `apps/web/src/app/(dashboard)/analytics/carriers/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/logistics/ftl/vendors/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/logistics/ftl/lane-rates/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/logistics/ftl/indents/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/logistics/ftl/rate-comparison/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/logistics/ptl/rate-matrix/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/logistics/ptl/tat-matrix/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/logistics/ptl/rate-comparison/page.tsx` - Added CSV export
+- `apps/web/src/app/(dashboard)/inbound/asn/page.tsx` - Added CSV export

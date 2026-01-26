@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   Filter,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 
 interface LaneRate {
   id: string;
@@ -300,6 +302,31 @@ export default function LaneRatesPage() {
     return total;
   }
 
+  // Export lane rates to CSV
+  const handleExport = () => {
+    if (laneRates.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "originCity", header: "Origin City" },
+      { key: "originState", header: "Origin State", formatter: (v) => v || "" },
+      { key: "destinationCity", header: "Destination City" },
+      { key: "destinationState", header: "Destination State", formatter: (v) => v || "" },
+      { key: "distanceKm", header: "Distance (km)", formatter: (v) => v || "" },
+      { key: "vendorName", header: "Vendor", formatter: (v) => v || "" },
+      { key: "vehicleTypeName", header: "Vehicle Type", formatter: (v) => v || "" },
+      { key: "baseRate", header: "Base Rate (INR)" },
+      { key: "loadingCharges", header: "Loading Charges", formatter: (v) => v || "0" },
+      { key: "unloadingCharges", header: "Unloading Charges", formatter: (v) => v || "0" },
+      { key: "tollCharges", header: "Toll Charges", formatter: (v) => v || "0" },
+      { key: "transitDays", header: "Transit Days" },
+      { key: "isActive", header: "Status", formatter: (v) => v ? "Active" : "Inactive" },
+    ];
+    exportToCSV(laneRates, columns, "ftl_lane_rates");
+    toast.success("Lane rates exported successfully");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -310,6 +337,10 @@ export default function LaneRatesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
           <Button variant="outline" onClick={fetchLaneRates}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh

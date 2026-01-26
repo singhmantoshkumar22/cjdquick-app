@@ -55,6 +55,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 
 interface PTLTATMatrix {
   id: string;
@@ -267,6 +268,26 @@ export default function PTLTATMatrixPage() {
     return `${min}-${max} day(s)`;
   }
 
+  // Export TAT matrix to CSV
+  const handleExport = () => {
+    if (tatEntries.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "vendorName", header: "Vendor" },
+      { key: "originZone", header: "Origin Zone" },
+      { key: "destinationZone", header: "Destination Zone" },
+      { key: "transitDays", header: "Transit Days" },
+      { key: "minTransitDays", header: "Min Days" },
+      { key: "maxTransitDays", header: "Max Days" },
+      { key: "cutoffTime", header: "Cutoff Time", formatter: (v) => v || "" },
+      { key: "isActive", header: "Status", formatter: (v) => v ? "Active" : "Inactive" },
+    ];
+    exportToCSV(tatEntries, columns, "ptl_tat_matrix");
+    toast.success("TAT matrix exported successfully");
+  };
+
   // Stats
   const avgTransitDays =
     tatEntries.length > 0
@@ -292,7 +313,7 @@ export default function PTLTATMatrixPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>

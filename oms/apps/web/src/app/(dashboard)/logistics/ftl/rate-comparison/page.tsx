@@ -9,6 +9,7 @@ import {
   Truck,
   TrendingUp,
   Award,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 
 interface RateComparison {
   laneRateId: string;
@@ -132,6 +134,29 @@ export default function FTLRateComparisonPage() {
   const lowestRate = results.length > 0 ? Math.min(...results.map((r) => r.totalRate)) : 0;
   const fastestTAT = results.length > 0 ? Math.min(...results.map((r) => r.transitDays)) : 0;
 
+  // Export comparison results to CSV
+  const handleExport = () => {
+    if (results.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "vendorName", header: "Vendor" },
+      { key: "vendorCode", header: "Vendor Code" },
+      { key: "vehicleTypeName", header: "Vehicle Type" },
+      { key: "capacityKg", header: "Capacity (kg)" },
+      { key: "baseRate", header: "Base Rate (INR)" },
+      { key: "loadingCharges", header: "Loading Charges (INR)" },
+      { key: "unloadingCharges", header: "Unloading Charges (INR)" },
+      { key: "tollCharges", header: "Toll Charges (INR)" },
+      { key: "totalRate", header: "Total Rate (INR)" },
+      { key: "transitDays", header: "Transit Days" },
+      { key: "reliabilityScore", header: "Reliability %", formatter: (v) => v !== null ? `${v}%` : "N/A" },
+    ];
+    exportToCSV(results, columns, `ftl_rate_comparison_${originCity}_${destinationCity}`);
+    toast.success("Rate comparison exported successfully");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -141,6 +166,12 @@ export default function FTLRateComparisonPage() {
             Compare rates from multiple vendors for a lane
           </p>
         </div>
+        {results.length > 0 && (
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        )}
       </div>
 
       {/* Search Form */}

@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Award,
   Scale,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 
 interface PTLRateComparison {
   vendorId: string;
@@ -146,6 +148,29 @@ export default function PTLRateComparisonPage() {
     ? Math.max(...results.filter(r => r.reliabilityScore !== null).map((r) => r.reliabilityScore!))
     : 0;
 
+  // Export comparison results to CSV
+  const handleExport = () => {
+    if (results.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "vendorName", header: "Vendor" },
+      { key: "vendorCode", header: "Vendor Code" },
+      { key: "ratePerKg", header: "Rate/kg (INR)" },
+      { key: "minCharge", header: "Min Charge (INR)" },
+      { key: "fuelSurchargePercent", header: "Fuel Surcharge %" },
+      { key: "odaCharge", header: "ODA Charge (INR)" },
+      { key: "totalRate", header: "Total Rate (INR)" },
+      { key: "transitDays", header: "Transit Days" },
+      { key: "minTransitDays", header: "Min Days" },
+      { key: "maxTransitDays", header: "Max Days" },
+      { key: "reliabilityScore", header: "Reliability %", formatter: (v) => v !== null ? `${v}%` : "N/A" },
+    ];
+    exportToCSV(results, columns, `ptl_rate_comparison_${originZone}_${destinationZone}_${weight}kg`);
+    toast.success("Rate comparison exported successfully");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -155,6 +180,12 @@ export default function PTLRateComparisonPage() {
             Compare rates from multiple vendors for a lane and weight
           </p>
         </div>
+        {results.length > 0 && (
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        )}
       </div>
 
       {/* Search Form */}

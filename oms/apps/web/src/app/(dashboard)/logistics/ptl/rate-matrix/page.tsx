@@ -56,6 +56,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 
 interface PTLRateMatrix {
   id: string;
@@ -305,6 +306,30 @@ export default function PTLRateMatrixPage() {
     return `${minKg}-${maxKg} kg`;
   }
 
+  // Export rate matrix to CSV
+  const handleExport = () => {
+    if (rates.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "vendorName", header: "Vendor" },
+      { key: "originZone", header: "Origin Zone" },
+      { key: "destinationZone", header: "Destination Zone" },
+      { key: "minWeightKg", header: "Min Weight (kg)" },
+      { key: "maxWeightKg", header: "Max Weight (kg)" },
+      { key: "ratePerKg", header: "Rate/kg (INR)" },
+      { key: "minCharge", header: "Min Charge (INR)" },
+      { key: "fuelSurchargePercent", header: "Fuel Surcharge %" },
+      { key: "odaCharge", header: "ODA Charge (INR)" },
+      { key: "isActive", header: "Status", formatter: (v) => v ? "Active" : "Inactive" },
+      { key: "validFrom", header: "Valid From", formatter: (v) => v ? new Date(v).toLocaleDateString() : "" },
+      { key: "validTo", header: "Valid To", formatter: (v) => v ? new Date(v).toLocaleDateString() : "" },
+    ];
+    exportToCSV(rates, columns, "ptl_rate_matrix");
+    toast.success("Rate matrix exported successfully");
+  };
+
   // Stats
   const stats = {
     total: rates.length,
@@ -323,7 +348,7 @@ export default function PTLRateMatrixPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>

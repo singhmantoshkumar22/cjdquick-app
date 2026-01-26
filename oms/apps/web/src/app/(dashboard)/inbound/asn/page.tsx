@@ -59,8 +59,10 @@ import {
   Loader2,
   X,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 
 interface Inbound {
   id: string;
@@ -271,6 +273,25 @@ export default function ASNManagementPage() {
 
   const hasFilters = search || activeTab !== "all";
 
+  // Export ASN data to CSV
+  const handleExport = () => {
+    if (filteredInbounds.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "inboundNo", header: "ASN Number" },
+      { key: "type", header: "Type", formatter: (v) => typeConfig[v] || v },
+      { key: "status", header: "Status", formatter: (v) => statusConfig[v]?.label || v },
+      { key: "grnNo", header: "GRN Number", formatter: (v) => v || "" },
+      { key: "remarks", header: "Remarks", formatter: (v) => v || "" },
+      { key: "createdAt", header: "Created Date", formatter: (v) => format(new Date(v), "dd MMM yyyy HH:mm") },
+      { key: "completedAt", header: "Completed Date", formatter: (v) => v ? format(new Date(v), "dd MMM yyyy HH:mm") : "" },
+    ];
+    exportToCSV(filteredInbounds, columns, `asn_list_${activeTab}`);
+    toast.success("ASN data exported successfully");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -289,6 +310,10 @@ export default function ASNManagementPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
           <Button
             variant="outline"
             onClick={() => fetchData(true)}

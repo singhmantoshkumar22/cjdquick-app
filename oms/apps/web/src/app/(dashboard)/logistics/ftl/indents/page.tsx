@@ -15,6 +15,7 @@ import {
   XCircle,
   AlertCircle,
   Eye,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { exportToCSV, type ExportColumn } from "@/lib/utils";
 import { FTL_INDENT_STATUSES, getStatusConfig } from "@/lib/constants/statuses";
 
 interface FTLIndent {
@@ -320,6 +322,33 @@ export default function FTLIndentsPage() {
     });
   }
 
+  // Export indents to CSV
+  const handleExport = () => {
+    if (indents.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const columns: ExportColumn[] = [
+      { key: "indentNumber", header: "Indent Number" },
+      { key: "vendorName", header: "Vendor" },
+      { key: "vehicleTypeName", header: "Vehicle Type" },
+      { key: "originCity", header: "Origin City" },
+      { key: "destinationCity", header: "Destination City" },
+      { key: "pickupDate", header: "Pickup Date", formatter: (v) => v ? formatDate(v) : "" },
+      { key: "expectedDeliveryDate", header: "Expected Delivery", formatter: (v) => v ? formatDate(v) : "" },
+      { key: "vehicleNumber", header: "Vehicle Number", formatter: (v) => v || "" },
+      { key: "driverName", header: "Driver Name", formatter: (v) => v || "" },
+      { key: "driverPhone", header: "Driver Phone", formatter: (v) => v || "" },
+      { key: "agreedRate", header: "Agreed Rate (INR)" },
+      { key: "advanceAmount", header: "Advance Amount", formatter: (v) => v || "0" },
+      { key: "weightKg", header: "Weight (kg)", formatter: (v) => v || "" },
+      { key: "status", header: "Status", formatter: (v) => INDENT_STATUSES.find(s => s.value === v)?.label || v },
+      { key: "createdAt", header: "Created Date", formatter: (v) => formatDate(v) },
+    ];
+    exportToCSV(indents, columns, "ftl_indents");
+    toast.success("Indents exported successfully");
+  };
+
   // Stats
   const stats = {
     total: indents.length,
@@ -337,10 +366,16 @@ export default function FTLIndentsPage() {
             Manage full truck load bookings and track shipments
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Indent
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Indent
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
