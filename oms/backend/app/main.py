@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
 
 from .core.config import settings
+from .core.rate_limit import limiter, rate_limit_exceeded_handler
+from .core.audit_log import AuditLogMiddleware
 from .api.routes import api_router
 from .services.scheduler import start_scheduler, shutdown_scheduler, get_last_scan_result
 
@@ -52,6 +55,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Rate Limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -67,6 +74,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Audit Logging middleware (logs all API requests)
+app.add_middleware(AuditLogMiddleware)
 
 # Include API routes
 app.include_router(api_router, prefix="/api")

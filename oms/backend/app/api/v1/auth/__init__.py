@@ -1,13 +1,14 @@
 """
 Auth API v1 - Authentication endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlmodel import Session, select
 from datetime import datetime, timezone
 
 from app.core.database import get_session
 from app.core.security import verify_password, create_access_token
 from app.core.deps import get_current_user, get_current_user_optional
+from app.core.rate_limit import limiter, auth_limit
 from app.models import (
     User, UserCreate, UserUpdate, UserResponse, UserBrief,
     UserLogin, UserLoginResponse
@@ -17,7 +18,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=UserLoginResponse)
+@limiter.limit("10/minute")
 def login(
+    request: Request,
     credentials: UserLogin,
     session: Session = Depends(get_session)
 ):

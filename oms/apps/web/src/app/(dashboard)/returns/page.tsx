@@ -47,6 +47,12 @@ import {
   Trash2,
   AlertCircle,
 } from "lucide-react";
+import {
+  RETURN_STATUSES,
+  RETURN_TYPES,
+  QC_STATUSES,
+  getStatusConfig,
+} from "@/lib/constants/statuses";
 
 interface SKU {
   id: string;
@@ -396,42 +402,19 @@ export default function ReturnsPage() {
   };
 
   const getTypeBadge = (type: string) => {
-    const colors: Record<string, string> = {
-      CUSTOMER_RETURN: "bg-purple-100 text-purple-800",
-      RTO: "bg-orange-100 text-orange-800",
-      VENDOR_RETURN: "bg-cyan-100 text-cyan-800",
-    };
-
-    const labels: Record<string, string> = {
-      CUSTOMER_RETURN: "Customer Return",
-      RTO: "RTO",
-      VENDOR_RETURN: "Vendor Return",
-    };
-
+    const config = getStatusConfig(RETURN_TYPES, type);
     return (
-      <Badge className={`${colors[type] || "bg-gray-100"} hover:${colors[type]}`}>
-        {labels[type] || type}
+      <Badge className={`${config.color} hover:${config.color}`}>
+        {config.label}
       </Badge>
     );
   };
 
   const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      INITIATED: "bg-gray-100 text-gray-800",
-      PICKUP_SCHEDULED: "bg-indigo-100 text-indigo-800",
-      PICKED_UP: "bg-violet-100 text-violet-800",
-      IN_TRANSIT: "bg-blue-100 text-blue-800",
-      RECEIVED: "bg-cyan-100 text-cyan-800",
-      QC_PENDING: "bg-yellow-100 text-yellow-800",
-      QC_PASSED: "bg-green-100 text-green-800",
-      QC_FAILED: "bg-red-100 text-red-800",
-      REFUND_INITIATED: "bg-purple-100 text-purple-800",
-      CANCELLED: "bg-gray-100 text-gray-800",
-    };
-
+    const config = getStatusConfig(RETURN_STATUSES, status);
     return (
-      <Badge className={`${colors[status] || "bg-gray-100"} hover:${colors[status]}`}>
-        {status.replace("_", " ")}
+      <Badge className={`${config.color} hover:${config.color}`}>
+        {config.label}
       </Badge>
     );
   };

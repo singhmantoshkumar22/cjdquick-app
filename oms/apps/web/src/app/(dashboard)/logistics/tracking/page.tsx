@@ -28,6 +28,7 @@ import {
   CheckCircle,
   RefreshCw,
 } from "lucide-react";
+import { DELIVERY_STATUSES, getStatusConfig } from "@/lib/constants/statuses";
 
 export default function TrackingPage() {
   const [searchAWB, setSearchAWB] = useState("");
@@ -67,13 +68,8 @@ export default function TrackingPage() {
     },
   ];
 
-  const statusColors: Record<string, string> = {
-    PENDING: "bg-yellow-100 text-yellow-800",
-    PICKED_UP: "bg-blue-100 text-blue-800",
-    IN_TRANSIT: "bg-purple-100 text-purple-800",
-    OUT_FOR_DELIVERY: "bg-orange-100 text-orange-800",
-    DELIVERED: "bg-green-100 text-green-800",
-    RTO: "bg-red-100 text-red-800",
+  const getStatusColor = (status: string) => {
+    return getStatusConfig(DELIVERY_STATUSES, status).color;
   };
 
   const statusIcons: Record<string, React.ReactNode> = {
@@ -153,10 +149,10 @@ export default function TrackingPage() {
                   <TableCell>{shipment.orderId}</TableCell>
                   <TableCell>{shipment.courier}</TableCell>
                   <TableCell>
-                    <Badge className={statusColors[shipment.status]}>
+                    <Badge className={getStatusColor(shipment.status)}>
                       <span className="flex items-center gap-1">
                         {statusIcons[shipment.status]}
-                        {shipment.status.replace(/_/g, " ")}
+                        {getStatusConfig(DELIVERY_STATUSES, shipment.status).label}
                       </span>
                     </Badge>
                   </TableCell>

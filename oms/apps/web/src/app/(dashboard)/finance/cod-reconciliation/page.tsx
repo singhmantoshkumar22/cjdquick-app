@@ -49,14 +49,13 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  COD_RECONCILIATION_STATUSES,
+  getStatusConfig,
+} from "@/lib/constants/statuses";
 
-const statusColors: Record<string, string> = {
-  PENDING: "bg-gray-100 text-gray-800",
-  IN_PROGRESS: "bg-yellow-100 text-yellow-800",
-  RECONCILED: "bg-blue-100 text-blue-800",
-  DISPUTED: "bg-red-100 text-red-800",
-  CLOSED: "bg-purple-100 text-purple-800",
-};
+const getStatusColor = (status: string) =>
+  getStatusConfig(COD_RECONCILIATION_STATUSES, status).color;
 
 interface CODReconciliation {
   id: string;
@@ -541,8 +540,8 @@ export default function CODReconciliationPage() {
                         {formatCurrency(rec.differenceAmount)}
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusColors[rec.status] || ""}>
-                          {rec.status}
+                        <Badge className={getStatusColor(rec.status)}>
+                          {getStatusConfig(COD_RECONCILIATION_STATUSES, rec.status).label}
                         </Badge>
                       </TableCell>
                       <TableCell>

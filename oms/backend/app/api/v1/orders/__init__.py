@@ -5,11 +5,12 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlmodel import Session, select, func
 
 from app.core.database import get_session
 from app.core.deps import get_current_user, require_manager, require_client, CompanyFilter
+from app.core.rate_limit import limiter, heavy_limit
 from app.models import (
     Order, OrderCreate, OrderUpdate, OrderResponse, OrderBrief,
     OrderItem, OrderItemCreate, OrderItemUpdate, OrderItemResponse,
@@ -885,7 +886,9 @@ def list_imports(
 
 
 @router.post("/import")
+@limiter.limit("10/minute")
 def import_orders(
+    request: Request,
     import_data: ImportRequest,
     company_filter: CompanyFilter = Depends(),
     session: Session = Depends(get_session),

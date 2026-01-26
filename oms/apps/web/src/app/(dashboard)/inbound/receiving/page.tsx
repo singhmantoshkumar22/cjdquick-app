@@ -46,6 +46,11 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import {
+  INBOUND_STATUSES,
+  INBOUND_TYPES,
+  getStatusConfig,
+} from "@/lib/constants/statuses";
 
 interface Location {
   id: string;
@@ -390,33 +395,19 @@ function InboundReceivingContent() {
   };
 
   const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      PENDING: "bg-gray-100 text-gray-800",
-      IN_PROGRESS: "bg-blue-100 text-blue-800",
-      QC_PENDING: "bg-yellow-100 text-yellow-800",
-      COMPLETED: "bg-green-100 text-green-800",
-      CANCELLED: "bg-red-100 text-red-800",
-    };
-
+    const config = getStatusConfig(INBOUND_STATUSES, status);
     return (
-      <Badge className={`${colors[status] || "bg-gray-100"} hover:${colors[status]}`}>
-        {status.replace("_", " ")}
+      <Badge className={`${config.color} hover:${config.color}`}>
+        {config.label}
       </Badge>
     );
   };
 
   const getTypeBadge = (type: string) => {
-    const colors: Record<string, string> = {
-      PURCHASE_ORDER: "bg-purple-100 text-purple-800",
-      ASN: "bg-cyan-100 text-cyan-800",
-      RETURN: "bg-orange-100 text-orange-800",
-      DIRECT: "bg-blue-100 text-blue-800",
-      STOCK_TRANSFER: "bg-green-100 text-green-800",
-    };
-
+    const config = getStatusConfig(INBOUND_TYPES, type);
     return (
-      <Badge className={`${colors[type] || "bg-gray-100"} hover:${colors[type]}`}>
-        {type.replace("_", " ")}
+      <Badge className={`${config.color} hover:${config.color}`}>
+        {config.label}
       </Badge>
     );
   };

@@ -78,6 +78,7 @@ export const PICKLIST_STATUSES: StatusConfig[] = [
 // ============================================================================
 
 export const DELIVERY_STATUSES: StatusConfig[] = [
+  { value: "PENDING", label: "Pending", color: "bg-yellow-100 text-yellow-800" },
   { value: "CREATED", label: "Created", color: "bg-gray-100 text-gray-800" },
   { value: "LABEL_GENERATED", label: "Label Generated", color: "bg-blue-100 text-blue-800" },
   { value: "MANIFESTED", label: "Manifested", color: "bg-indigo-100 text-indigo-800" },
@@ -123,23 +124,25 @@ export const NDR_REASONS: StatusConfig[] = [
 // ============================================================================
 
 export const RETURN_STATUSES: StatusConfig[] = [
-  { value: "INITIATED", label: "Initiated", color: "bg-blue-100 text-blue-800" },
+  { value: "INITIATED", label: "Initiated", color: "bg-gray-100 text-gray-800" },
   { value: "PICKUP_SCHEDULED", label: "Pickup Scheduled", color: "bg-indigo-100 text-indigo-800" },
-  { value: "IN_TRANSIT", label: "In Transit", color: "bg-yellow-100 text-yellow-800" },
-  { value: "RECEIVED", label: "Received", color: "bg-purple-100 text-purple-800" },
-  { value: "QC_PENDING", label: "QC Pending", color: "bg-orange-100 text-orange-800" },
+  { value: "PICKED_UP", label: "Picked Up", color: "bg-violet-100 text-violet-800" },
+  { value: "IN_TRANSIT", label: "In Transit", color: "bg-blue-100 text-blue-800" },
+  { value: "RECEIVED", label: "Received", color: "bg-cyan-100 text-cyan-800" },
+  { value: "QC_PENDING", label: "QC Pending", color: "bg-yellow-100 text-yellow-800" },
   { value: "QC_PASSED", label: "QC Passed", color: "bg-green-100 text-green-800" },
   { value: "QC_FAILED", label: "QC Failed", color: "bg-red-100 text-red-800" },
   { value: "PROCESSED", label: "Processed", color: "bg-teal-100 text-teal-800" },
-  { value: "REFUND_INITIATED", label: "Refund Initiated", color: "bg-emerald-100 text-emerald-800" },
+  { value: "REFUND_INITIATED", label: "Refund Initiated", color: "bg-purple-100 text-purple-800" },
   { value: "REFUND_COMPLETED", label: "Refund Completed", color: "bg-green-100 text-green-800" },
   { value: "CANCELLED", label: "Cancelled", color: "bg-gray-100 text-gray-800" },
 ];
 
 export const RETURN_TYPES: StatusConfig[] = [
-  { value: "CUSTOMER_RETURN", label: "Customer Return", color: "bg-blue-100 text-blue-800" },
+  { value: "CUSTOMER_RETURN", label: "Customer Return", color: "bg-purple-100 text-purple-800" },
   { value: "RTO", label: "RTO", color: "bg-orange-100 text-orange-800" },
-  { value: "EXCHANGE", label: "Exchange", color: "bg-purple-100 text-purple-800" },
+  { value: "VENDOR_RETURN", label: "Vendor Return", color: "bg-cyan-100 text-cyan-800" },
+  { value: "EXCHANGE", label: "Exchange", color: "bg-blue-100 text-blue-800" },
 ];
 
 // ============================================================================
@@ -178,6 +181,14 @@ export const PO_STATUSES: StatusConfig[] = [
   { value: "CLOSED", label: "Closed", color: "bg-gray-100 text-gray-800" },
 ];
 
+export const INBOUND_TYPES: StatusConfig[] = [
+  { value: "PURCHASE_ORDER", label: "Purchase Order", color: "bg-purple-100 text-purple-800" },
+  { value: "ASN", label: "ASN", color: "bg-cyan-100 text-cyan-800" },
+  { value: "RETURN", label: "Return", color: "bg-orange-100 text-orange-800" },
+  { value: "DIRECT", label: "Direct", color: "bg-blue-100 text-blue-800" },
+  { value: "STOCK_TRANSFER", label: "Stock Transfer", color: "bg-green-100 text-green-800" },
+];
+
 // ============================================================================
 // FTL INDENT STATUSES
 // ============================================================================
@@ -213,6 +224,14 @@ export const COD_STATUSES: StatusConfig[] = [
   { value: "COLLECTED", label: "Collected", color: "bg-blue-100 text-blue-800" },
   { value: "REMITTED", label: "Remitted", color: "bg-green-100 text-green-800" },
   { value: "DISPUTED", label: "Disputed", color: "bg-red-100 text-red-800" },
+];
+
+export const COD_RECONCILIATION_STATUSES: StatusConfig[] = [
+  { value: "PENDING", label: "Pending", color: "bg-gray-100 text-gray-800" },
+  { value: "IN_PROGRESS", label: "In Progress", color: "bg-yellow-100 text-yellow-800" },
+  { value: "RECONCILED", label: "Reconciled", color: "bg-blue-100 text-blue-800" },
+  { value: "DISPUTED", label: "Disputed", color: "bg-red-100 text-red-800" },
+  { value: "CLOSED", label: "Closed", color: "bg-purple-100 text-purple-800" },
 ];
 
 // ============================================================================
