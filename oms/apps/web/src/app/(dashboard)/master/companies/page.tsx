@@ -91,7 +91,8 @@ export default function CompaniesPage() {
   async function fetchCompanies() {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/v1/companies");
+      // Only fetch active companies (deleted companies have isActive=false)
+      const response = await fetch("/api/v1/companies?is_active=true");
       if (!response.ok) throw new Error("Failed to fetch companies");
       const data = await response.json();
       setCompanies(data);
