@@ -168,7 +168,7 @@ export default function BrandsPage() {
       const response = await fetch(`/api/v1/brands?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch brands");
       const data = await response.json();
-      setBrands(data.data || []);
+      setBrands(Array.isArray(data) ? data : (data.data || []));
     } catch (error) {
       console.error("Error fetching brands:", error);
       toast.error("Failed to load brands");
@@ -293,13 +293,15 @@ export default function BrandsPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete brand");
+      // Handle 204 No Content (soft delete success)
+      if (response.status === 204 || response.ok) {
+        toast.success("Brand deleted");
+        fetchBrands();
+        return;
       }
 
-      toast.success("Brand deleted");
-      fetchBrands();
+      const error = await response.json();
+      throw new Error(error.detail || error.error || "Failed to delete brand");
     } catch (error) {
       console.error("Error deleting brand:", error);
       toast.error(error instanceof Error ? error.message : "Failed to delete brand");
