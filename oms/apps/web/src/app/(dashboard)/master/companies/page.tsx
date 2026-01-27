@@ -480,12 +480,12 @@ export default function CompaniesPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingCompany ? "Edit Company" : "Create Company"}
+              {editingCompany ? "Edit Company" : "Add New Company"}
             </DialogTitle>
             <DialogDescription>
               {editingCompany
                 ? "Update the company details below."
-                : "Fill in the details to create a new company."}
+                : "Enter company name first - code will be auto-generated."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
