@@ -129,6 +129,24 @@ from .brand import (
     BrandBrief,
 )
 
+# API Key model and schemas
+from .api_key import (
+    APIKey,
+    APIKeyCreate,
+    APIKeyUpdate,
+    APIKeyResponse,
+    APIKeyCreatedResponse,
+)
+
+# External Order schemas
+from .external_order import (
+    ExternalOrderCreate,
+    ExternalOrderResponse,
+    ExternalOrderError,
+    ExternalBulkOrderCreate,
+    ExternalBulkOrderResponse,
+)
+
 # SKU model and schemas
 from .sku import (
     SKU,

@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="CJDQuick Order Management System API",
-    version="1.4.0",
+    version="1.5.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
@@ -93,7 +93,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "deploy": "auto", "version": "1.4.0"}
+    return {"status": "healthy", "deploy": "auto", "version": "1.5.0"}
 
 
 @app.get("/scheduler/status")
