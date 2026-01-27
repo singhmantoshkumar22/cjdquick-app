@@ -68,27 +68,23 @@ export default function B2BCreditPage() {
     }
   };
 
-  // Mock data for demonstration
-  const mockCreditInfo: CreditInfo = creditInfo || {
-    creditLimit: 1000000,
-    creditUsed: 450000,
-    creditAvailable: 550000,
+  // Use empty defaults if no data
+  const creditData: CreditInfo = creditInfo || {
+    creditLimit: 0,
+    creditUsed: 0,
+    creditAvailable: 0,
     status: "AVAILABLE",
     paymentTerms: "NET_30",
     overdueAmount: 0,
-    lastPaymentDate: "2024-01-10",
-    lastPaymentAmount: 150000,
+    lastPaymentDate: "",
+    lastPaymentAmount: 0,
   };
 
-  const mockTransactions: Transaction[] = transactions.length > 0 ? transactions : [
-    { id: "1", date: "2024-01-14", type: "PURCHASE", reference: "B2B-2024-0156", amount: -145000, balance: 450000 },
-    { id: "2", date: "2024-01-12", type: "PURCHASE", reference: "B2B-2024-0155", amount: -272000, balance: 305000 },
-    { id: "3", date: "2024-01-10", type: "PAYMENT", reference: "PAY-2024-0089", amount: 150000, balance: 33000 },
-    { id: "4", date: "2024-01-08", type: "PURCHASE", reference: "B2B-2024-0154", amount: -88500, balance: 183000 },
-    { id: "5", date: "2024-01-05", type: "CREDIT_NOTE", reference: "CN-2024-0012", amount: 25000, balance: 94500 },
-  ];
+  const transactionList: Transaction[] = transactions;
 
-  const creditUsedPercent = (mockCreditInfo.creditUsed / mockCreditInfo.creditLimit) * 100;
+  const creditUsedPercent = creditData.creditLimit > 0
+    ? (creditData.creditUsed / creditData.creditLimit) * 100
+    : 0;
 
   const getStatusBadge = (status: string) => {
     const configs: Record<string, { color: string; icon: React.ElementType }> = {
@@ -151,7 +147,7 @@ export default function B2BCreditPage() {
                 <CardTitle>Credit Overview</CardTitle>
                 <CardDescription>Your current credit status</CardDescription>
               </div>
-              {getStatusBadge(mockCreditInfo.status)}
+              {getStatusBadge(creditData.status)}
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -159,7 +155,7 @@ export default function B2BCreditPage() {
               <div className="text-center p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-500">Credit Limit</p>
                 <p className="text-2xl font-bold">
-                  {mockCreditInfo.creditLimit.toLocaleString("en-IN", {
+                  {creditData.creditLimit.toLocaleString("en-IN", {
                     style: "currency",
                     currency: "INR",
                     maximumFractionDigits: 0,
@@ -169,7 +165,7 @@ export default function B2BCreditPage() {
               <div className="text-center p-4 bg-red-50 rounded-lg">
                 <p className="text-sm text-gray-500">Credit Used</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {mockCreditInfo.creditUsed.toLocaleString("en-IN", {
+                  {creditData.creditUsed.toLocaleString("en-IN", {
                     style: "currency",
                     currency: "INR",
                     maximumFractionDigits: 0,
@@ -179,7 +175,7 @@ export default function B2BCreditPage() {
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <p className="text-sm text-gray-500">Available</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {mockCreditInfo.creditAvailable.toLocaleString("en-IN", {
+                  {creditData.creditAvailable.toLocaleString("en-IN", {
                     style: "currency",
                     currency: "INR",
                     maximumFractionDigits: 0,
@@ -212,17 +208,17 @@ export default function B2BCreditPage() {
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <div>
                 <p className="text-xs text-gray-500">Payment Terms</p>
-                <p className="font-medium">{formatPaymentTerms(mockCreditInfo.paymentTerms)}</p>
+                <p className="font-medium">{formatPaymentTerms(creditData.paymentTerms)}</p>
               </div>
               <Clock className="h-5 w-5 text-gray-400" />
             </div>
 
-            {mockCreditInfo.overdueAmount > 0 ? (
+            {creditData.overdueAmount > 0 ? (
               <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg border border-red-200">
                 <div>
                   <p className="text-xs text-red-600">Overdue Amount</p>
                   <p className="font-medium text-red-700">
-                    {mockCreditInfo.overdueAmount.toLocaleString("en-IN", {
+                    {creditData.overdueAmount.toLocaleString("en-IN", {
                       style: "currency",
                       currency: "INR",
                     })}
@@ -243,12 +239,12 @@ export default function B2BCreditPage() {
             <div className="p-3 bg-blue-50 rounded-lg">
               <p className="text-xs text-gray-500">Last Payment</p>
               <p className="font-medium">
-                {mockCreditInfo.lastPaymentAmount.toLocaleString("en-IN", {
+                {creditData.lastPaymentAmount.toLocaleString("en-IN", {
                   style: "currency",
                   currency: "INR",
                 })}
               </p>
-              <p className="text-xs text-gray-500">{mockCreditInfo.lastPaymentDate}</p>
+              <p className="text-xs text-gray-500">{creditData.lastPaymentDate}</p>
             </div>
 
             <Button className="w-full" variant="outline">
@@ -277,7 +273,7 @@ export default function B2BCreditPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTransactions.map((txn) => (
+              {transactionList.map((txn) => (
                 <TableRow key={txn.id}>
                   <TableCell>{txn.date}</TableCell>
                   <TableCell>

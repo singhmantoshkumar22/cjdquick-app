@@ -81,57 +81,8 @@ export default function B2BNewQuotationPage() {
     }
   };
 
-  // Mock products for demonstration
-  const mockProducts: Product[] = products.length > 0 ? products : [
-    {
-      id: "1",
-      code: "SKU-001",
-      name: "Premium Cotton T-Shirt",
-      category: "Apparel",
-      brand: "Fashion Co",
-      mrp: 500,
-      price: 450,
-      taxPercent: 18,
-      availableStock: 500,
-      inStock: true,
-    },
-    {
-      id: "2",
-      code: "SKU-002",
-      name: "Denim Jeans Classic",
-      category: "Apparel",
-      brand: "DenimPro",
-      mrp: 1200,
-      price: 1140,
-      taxPercent: 18,
-      availableStock: 200,
-      inStock: true,
-    },
-    {
-      id: "3",
-      code: "SKU-003",
-      name: "Running Shoes Pro",
-      category: "Footwear",
-      brand: "SportMax",
-      mrp: 2500,
-      price: 2250,
-      taxPercent: 18,
-      availableStock: 100,
-      inStock: true,
-    },
-    {
-      id: "4",
-      code: "SKU-004",
-      name: "Formal Shirt White",
-      category: "Apparel",
-      brand: "Fashion Co",
-      mrp: 850,
-      price: 765,
-      taxPercent: 18,
-      availableStock: 0,
-      inStock: false,
-    },
-  ];
+  // Use products from API
+  const productList: Product[] = products;
 
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.product.id === product.id);
@@ -219,7 +170,7 @@ export default function B2BNewQuotationPage() {
     }
   };
 
-  const categories = [...new Set(mockProducts.map((p) => p.category).filter(Boolean))];
+  const categories = [...new Set(productList.map((p) => p.category).filter(Boolean))];
 
   return (
     <div className="space-y-6">
@@ -271,16 +222,16 @@ export default function B2BNewQuotationPage() {
           <Card>
             <CardHeader>
               <CardTitle>Available Products</CardTitle>
-              <CardDescription>{mockProducts.length} products found</CardDescription>
+              <CardDescription>{productList.length} products found</CardDescription>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
                 </div>
-              ) : mockProducts.length > 0 ? (
+              ) : productList.length > 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {mockProducts.map((product) => {
+                  {productList.map((product) => {
                     const cartItem = getCartItem(product.id);
                     return (
                       <div

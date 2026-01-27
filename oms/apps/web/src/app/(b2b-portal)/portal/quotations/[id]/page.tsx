@@ -135,53 +135,8 @@ export default function B2BQuotationDetailPage() {
     }
   };
 
-  // Mock data for demonstration
-  const mockQuotation: Quotation = quotation || {
-    id: params.id as string,
-    quotationNo: "QT-2024-0089",
-    status: "APPROVED",
-    subtotal: 110000,
-    taxAmount: 15000,
-    discountAmount: 0,
-    totalAmount: 125000,
-    createdAt: "2024-01-12",
-    validUntil: "2024-01-20",
-    validDays: 6,
-    remarks: "Please expedite shipping if possible.",
-    shippingAddress: {
-      line1: "456 Industrial Area",
-      line2: "Warehouse B",
-      city: "Mumbai",
-      state: "Maharashtra",
-      pincode: "400070",
-    },
-    items: [
-      {
-        id: "1",
-        sku: { id: "1", code: "SKU-001", name: "Premium Cotton T-Shirt" },
-        quantity: 100,
-        listPrice: 500,
-        unitPrice: 450,
-        discountPercent: 10,
-        discountAmount: 5000,
-        taxPercent: 18,
-        taxAmount: 8100,
-        totalPrice: 53100,
-      },
-      {
-        id: "2",
-        sku: { id: "2", code: "SKU-002", name: "Denim Jeans Classic" },
-        quantity: 50,
-        listPrice: 1200,
-        unitPrice: 1140,
-        discountPercent: 5,
-        discountAmount: 3000,
-        taxPercent: 18,
-        taxAmount: 10260,
-        totalPrice: 67260,
-      },
-    ],
-  };
+  // Use quotation data from API or show empty state
+  const quotationData: Quotation | null = quotation;
 
   const getStatusBadge = (status: string) => {
     const config = statusConfig[status] || statusConfig.DRAFT;
@@ -202,6 +157,19 @@ export default function B2BQuotationDetailPage() {
     );
   }
 
+  if (!quotationData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <FileText className="h-12 w-12 text-gray-300 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900">Quotation not found</h3>
+        <p className="text-gray-500 mt-1">The requested quotation could not be loaded.</p>
+        <Button variant="link" onClick={() => router.back()} className="mt-4">
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -211,13 +179,13 @@ export default function B2BQuotationDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{mockQuotation.quotationNo}</h1>
-            <p className="text-gray-500">Created on {mockQuotation.createdAt}</p>
+            <h1 className="text-2xl font-bold">{quotationData.quotationNo}</h1>
+            <p className="text-gray-500">Created on {quotationData.createdAt}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {getStatusBadge(mockQuotation.status)}
-          {mockQuotation.status === "APPROVED" && !mockQuotation.convertedOrder && (
+          {getStatusBadge(quotationData.status)}
+          {quotationData.status === "APPROVED" && !quotationData.convertedOrder && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button disabled={converting}>
@@ -246,43 +214,43 @@ export default function B2BQuotationDetailPage() {
       </div>
 
       {/* Expiry Warning */}
-      {mockQuotation.status === "APPROVED" && mockQuotation.validDays <= 3 && mockQuotation.validDays > 0 && (
+      {quotationData.status === "APPROVED" && quotationData.validDays <= 3 && quotationData.validDays > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-amber-600" />
           <div>
             <p className="font-medium text-amber-800">Quotation Expires Soon</p>
             <p className="text-sm text-amber-600">
-              This quotation expires in {mockQuotation.validDays} days. Convert to order before {mockQuotation.validUntil}.
+              This quotation expires in {quotationData.validDays} days. Convert to order before {quotationData.validUntil}.
             </p>
           </div>
         </div>
       )}
 
       {/* Rejection Notice */}
-      {mockQuotation.status === "REJECTED" && mockQuotation.rejectionReason && (
+      {quotationData.status === "REJECTED" && quotationData.rejectionReason && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
           <XCircle className="h-5 w-5 text-red-600" />
           <div>
             <p className="font-medium text-red-800">Quotation Rejected</p>
-            <p className="text-sm text-red-600">{mockQuotation.rejectionReason}</p>
+            <p className="text-sm text-red-600">{quotationData.rejectionReason}</p>
           </div>
         </div>
       )}
 
       {/* Converted Order Notice */}
-      {mockQuotation.convertedOrder && (
+      {quotationData.convertedOrder && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CheckCircle className="h-5 w-5 text-blue-600" />
             <div>
               <p className="font-medium text-blue-800">Converted to Order</p>
               <p className="text-sm text-blue-600">
-                Order {mockQuotation.convertedOrder.orderNo} - {mockQuotation.convertedOrder.status}
+                Order {quotationData.convertedOrder.orderNo} - {quotationData.convertedOrder.status}
               </p>
             </div>
           </div>
           <Button variant="outline" asChild>
-            <Link href={`/portal/orders/${mockQuotation.convertedOrder.id}`}>
+            <Link href={`/portal/orders/${quotationData.convertedOrder.id}`}>
               View Order
             </Link>
           </Button>
@@ -294,7 +262,7 @@ export default function B2BQuotationDetailPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Quotation Items</CardTitle>
-            <CardDescription>{mockQuotation.items.length} items in this quotation</CardDescription>
+            <CardDescription>{quotationData.items.length} items in this quotation</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -309,7 +277,7 @@ export default function B2BQuotationDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockQuotation.items.map((item) => (
+                {quotationData.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <div>
@@ -346,22 +314,22 @@ export default function B2BQuotationDetailPage() {
             <div className="p-4 bg-gray-50 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Subtotal</span>
-                <span>{mockQuotation.subtotal.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
+                <span>{quotationData.subtotal.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
               </div>
-              {mockQuotation.discountAmount > 0 && (
+              {quotationData.discountAmount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Discount</span>
-                  <span>-{mockQuotation.discountAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
+                  <span>-{quotationData.discountAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Tax (GST)</span>
-                <span>{mockQuotation.taxAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
+                <span>{quotationData.taxAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>{mockQuotation.totalAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
+                <span>{quotationData.totalAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
               </div>
             </div>
           </CardContent>
@@ -380,13 +348,13 @@ export default function B2BQuotationDetailPage() {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm text-gray-500">Valid Until</p>
-                <p className="font-medium">{mockQuotation.validUntil}</p>
+                <p className="font-medium">{quotationData.validUntil}</p>
               </div>
-              {mockQuotation.validDays > 0 && mockQuotation.status === "APPROVED" && (
+              {quotationData.validDays > 0 && quotationData.status === "APPROVED" && (
                 <div>
                   <p className="text-sm text-gray-500">Days Remaining</p>
-                  <p className={`font-medium ${mockQuotation.validDays <= 3 ? "text-amber-600" : "text-green-600"}`}>
-                    {mockQuotation.validDays} days
+                  <p className={`font-medium ${quotationData.validDays <= 3 ? "text-amber-600" : "text-green-600"}`}>
+                    {quotationData.validDays} days
                   </p>
                 </div>
               )}
@@ -394,30 +362,30 @@ export default function B2BQuotationDetailPage() {
           </Card>
 
           {/* Shipping Address */}
-          {mockQuotation.shippingAddress && (
+          {quotationData.shippingAddress && (
             <Card>
               <CardHeader>
                 <CardTitle>Shipping Address</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-1 text-sm">
-                  <p>{mockQuotation.shippingAddress.line1}</p>
-                  {mockQuotation.shippingAddress.line2 && <p>{mockQuotation.shippingAddress.line2}</p>}
-                  <p>{mockQuotation.shippingAddress.city}, {mockQuotation.shippingAddress.state}</p>
-                  <p className="font-mono">{mockQuotation.shippingAddress.pincode}</p>
+                  <p>{quotationData.shippingAddress.line1}</p>
+                  {quotationData.shippingAddress.line2 && <p>{quotationData.shippingAddress.line2}</p>}
+                  <p>{quotationData.shippingAddress.city}, {quotationData.shippingAddress.state}</p>
+                  <p className="font-mono">{quotationData.shippingAddress.pincode}</p>
                 </div>
               </CardContent>
             </Card>
           )}
 
           {/* Remarks */}
-          {mockQuotation.remarks && (
+          {quotationData.remarks && (
             <Card>
               <CardHeader>
                 <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">{mockQuotation.remarks}</p>
+                <p className="text-sm text-gray-600">{quotationData.remarks}</p>
               </CardContent>
             </Card>
           )}

@@ -66,34 +66,8 @@ export default function B2BAccountPage() {
     }
   };
 
-  // Mock data for demonstration
-  const mockAccount: CustomerAccount = account || {
-    id: "cust-001",
-    name: "Rajesh Kumar",
-    email: "rajesh@retailmart.com",
-    phone: "+91 98765 43210",
-    companyName: "Retail Mart Pvt Ltd",
-    gst: "27AADCR1234H1ZK",
-    customerType: "DISTRIBUTOR",
-    status: "ACTIVE",
-    billingAddress: {
-      line1: "123 MG Road",
-      line2: "Near City Mall",
-      city: "Mumbai",
-      state: "Maharashtra",
-      pincode: "400001",
-    },
-    shippingAddress: {
-      line1: "456 Industrial Area",
-      line2: "Warehouse B",
-      city: "Mumbai",
-      state: "Maharashtra",
-      pincode: "400070",
-    },
-    paymentTerms: "NET_30",
-    creditLimit: 1000000,
-    priceList: "Distributor Pricing",
-  };
+  // Use account data from API
+  const accountData: CustomerAccount | null = account;
 
   const formatPaymentTerms = (terms: string) => {
     const termMap: Record<string, string> = {
@@ -130,6 +104,16 @@ export default function B2BAccountPage() {
     );
   }
 
+  if (!accountData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <User className="h-12 w-12 text-gray-300 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900">Account not found</h3>
+        <p className="text-gray-500 mt-1">Unable to load account information.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -155,29 +139,29 @@ export default function B2BAccountPage() {
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-gray-500">Company Name</span>
-              <span className="font-medium">{mockAccount.companyName}</span>
+              <span className="font-medium">{accountData.companyName}</span>
             </div>
             <Separator />
             <div className="flex justify-between items-center">
               <span className="text-gray-500">GST Number</span>
-              <span className="font-mono">{mockAccount.gst}</span>
+              <span className="font-mono">{accountData.gst}</span>
             </div>
             <Separator />
             <div className="flex justify-between items-center">
               <span className="text-gray-500">Customer Type</span>
-              {getCustomerTypeBadge(mockAccount.customerType)}
+              {getCustomerTypeBadge(accountData.customerType)}
             </div>
             <Separator />
             <div className="flex justify-between items-center">
               <span className="text-gray-500">Status</span>
               <Badge
                 className={
-                  mockAccount.status === "ACTIVE"
+                  accountData.status === "ACTIVE"
                     ? "bg-green-100 text-green-800"
                     : "bg-red-100 text-red-800"
                 }
               >
-                {mockAccount.status}
+                {accountData.status}
               </Badge>
             </div>
           </CardContent>
@@ -197,7 +181,7 @@ export default function B2BAccountPage() {
                 <User className="h-4 w-4" />
                 Contact Person
               </span>
-              <span className="font-medium">{mockAccount.name}</span>
+              <span className="font-medium">{accountData.name}</span>
             </div>
             <Separator />
             <div className="flex justify-between items-center">
@@ -205,7 +189,7 @@ export default function B2BAccountPage() {
                 <Mail className="h-4 w-4" />
                 Email
               </span>
-              <span>{mockAccount.email}</span>
+              <span>{accountData.email}</span>
             </div>
             <Separator />
             <div className="flex justify-between items-center">
@@ -213,7 +197,7 @@ export default function B2BAccountPage() {
                 <Phone className="h-4 w-4" />
                 Phone
               </span>
-              <span>{mockAccount.phone}</span>
+              <span>{accountData.phone}</span>
             </div>
           </CardContent>
         </Card>
@@ -230,14 +214,14 @@ export default function B2BAccountPage() {
             <div className="flex items-start gap-3">
               <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p>{mockAccount.billingAddress.line1}</p>
-                {mockAccount.billingAddress.line2 && (
-                  <p>{mockAccount.billingAddress.line2}</p>
+                <p>{accountData.billingAddress.line1}</p>
+                {accountData.billingAddress.line2 && (
+                  <p>{accountData.billingAddress.line2}</p>
                 )}
                 <p>
-                  {mockAccount.billingAddress.city}, {mockAccount.billingAddress.state}
+                  {accountData.billingAddress.city}, {accountData.billingAddress.state}
                 </p>
-                <p className="font-mono">{mockAccount.billingAddress.pincode}</p>
+                <p className="font-mono">{accountData.billingAddress.pincode}</p>
               </div>
             </div>
           </CardContent>
@@ -255,14 +239,14 @@ export default function B2BAccountPage() {
             <div className="flex items-start gap-3">
               <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
               <div>
-                <p>{mockAccount.shippingAddress.line1}</p>
-                {mockAccount.shippingAddress.line2 && (
-                  <p>{mockAccount.shippingAddress.line2}</p>
+                <p>{accountData.shippingAddress.line1}</p>
+                {accountData.shippingAddress.line2 && (
+                  <p>{accountData.shippingAddress.line2}</p>
                 )}
                 <p>
-                  {mockAccount.shippingAddress.city}, {mockAccount.shippingAddress.state}
+                  {accountData.shippingAddress.city}, {accountData.shippingAddress.state}
                 </p>
-                <p className="font-mono">{mockAccount.shippingAddress.pincode}</p>
+                <p className="font-mono">{accountData.shippingAddress.pincode}</p>
               </div>
             </div>
           </CardContent>
@@ -282,13 +266,13 @@ export default function B2BAccountPage() {
               <div className="p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-sm text-gray-500">Payment Terms</p>
                 <p className="text-lg font-medium mt-1">
-                  {formatPaymentTerms(mockAccount.paymentTerms)}
+                  {formatPaymentTerms(accountData.paymentTerms)}
                 </p>
               </div>
               <div className="p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-sm text-gray-500">Credit Limit</p>
                 <p className="text-lg font-medium mt-1">
-                  {mockAccount.creditLimit.toLocaleString("en-IN", {
+                  {accountData.creditLimit.toLocaleString("en-IN", {
                     style: "currency",
                     currency: "INR",
                     maximumFractionDigits: 0,
@@ -298,7 +282,7 @@ export default function B2BAccountPage() {
               <div className="p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-sm text-gray-500">Price List</p>
                 <p className="text-lg font-medium mt-1">
-                  {mockAccount.priceList || "Standard Pricing"}
+                  {accountData.priceList || "Standard Pricing"}
                 </p>
               </div>
             </div>

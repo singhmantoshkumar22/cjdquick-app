@@ -33,170 +33,79 @@ import type {
   SLAPrediction,
 } from "@/lib/ai/types";
 
-// Mock data for initial rendering
-const mockSnapshot: ControlTowerSnapshot = {
+// Default empty snapshot for initial state
+const emptySnapshot: ControlTowerSnapshot = {
   timestamp: new Date(),
-  activeOrders: 1247,
-  ordersAtRisk: 45,
-  ordersBreached: 12,
+  activeOrders: 0,
+  ordersAtRisk: 0,
+  ordersBreached: 0,
   slaPredictions: {
-    onTrack: 1156,
-    atRisk: 67,
-    breached: 12,
-    critical: 12,
+    onTrack: 0,
+    atRisk: 0,
+    breached: 0,
+    critical: 0,
   },
   dayPerformance: {
     d0: {
       metric: "D0",
       date: new Date().toISOString(),
-      predictedOrders: 234,
-      predictedOnTime: 218,
-      predictedDelayed: 16,
-      predictedPercentage: 93,
+      predictedOrders: 0,
+      predictedOnTime: 0,
+      predictedDelayed: 0,
+      predictedPercentage: 0,
       targetPercentage: 95,
-      status: "BELOW_TARGET",
-      riskFactors: ["High order volume", "Packing capacity stretched"],
+      status: "ON_TARGET",
+      riskFactors: [],
     },
     d1: {
       metric: "D1",
       date: new Date(Date.now() + 86400000).toISOString(),
-      predictedOrders: 567,
-      predictedOnTime: 561,
-      predictedDelayed: 6,
-      predictedPercentage: 99,
+      predictedOrders: 0,
+      predictedOnTime: 0,
+      predictedDelayed: 0,
+      predictedPercentage: 0,
       targetPercentage: 98,
-      status: "EXCEEDING",
+      status: "ON_TARGET",
       riskFactors: [],
     },
     d2: {
       metric: "D2",
       date: new Date(Date.now() + 172800000).toISOString(),
-      predictedOrders: 389,
-      predictedOnTime: 385,
-      predictedDelayed: 4,
-      predictedPercentage: 99,
+      predictedOrders: 0,
+      predictedOnTime: 0,
+      predictedDelayed: 0,
+      predictedPercentage: 0,
       targetPercentage: 99,
       status: "ON_TARGET",
       riskFactors: [],
     },
   },
   capacityStatus: {
-    overall: "YELLOW",
+    overall: "GREEN",
     locations: [],
   },
   alerts: {
-    p0: 1,
-    p1: 3,
-    p2: 8,
-    p3: 12,
-    total: 24,
+    p0: 0,
+    p1: 0,
+    p2: 0,
+    p3: 0,
+    total: 0,
   },
-  carrierHealth: [
-    { carrierId: "delhivery", carrierName: "Delhivery", status: "HEALTHY", avgDelay: 0.5, ndrRate: 2.3 },
-    { carrierId: "bluedart", carrierName: "BlueDart", status: "DEGRADED", avgDelay: 4.2, ndrRate: 5.1 },
-    { carrierId: "xpressbees", carrierName: "XpressBees", status: "HEALTHY", avgDelay: 1.1, ndrRate: 3.2 },
-  ],
+  carrierHealth: [],
   inventoryHealth: {
-    stockoutRisk: 15,
-    lowStockSkus: 23,
-    criticalSkus: 5,
+    stockoutRisk: 0,
+    lowStockSkus: 0,
+    criticalSkus: 0,
   },
 };
 
-const mockInsights: PredictiveInsight[] = [
-  {
-    type: "SLA_RISK",
-    severity: "CRITICAL",
-    title: "45 orders at SLA breach risk",
-    description: "Orders from Delhi NCR region facing delays due to carrier capacity constraints",
-    predictedImpact: { affectedOrders: 45, revenueAtRisk: 125000, slaImpact: 3.6 },
-    timeToImpact: 120,
-    confidence: 0.87,
-    recommendations: [
-      { action: "Switch to alternate carrier for Delhi NCR", effort: "LOW", impact: "HIGH" },
-      { action: "Prioritize high-value orders for expedited shipping", effort: "MEDIUM", impact: "MEDIUM" },
-    ],
-  },
-  {
-    type: "CAPACITY_CONSTRAINT",
-    severity: "WARNING",
-    title: "Packing station bottleneck predicted",
-    description: "Packing utilization expected to hit 95% by 2 PM based on current order inflow",
-    predictedImpact: { affectedOrders: 120, slaImpact: 1.2 },
-    timeToImpact: 180,
-    confidence: 0.82,
-    recommendations: [
-      { action: "Add temporary packing staff from picking", effort: "LOW", impact: "HIGH" },
-      { action: "Enable batch packing for similar orders", effort: "MEDIUM", impact: "MEDIUM" },
-    ],
-  },
-  {
-    type: "CARRIER_ISSUE",
-    severity: "WARNING",
-    title: "BlueDart showing elevated delays",
-    description: "Average delay increased from 1.2 to 4.2 hours over past 24 hours",
-    predictedImpact: { affectedOrders: 67, slaImpact: 2.1 },
-    timeToImpact: 60,
-    confidence: 0.91,
-    recommendations: [
-      { action: "Route new orders to Delhivery for affected pincodes", effort: "LOW", impact: "HIGH" },
-      { action: "Contact BlueDart operations for status update", effort: "LOW", impact: "LOW" },
-    ],
-  },
-];
-
-const mockCapacity: CapacityPrediction[] = [
-  {
-    locationId: "wh-1",
-    locationCode: "DEL-01",
-    locationName: "Delhi Warehouse",
-    date: new Date().toISOString(),
-    shift: "FULL_DAY",
-    predictedOrderVolume: 450,
-    predictedUnits: 1200,
-    currentCapacity: { picking: 500, packing: 400, shipping: 600 },
-    predictedUtilization: { picking: 82, packing: 95, shipping: 68 },
-    bottleneck: "PACKING",
-    capacityStatus: "STRETCHED",
-    recommendations: ["Add temporary packing staff", "Enable batch packing"],
-  },
-  {
-    locationId: "wh-2",
-    locationCode: "MUM-01",
-    locationName: "Mumbai Warehouse",
-    date: new Date().toISOString(),
-    shift: "FULL_DAY",
-    predictedOrderVolume: 320,
-    predictedUnits: 890,
-    currentCapacity: { picking: 400, packing: 350, shipping: 500 },
-    predictedUtilization: { picking: 72, packing: 78, shipping: 55 },
-    bottleneck: "NONE",
-    capacityStatus: "OPTIMAL",
-    recommendations: [],
-  },
-  {
-    locationId: "wh-3",
-    locationCode: "BLR-01",
-    locationName: "Bangalore Warehouse",
-    date: new Date().toISOString(),
-    shift: "FULL_DAY",
-    predictedOrderVolume: 280,
-    predictedUnits: 720,
-    currentCapacity: { picking: 350, packing: 300, shipping: 400 },
-    predictedUtilization: { picking: 68, packing: 71, shipping: 58 },
-    bottleneck: "NONE",
-    capacityStatus: "OPTIMAL",
-    recommendations: [],
-  },
-];
-
 export default function ControlTowerPage() {
   const { data: session } = useSession();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [snapshot, setSnapshot] = useState<ControlTowerSnapshot>(mockSnapshot);
-  const [insights, setInsights] = useState<PredictiveInsight[]>(mockInsights);
-  const [capacityData, setCapacityData] = useState<CapacityPrediction[]>(mockCapacity);
+  const [snapshot, setSnapshot] = useState<ControlTowerSnapshot>(emptySnapshot);
+  const [insights, setInsights] = useState<PredictiveInsight[]>([]);
+  const [capacityData, setCapacityData] = useState<CapacityPrediction[]>([]);
 
   const fetchData = async () => {
     setIsLoading(true);

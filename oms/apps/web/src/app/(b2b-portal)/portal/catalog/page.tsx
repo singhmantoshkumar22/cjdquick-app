@@ -92,19 +92,12 @@ export default function B2BCatalogPage() {
     }
   };
 
-  // Mock products for demonstration
-  const mockProducts: Product[] = products.length > 0 ? products : [
-    { id: "1", code: "SKU-001", name: "Premium Cotton T-Shirt", category: "Apparel", brand: "StyleCraft", price: 450, mrp: 599, minOrderQty: 10, availableStock: 500, inStock: true },
-    { id: "2", code: "SKU-002", name: "Denim Jeans Classic", category: "Apparel", brand: "DenimCo", price: 1200, mrp: 1499, minOrderQty: 5, availableStock: 250, inStock: true },
-    { id: "3", code: "SKU-003", name: "Running Shoes Pro", category: "Footwear", brand: "SportMax", price: 2500, mrp: 3499, minOrderQty: 3, availableStock: 120, inStock: true },
-    { id: "4", code: "SKU-004", name: "Leather Belt Premium", category: "Accessories", brand: "LeatherCraft", price: 800, mrp: 999, minOrderQty: 12, availableStock: 800, inStock: true },
-    { id: "5", code: "SKU-005", name: "Formal Shirt White", category: "Apparel", brand: "StyleCraft", price: 850, mrp: 1099, minOrderQty: 6, availableStock: 350, inStock: true },
-    { id: "6", code: "SKU-006", name: "Sports Cap", category: "Accessories", brand: "SportMax", price: 250, mrp: 349, minOrderQty: 24, availableStock: 1000, inStock: true },
-  ];
+  // Use products from API
+  const productList: Product[] = products;
 
-  const categories = ["all", ...new Set(mockProducts.map((p) => p.category))];
+  const categories = ["all", ...new Set(productList.map((p) => p.category))];
 
-  const filteredProducts = mockProducts.filter((product) => {
+  const filteredProducts = productList.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.code.toLowerCase().includes(searchQuery.toLowerCase());

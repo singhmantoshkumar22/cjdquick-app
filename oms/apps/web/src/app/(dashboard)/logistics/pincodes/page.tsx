@@ -146,61 +146,18 @@ export default function PincodesPage() {
       if (!response.ok) throw new Error("Failed to fetch pincodes");
       const result = await response.json();
 
-      // Mock data for now since we don't have a dedicated pincodes table
-      const mockPincodes: PincodeService[] = [
-        {
-          id: "1",
-          pincode: "110001",
-          city: "New Delhi",
-          state: "Delhi",
-          zone: "North",
-          isServiceable: true,
-          isCodAvailable: true,
-          isPrepaidAvailable: true,
-          estimatedDays: 2,
-          transporters: transporters.slice(0, 3),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          pincode: "400001",
-          city: "Mumbai",
-          state: "Maharashtra",
-          zone: "West",
-          isServiceable: true,
-          isCodAvailable: true,
-          isPrepaidAvailable: true,
-          estimatedDays: 3,
-          transporters: transporters.slice(0, 4),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "3",
-          pincode: "560001",
-          city: "Bangalore",
-          state: "Karnataka",
-          zone: "South",
-          isServiceable: true,
-          isCodAvailable: true,
-          isPrepaidAvailable: true,
-          estimatedDays: 2,
-          transporters: transporters.slice(0, 5),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
+      const pincodeData: PincodeService[] = result.data || [];
+      setPincodes(pincodeData);
 
-      setPincodes(mockPincodes);
-
-      // Calculate stats
-      const serviceable = mockPincodes.filter((p) => p.isServiceable).length;
-      const codAvailable = mockPincodes.filter((p) => p.isCodAvailable).length;
-      const avgDays = mockPincodes.reduce((sum, p) => sum + p.estimatedDays, 0) / mockPincodes.length;
+      // Calculate stats from real data
+      const serviceable = pincodeData.filter((p) => p.isServiceable).length;
+      const codAvailable = pincodeData.filter((p) => p.isCodAvailable).length;
+      const avgDays = pincodeData.length > 0
+        ? pincodeData.reduce((sum, p) => sum + p.estimatedDays, 0) / pincodeData.length
+        : 0;
 
       setStats({
-        total: mockPincodes.length,
+        total: pincodeData.length,
         serviceable,
         codAvailable,
         avgDeliveryDays: Math.round(avgDays * 10) / 10,

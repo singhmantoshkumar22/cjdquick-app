@@ -91,51 +91,7 @@ export default function B2BQuotationsPage() {
     }
   };
 
-  // Mock data for demonstration
-  const mockQuotations: Quotation[] = quotations.length > 0 ? quotations : [
-    {
-      id: "1",
-      quotationNo: "QT-2024-0089",
-      status: "APPROVED",
-      totalAmount: 125000,
-      itemCount: 15,
-      createdAt: "2024-01-12",
-      expiresAt: "2024-01-20",
-      validDays: 6,
-    },
-    {
-      id: "2",
-      quotationNo: "QT-2024-0088",
-      status: "PENDING_APPROVAL",
-      totalAmount: 85000,
-      itemCount: 10,
-      createdAt: "2024-01-10",
-      expiresAt: "2024-01-18",
-      validDays: 4,
-    },
-    {
-      id: "3",
-      quotationNo: "QT-2024-0087",
-      status: "CONVERTED",
-      totalAmount: 200000,
-      itemCount: 25,
-      createdAt: "2024-01-05",
-      expiresAt: "2024-01-15",
-      validDays: 0,
-    },
-    {
-      id: "4",
-      quotationNo: "QT-2024-0086",
-      status: "EXPIRED",
-      totalAmount: 45000,
-      itemCount: 5,
-      createdAt: "2024-01-01",
-      expiresAt: "2024-01-10",
-      validDays: 0,
-    },
-  ];
-
-  const filteredQuotations = mockQuotations.filter((quote) => {
+  const filteredQuotations = quotations.filter((quote) => {
     const matchesSearch = quote.quotationNo.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
@@ -151,8 +107,8 @@ export default function B2BQuotationsPage() {
     );
   };
 
-  const pendingCount = mockQuotations.filter((q) => q.status === "PENDING_APPROVAL").length;
-  const approvedCount = mockQuotations.filter((q) => q.status === "APPROVED").length;
+  const pendingCount = quotations.filter((q) => q.status === "PENDING_APPROVAL").length;
+  const approvedCount = quotations.filter((q) => q.status === "APPROVED").length;
 
   return (
     <div className="space-y-6">
@@ -176,7 +132,7 @@ export default function B2BQuotationsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Quotations</p>
-                <p className="text-2xl font-bold">{mockQuotations.length}</p>
+                <p className="text-2xl font-bold">{totalCount}</p>
               </div>
               <FileText className="h-8 w-8 text-blue-500" />
             </div>
@@ -210,7 +166,7 @@ export default function B2BQuotationsPage() {
               <div>
                 <p className="text-sm text-gray-500">Converted</p>
                 <p className="text-2xl font-bold">
-                  {mockQuotations.filter((q) => q.status === "CONVERTED").length}
+                  {quotations.filter((q) => q.status === "CONVERTED").length}
                 </p>
               </div>
               <ArrowRight className="h-8 w-8 text-blue-500" />

@@ -80,27 +80,22 @@ export default function B2BDashboardPage() {
     );
   }
 
-  // Mock data for demonstration
-  const mockData: DashboardData = data || {
+  // Use empty defaults if no data
+  const dashboardData: DashboardData = data || {
     summary: {
-      totalOrders: 156,
-      pendingOrders: 3,
-      totalSpent: 2450000,
-      creditAvailable: 500000,
-      creditLimit: 1000000,
+      totalOrders: 0,
+      pendingOrders: 0,
+      totalSpent: 0,
+      creditAvailable: 0,
+      creditLimit: 0,
     },
-    recentOrders: [
-      { id: "1", orderNumber: "B2B-2024-0156", status: "SHIPPED", totalAmount: 45000, createdAt: "2024-01-14" },
-      { id: "2", orderNumber: "B2B-2024-0155", status: "DELIVERED", totalAmount: 72000, createdAt: "2024-01-12" },
-      { id: "3", orderNumber: "B2B-2024-0154", status: "PROCESSING", totalAmount: 38500, createdAt: "2024-01-10" },
-    ],
-    pendingQuotations: [
-      { id: "1", quotationNumber: "QT-2024-0089", totalAmount: 125000, expiresAt: "2024-01-20" },
-      { id: "2", quotationNumber: "QT-2024-0088", totalAmount: 85000, expiresAt: "2024-01-18" },
-    ],
+    recentOrders: [],
+    pendingQuotations: [],
   };
 
-  const creditUsedPercent = ((mockData.summary.creditLimit - mockData.summary.creditAvailable) / mockData.summary.creditLimit) * 100;
+  const creditUsedPercent = dashboardData.summary.creditLimit > 0
+    ? ((dashboardData.summary.creditLimit - dashboardData.summary.creditAvailable) / dashboardData.summary.creditLimit) * 100
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -136,9 +131,9 @@ export default function B2BDashboardPage() {
             <ShoppingCart className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockData.summary.totalOrders}</div>
+            <div className="text-2xl font-bold">{dashboardData.summary.totalOrders}</div>
             <p className="text-xs text-gray-500 mt-1">
-              {mockData.summary.pendingOrders} pending delivery
+              {dashboardData.summary.pendingOrders} pending delivery
             </p>
           </CardContent>
         </Card>
@@ -152,7 +147,7 @@ export default function B2BDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {mockData.summary.totalSpent.toLocaleString("en-IN", {
+              {dashboardData.summary.totalSpent.toLocaleString("en-IN", {
                 style: "currency",
                 currency: "INR",
                 maximumFractionDigits: 0,
@@ -171,7 +166,7 @@ export default function B2BDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {mockData.summary.creditAvailable.toLocaleString("en-IN", {
+              {dashboardData.summary.creditAvailable.toLocaleString("en-IN", {
                 style: "currency",
                 currency: "INR",
                 maximumFractionDigits: 0,
@@ -200,7 +195,7 @@ export default function B2BDashboardPage() {
             <FileText className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockData.pendingQuotations.length}</div>
+            <div className="text-2xl font-bold">{dashboardData.pendingQuotations.length}</div>
             <p className="text-xs text-gray-500 mt-1">Awaiting your approval</p>
           </CardContent>
         </Card>
@@ -221,7 +216,7 @@ export default function B2BDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockData.recentOrders.map((order) => (
+              {dashboardData.recentOrders.map((order) => (
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -262,9 +257,9 @@ export default function B2BDashboardPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {mockData.pendingQuotations.length > 0 ? (
+            {dashboardData.pendingQuotations.length > 0 ? (
               <div className="space-y-4">
-                {mockData.pendingQuotations.map((quote) => (
+                {dashboardData.pendingQuotations.map((quote) => (
                   <div
                     key={quote.id}
                     className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg"

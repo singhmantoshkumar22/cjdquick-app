@@ -91,54 +91,7 @@ export default function B2BOrdersPage() {
     }
   };
 
-  // Mock data for demonstration
-  const mockOrders: Order[] = orders.length > 0 ? orders : [
-    {
-      id: "1",
-      orderNo: "B2B-2024-0156",
-      status: "SHIPPED",
-      totalAmount: 145000,
-      itemCount: 12,
-      createdAt: "2024-01-14",
-      expectedDelivery: "2024-01-18",
-      awbNumber: "DTDC12345678",
-    },
-    {
-      id: "2",
-      orderNo: "B2B-2024-0155",
-      status: "DELIVERED",
-      totalAmount: 272000,
-      itemCount: 24,
-      createdAt: "2024-01-12",
-    },
-    {
-      id: "3",
-      orderNo: "B2B-2024-0154",
-      status: "PROCESSING",
-      totalAmount: 88500,
-      itemCount: 8,
-      createdAt: "2024-01-10",
-      expectedDelivery: "2024-01-17",
-    },
-    {
-      id: "4",
-      orderNo: "B2B-2024-0153",
-      status: "PENDING",
-      totalAmount: 56000,
-      itemCount: 5,
-      createdAt: "2024-01-09",
-    },
-    {
-      id: "5",
-      orderNo: "B2B-2024-0152",
-      status: "DELIVERED",
-      totalAmount: 189000,
-      itemCount: 18,
-      createdAt: "2024-01-05",
-    },
-  ];
-
-  const filteredOrders = mockOrders.filter((order) => {
+  const filteredOrders = orders.filter((order) => {
     const matchesSearch = order.orderNo.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
@@ -174,7 +127,7 @@ export default function B2BOrdersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Orders</p>
-                <p className="text-2xl font-bold">{mockOrders.length}</p>
+                <p className="text-2xl font-bold">{totalCount}</p>
               </div>
               <Package className="h-8 w-8 text-blue-500" />
             </div>
@@ -186,7 +139,7 @@ export default function B2BOrdersPage() {
               <div>
                 <p className="text-sm text-gray-500">In Transit</p>
                 <p className="text-2xl font-bold">
-                  {mockOrders.filter((o) => o.status === "SHIPPED").length}
+                  {orders.filter((o) => o.status === "SHIPPED").length}
                 </p>
               </div>
               <Truck className="h-8 w-8 text-indigo-500" />
@@ -199,7 +152,7 @@ export default function B2BOrdersPage() {
               <div>
                 <p className="text-sm text-gray-500">Delivered</p>
                 <p className="text-2xl font-bold">
-                  {mockOrders.filter((o) => o.status === "DELIVERED").length}
+                  {orders.filter((o) => o.status === "DELIVERED").length}
                 </p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500" />
@@ -212,7 +165,7 @@ export default function B2BOrdersPage() {
               <div>
                 <p className="text-sm text-gray-500">Pending</p>
                 <p className="text-2xl font-bold">
-                  {mockOrders.filter((o) => ["PENDING", "PROCESSING"].includes(o.status)).length}
+                  {orders.filter((o) => ["PENDING", "PROCESSING"].includes(o.status)).length}
                 </p>
               </div>
               <Clock className="h-8 w-8 text-yellow-500" />
