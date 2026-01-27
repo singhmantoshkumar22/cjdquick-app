@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -80,6 +80,8 @@ export default function CompaniesPage() {
     pan: "",
     cin: "",
   });
+  const [previewCode, setPreviewCode] = useState<string>("");
+  const [isLoadingCode, setIsLoadingCode] = useState(false);
 
   const canManageCompanies = session?.user?.role === "SUPER_ADMIN";
 
@@ -115,6 +117,42 @@ export default function CompaniesPage() {
     { label: "Total Users", value: companies.reduce((acc, c) => acc + (c._count?.users || 0), 0).toString(), icon: Users, color: "orange" },
   ];
 
+  // Debounce timer ref
+  const codePreviewTimer = useRef<NodeJS.Timeout | null>(null);
+
+  async function fetchPreviewCode(name: string) {
+    if (!name || name.length < 2) {
+      setPreviewCode("");
+      return;
+    }
+    setIsLoadingCode(true);
+    try {
+      const response = await fetch(`/api/v1/companies/preview-code?name=${encodeURIComponent(name)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPreviewCode(data.code);
+      }
+    } catch (error) {
+      console.error("Error fetching preview code:", error);
+    } finally {
+      setIsLoadingCode(false);
+    }
+  }
+
+  function handleNameChange(name: string) {
+    setFormData({ ...formData, name });
+    // Only fetch preview code when creating new company
+    if (!editingCompany) {
+      // Debounce the API call
+      if (codePreviewTimer.current) {
+        clearTimeout(codePreviewTimer.current);
+      }
+      codePreviewTimer.current = setTimeout(() => {
+        fetchPreviewCode(name);
+      }, 300);
+    }
+  }
+
   function openCreateDialog() {
     setEditingCompany(null);
     setFormData({
@@ -125,6 +163,7 @@ export default function CompaniesPage() {
       pan: "",
       cin: "",
     });
+    setPreviewCode("");
     setIsDialogOpen(true);
   }
 
@@ -143,8 +182,13 @@ export default function CompaniesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!formData.code || !formData.name) {
-      toast.error("Code and name are required");
+    if (!formData.name) {
+      toast.error("Company name is required");
+      return;
+    }
+    // Code is only required when editing
+    if (editingCompany && !formData.code) {
+      toast.error("Company code is required");
       return;
     }
 
@@ -153,10 +197,13 @@ export default function CompaniesPage() {
       const url = editingCompany ? `/api/v1/companies/${editingCompany.id}` : "/api/v1/companies";
       const method = editingCompany ? "PATCH" : "POST";
 
+      // When creating, don't send code - let backend auto-generate it
+      const payload = editingCompany ? formData : { ...formData, code: undefined };
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -437,22 +484,35 @@ export default function CompaniesPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="code">Company Code *</Label>
-                  <Input
-                    id="code"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    required
-                    disabled={!!editingCompany}
-                  />
+                  <Label htmlFor="code">Company Code {editingCompany ? "*" : "(Auto-generated)"}</Label>
+                  {editingCompany ? (
+                    <Input
+                      id="code"
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                      required
+                      disabled
+                    />
+                  ) : (
+                    <div className="flex items-center h-10 px-3 rounded-md border bg-muted text-muted-foreground">
+                      {isLoadingCode ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : previewCode ? (
+                        <span className="font-mono font-medium">{previewCode}</span>
+                      ) : (
+                        <span className="text-sm">Enter company name to generate</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="name">Company Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => handleNameChange(e.target.value)}
                     required
+                    placeholder="Enter company name"
                   />
                 </div>
               </div>

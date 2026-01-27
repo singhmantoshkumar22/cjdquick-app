@@ -329,7 +329,7 @@ class Bin(BaseModel, table=True):
 
 # Company Schemas
 class CompanyCreate(CreateBase):
-    code: str
+    code: Optional[str] = None  # Auto-generated if not provided
     name: str
     legalName: Optional[str] = None
     gst: Optional[str] = None

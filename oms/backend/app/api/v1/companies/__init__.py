@@ -1,6 +1,7 @@
 """
 Companies API v1 - Company management endpoints
 """
+import re
 from typing import List, Optional
 from uuid import UUID
 
@@ -12,8 +13,134 @@ from app.core.deps import get_current_user, require_super_admin, CompanyFilter
 from app.models import (
     Company, CompanyCreate, CompanyUpdate, CompanyResponse, CompanyBrief
 )
+from app.models.system import Sequence
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
+
+
+def generate_company_code(name: str, session: Session) -> str:
+    """
+    Generate company code in format: XXX-0001
+    - XXX = First 3 uppercase letters from company name (excluding common words)
+    - 0001 = Sequential number padded to 4 digits
+    """
+    # Common words to exclude
+    stop_words = {'the', 'and', 'of', 'for', 'in', 'a', 'an', 'pvt', 'ltd', 'private', 'limited',
+                  'llp', 'inc', 'corp', 'corporation', 'company', 'co', 'llc'}
+
+    # Clean and split the name
+    words = re.sub(r'[^a-zA-Z\s]', '', name).lower().split()
+    meaningful_words = [w for w in words if w not in stop_words]
+
+    # If no meaningful words, use original words
+    if not meaningful_words:
+        meaningful_words = words
+
+    # Generate prefix from meaningful words
+    if len(meaningful_words) >= 3:
+        # Use first letter of first 3 words
+        prefix = ''.join(w[0] for w in meaningful_words[:3]).upper()
+    elif len(meaningful_words) == 2:
+        # Use first letter of first word + first 2 letters of second word
+        prefix = (meaningful_words[0][0] + meaningful_words[1][:2]).upper()
+    elif len(meaningful_words) == 1:
+        # Use first 3 letters of the word
+        prefix = meaningful_words[0][:3].upper()
+    else:
+        prefix = 'CMP'  # Fallback
+
+    # Ensure prefix is exactly 3 characters
+    prefix = prefix[:3].ljust(3, 'X')
+
+    # Get or create sequence for company codes
+    sequence = session.exec(
+        select(Sequence).where(Sequence.name == "company_code")
+    ).first()
+
+    if not sequence:
+        sequence = Sequence(
+            name="company_code",
+            prefix="",
+            currentValue=0,
+            increment=1
+        )
+        session.add(sequence)
+
+    # Increment sequence
+    sequence.currentValue += sequence.increment
+    next_number = sequence.currentValue
+
+    # Format: XXX-0001
+    code = f"{prefix}-{next_number:04d}"
+
+    # Check if code already exists (handle edge cases)
+    existing = session.exec(
+        select(Company).where(Company.code == code)
+    ).first()
+
+    while existing:
+        sequence.currentValue += sequence.increment
+        next_number = sequence.currentValue
+        code = f"{prefix}-{next_number:04d}"
+        existing = session.exec(
+            select(Company).where(Company.code == code)
+        ).first()
+
+    return code
+
+
+def preview_company_code(name: str, session: Session) -> str:
+    """
+    Preview what the company code would be without incrementing the sequence.
+    Uses the same logic as generate_company_code but doesn't modify the sequence.
+    """
+    # Common words to exclude
+    stop_words = {'the', 'and', 'of', 'for', 'in', 'a', 'an', 'pvt', 'ltd', 'private', 'limited',
+                  'llp', 'inc', 'corp', 'corporation', 'company', 'co', 'llc'}
+
+    # Clean and split the name
+    words = re.sub(r'[^a-zA-Z\s]', '', name).lower().split()
+    meaningful_words = [w for w in words if w not in stop_words]
+
+    # If no meaningful words, use original words
+    if not meaningful_words:
+        meaningful_words = words
+
+    # Generate prefix from meaningful words
+    if len(meaningful_words) >= 3:
+        prefix = ''.join(w[0] for w in meaningful_words[:3]).upper()
+    elif len(meaningful_words) == 2:
+        prefix = (meaningful_words[0][0] + meaningful_words[1][:2]).upper()
+    elif len(meaningful_words) == 1:
+        prefix = meaningful_words[0][:3].upper()
+    else:
+        prefix = 'CMP'
+
+    # Ensure prefix is exactly 3 characters
+    prefix = prefix[:3].ljust(3, 'X')
+
+    # Get current sequence value (don't increment)
+    sequence = session.exec(
+        select(Sequence).where(Sequence.name == "company_code")
+    ).first()
+
+    next_number = (sequence.currentValue if sequence else 0) + 1
+
+    return f"{prefix}-{next_number:04d}"
+
+
+@router.get("/preview-code")
+def get_preview_code(
+    name: str = Query(..., min_length=1, description="Company name to generate code for"),
+    session: Session = Depends(get_session),
+    _: None = Depends(require_super_admin())
+):
+    """
+    Preview the auto-generated company code for a given name.
+    Does not create any records - just shows what the code would be.
+    """
+    code = preview_company_code(name, session)
+    return {"name": name, "code": code}
 
 
 @router.get("", response_model=List[CompanyBrief])
@@ -105,19 +232,27 @@ def create_company(
     """
     Create a new company.
     Requires SUPER_ADMIN role.
+    Company code is auto-generated in format XXX-0001 if not provided.
     """
-    # Check if code already exists
-    existing = session.exec(
-        select(Company).where(Company.code == company_data.code)
-    ).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Company code already exists"
-        )
+    # Get company data as dict
+    data = company_data.model_dump()
+
+    # Auto-generate code if not provided
+    if not data.get('code'):
+        data['code'] = generate_company_code(data['name'], session)
+    else:
+        # Check if provided code already exists
+        existing = session.exec(
+            select(Company).where(Company.code == data['code'])
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Company code already exists"
+            )
 
     # Create company
-    company = Company(**company_data.model_dump())
+    company = Company(**data)
     session.add(company)
     session.commit()
     session.refresh(company)
