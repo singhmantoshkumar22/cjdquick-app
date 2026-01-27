@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from .auth import router as auth_router
 from .users import router as users_router
 from .companies import router as companies_router
+from .brands import router as brands_router
 from .locations import router as locations_router
 from .locations import zones_router, bins_router  # Direct zone/bin endpoints
 from .skus import router as skus_router
@@ -58,6 +59,7 @@ router = APIRouter(prefix="/v1")
 router.include_router(auth_router)
 router.include_router(users_router)
 router.include_router(companies_router)
+router.include_router(brands_router)
 router.include_router(locations_router)
 router.include_router(zones_router)  # Direct /zones endpoints
 router.include_router(bins_router)   # Direct /bins endpoints
