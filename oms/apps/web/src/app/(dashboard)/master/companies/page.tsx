@@ -265,13 +265,22 @@ export default function CompaniesPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete company");
+      // 204 No Content is success for DELETE
+      if (response.status === 204 || response.ok) {
+        toast.success("Company deleted");
+        fetchCompanies();
+        return;
       }
 
-      toast.success("Company deleted");
-      fetchCompanies();
+      // Handle error response
+      let errorMessage = "Failed to delete company";
+      try {
+        const error = await response.json();
+        errorMessage = error.detail || error.error || errorMessage;
+      } catch {
+        // Response might not be JSON
+      }
+      throw new Error(errorMessage);
     } catch (error) {
       console.error("Error deleting company:", error);
       toast.error(error instanceof Error ? error.message : "Failed to delete company");
