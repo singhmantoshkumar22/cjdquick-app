@@ -91,17 +91,40 @@ async function proxyToBackend(
 
     const response = await fetch(backendUrl, fetchOptions);
 
+    // Handle 204 No Content (common for DELETE)
+    if (response.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
+
     // Get response data
     const contentType = response.headers.get("content-type");
     let data;
 
     if (contentType?.includes("application/json")) {
-      data = await response.json();
+      try {
+        data = await response.json();
+      } catch {
+        // Empty JSON response
+        data = null;
+      }
     } else {
-      data = await response.text();
+      const text = await response.text();
+      // Try to parse as JSON if it looks like JSON
+      if (text && (text.startsWith("{") || text.startsWith("["))) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+      } else {
+        data = text || null;
+      }
     }
 
     // Return response with same status
+    if (data === null || data === "") {
+      return new NextResponse(null, { status: response.status });
+    }
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error(`[API Proxy] Error proxying ${method} to /${path.join("/")}:`, error);
