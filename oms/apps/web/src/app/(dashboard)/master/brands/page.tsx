@@ -104,8 +104,54 @@ export default function BrandsPage() {
     contactPhone: "",
     isActive: true,
   });
+  const [previewCode, setPreviewCode] = useState<string>("");
 
   const canManageBrands = session?.user?.role === "SUPER_ADMIN";
+
+  // Generate brand code preview from name (client-side)
+  function generateCodePreview(name: string): string {
+    if (!name || name.length < 2) return "";
+
+    // Common words to exclude
+    const stopWords = new Set(['the', 'and', 'of', 'for', 'in', 'a', 'an', 'pvt', 'ltd', 'private', 'limited',
+      'llp', 'inc', 'corp', 'corporation', 'company', 'co', 'llc', 'brand', 'brands']);
+
+    // Clean and split the name
+    const words = name.replace(/[^a-zA-Z\s]/g, '').toLowerCase().split(/\s+/).filter(w => w);
+    const meaningfulWords = words.filter(w => !stopWords.has(w));
+
+    // Use meaningful words, or original if none
+    const wordsToUse = meaningfulWords.length > 0 ? meaningfulWords : words;
+
+    let prefix: string;
+    if (wordsToUse.length >= 3) {
+      // Use first letter of first 3 words
+      prefix = wordsToUse.slice(0, 3).map(w => w[0]).join('').toUpperCase();
+    } else if (wordsToUse.length === 2) {
+      // Use first letter of first word + first 2 letters of second word
+      prefix = (wordsToUse[0][0] + wordsToUse[1].slice(0, 2)).toUpperCase();
+    } else if (wordsToUse.length === 1) {
+      // Use first 3 letters of the word
+      prefix = wordsToUse[0].slice(0, 3).toUpperCase();
+    } else {
+      prefix = 'BRD';
+    }
+
+    // Ensure prefix is exactly 3 characters
+    prefix = prefix.slice(0, 3).padEnd(3, 'X');
+
+    // Show preview with placeholder sequence
+    return `${prefix}-0001`;
+  }
+
+  function handleNameChange(name: string) {
+    setFormData({ ...formData, name });
+    // Generate preview code when creating new brand
+    if (!editingBrand) {
+      const code = generateCodePreview(name);
+      setPreviewCode(code);
+    }
+  }
 
   useEffect(() => {
     fetchBrands();
@@ -168,6 +214,7 @@ export default function BrandsPage() {
       contactPhone: "",
       isActive: true,
     });
+    setPreviewCode("");
     setIsDialogOpen(true);
   }
 
@@ -497,18 +544,25 @@ export default function BrandsPage() {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => handleNameChange(e.target.value)}
                     required
+                    placeholder="Enter brand name"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="code">Brand Code</Label>
+                  <Label htmlFor="code">Brand Code {editingBrand && "*"}</Label>
                   <Input
                     id="code"
-                    value={formData.code}
+                    value={editingBrand ? formData.code : (previewCode || "")}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    placeholder="Auto-generated if empty"
+                    required={!!editingBrand}
+                    readOnly={!editingBrand}
+                    className={!editingBrand ? "bg-muted font-mono text-blue-600 font-semibold" : "font-mono"}
+                    placeholder={editingBrand ? "Brand code" : "Type name to generate"}
                   />
+                  {!editingBrand && previewCode && (
+                    <p className="text-xs text-green-600 font-medium">Preview: {previewCode}</p>
+                  )}
                 </div>
               </div>
               <div className="grid gap-2">
