@@ -481,12 +481,37 @@ def post_goods_receipt(
                 target_bin_id = default_bin.id
 
         if not target_bin_id:
-            # Get SKU code for better error message
+            # Get diagnostic info for better error message
             sku = session.exec(select(SKU).where(SKU.id == item.skuId)).first()
             sku_info = sku.code if sku else str(item.skuId)
+
+            # Check what zones exist at this location
+            all_zones = session.exec(
+                select(Zone).where(Zone.locationId == gr.locationId)
+            ).all()
+            zone_info = ", ".join([f"{z.code}({z.type})" for z in all_zones]) if all_zones else "No zones"
+
+            # Check for SALEABLE zones specifically
+            saleable_zones = session.exec(
+                select(Zone)
+                .where(Zone.locationId == gr.locationId)
+                .where(Zone.type == ZoneType.SALEABLE)
+            ).all()
+
+            # Check for bins in saleable zones
+            bins_info = "No SALEABLE zones"
+            if saleable_zones:
+                saleable_zone_ids = [z.id for z in saleable_zones]
+                bins = session.exec(
+                    select(Bin)
+                    .where(Bin.zoneId.in_(saleable_zone_ids))
+                    .where(Bin.isActive == True)
+                ).all()
+                bins_info = f"{len(bins)} active bins in SALEABLE zones" if bins else "No active bins in SALEABLE zones"
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No bin available in SALEABLE zone at this location for SKU {sku_info}. Please create a bin in a SALEABLE zone first."
+                detail=f"No bin available for SKU {sku_info}. Location zones: [{zone_info}]. {bins_info}. Please create an active bin in a SALEABLE zone."
             )
 
         # Get next FIFO sequence
