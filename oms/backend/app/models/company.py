@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from .brand import Brand
     from .sku import SKU
     from .customer import Customer, CustomerGroup
+    from .api_key import APIKey
 
 
 # ============================================================================
@@ -77,6 +78,7 @@ class Company(BaseModel, table=True):
     skus: List["SKU"] = Relationship(back_populates="company")
     customers: List["Customer"] = Relationship(back_populates="company")
     customerGroups: List["CustomerGroup"] = Relationship(back_populates="company")
+    apiKeys: List["APIKey"] = Relationship(back_populates="company")
 
 
 # ============================================================================
