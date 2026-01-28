@@ -26,8 +26,52 @@ router = APIRouter(prefix="/goods-receipts", tags=["Goods Receipts"])
 
 
 # ============================================================================
-# DEBUG: Test endpoint - MUST be defined first to avoid route conflicts
+# DEBUG: Test endpoints - MUST be defined first to avoid route conflicts
 # ============================================================================
+@router.get("/debug-location/{location_id}")
+def debug_location_zones_bins(
+    location_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Debug endpoint to check zones and bins at a location."""
+    # Get all zones at this location
+    zones = session.exec(
+        select(Zone).where(Zone.locationId == location_id)
+    ).all()
+
+    zone_data = []
+    for z in zones:
+        # Get bins for this zone
+        bins = session.exec(
+            select(Bin).where(Bin.zoneId == z.id)
+        ).all()
+        zone_data.append({
+            "id": str(z.id),
+            "code": z.code,
+            "name": z.name,
+            "type": str(z.type),
+            "isActive": z.isActive if hasattr(z, 'isActive') else True,
+            "bins": [{"id": str(b.id), "code": b.code, "isActive": b.isActive} for b in bins]
+        })
+
+    # Check specifically for saleable zones with active bins
+    saleable_bins = session.exec(
+        select(Bin)
+        .join(Zone)
+        .where(Zone.locationId == location_id)
+        .where(Zone.type == ZoneType.SALEABLE)
+        .where(Bin.isActive == True)
+    ).all()
+
+    return {
+        "locationId": str(location_id),
+        "zones": zone_data,
+        "saleableBinsCount": len(saleable_bins),
+        "saleableBins": [{"id": str(b.id), "code": b.code} for b in saleable_bins]
+    }
+
+
 @router.post("/test-inv")
 def test_inventory_creation_debug(
     session: Session = Depends(get_session),
