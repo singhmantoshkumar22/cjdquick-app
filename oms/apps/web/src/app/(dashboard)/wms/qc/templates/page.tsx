@@ -62,6 +62,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { qcTypeConfig, parameterTypes } from "@/lib/constants/config";
 
 interface QCParameter {
   id: string;
@@ -93,22 +94,6 @@ interface TemplatesResponse {
   limit: number;
   totalPages: number;
 }
-
-const qcTypeConfig: Record<string, { label: string; color: string }> = {
-  INBOUND: { label: "Inbound", color: "bg-blue-500" },
-  RETURN: { label: "Return", color: "bg-orange-500" },
-  PRODUCTION: { label: "Production", color: "bg-green-500" },
-  CYCLE_COUNT: { label: "Cycle Count", color: "bg-purple-500" },
-  RANDOM_AUDIT: { label: "Random Audit", color: "bg-yellow-500" },
-};
-
-const parameterTypes = [
-  { value: "VISUAL", label: "Visual Inspection" },
-  { value: "DIMENSIONAL", label: "Dimensional Check" },
-  { value: "WEIGHT", label: "Weight Check" },
-  { value: "BARCODE", label: "Barcode Scan" },
-  { value: "FUNCTIONAL", label: "Functional Test" },
-];
 
 export default function QCTemplatesPage() {
   const router = useRouter();

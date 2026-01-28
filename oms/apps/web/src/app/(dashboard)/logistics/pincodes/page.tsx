@@ -59,6 +59,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { deliveryZones } from "@/lib/constants/config";
 
 interface PincodeService {
   id: string;
@@ -86,8 +87,6 @@ interface Transporter {
   code: string;
   isActive: boolean;
 }
-
-const zones = ["North", "South", "East", "West", "Central", "North-East"];
 
 export default function PincodesPage() {
   const [pincodes, setPincodes] = useState<PincodeService[]>([]);
@@ -346,7 +345,7 @@ export default function PincodesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Zones</SelectItem>
-                {zones.map((zone) => (
+                {deliveryZones.map((zone) => (
                   <SelectItem key={zone} value={zone}>
                     {zone}
                   </SelectItem>
@@ -520,7 +519,7 @@ export default function PincodesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {zones.map((zone) => (
+                    {deliveryZones.map((zone) => (
                       <SelectItem key={zone} value={zone}>
                         {zone}
                       </SelectItem>

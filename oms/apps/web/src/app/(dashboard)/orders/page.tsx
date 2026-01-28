@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { channelConfig } from "@/lib/constants/config";
 
 interface OrderItem {
   id: string;
@@ -132,17 +133,6 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   RTO_DELIVERED: { label: "RTO Delivered", variant: "destructive", icon: RefreshCw },
   CANCELLED: { label: "Cancelled", variant: "destructive", icon: XCircle },
   ON_HOLD: { label: "On Hold", variant: "outline", icon: AlertCircle },
-};
-
-const channelConfig: Record<string, { label: string; color: string }> = {
-  AMAZON: { label: "Amazon", color: "bg-orange-500" },
-  FLIPKART: { label: "Flipkart", color: "bg-yellow-500" },
-  MYNTRA: { label: "Myntra", color: "bg-pink-500" },
-  AJIO: { label: "Ajio", color: "bg-purple-500" },
-  MEESHO: { label: "Meesho", color: "bg-red-500" },
-  SHOPIFY: { label: "Shopify", color: "bg-green-500" },
-  WEBSITE: { label: "Website", color: "bg-blue-500" },
-  MANUAL: { label: "Manual", color: "bg-gray-500" },
 };
 
 const statusTabs = [

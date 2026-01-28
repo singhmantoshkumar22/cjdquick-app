@@ -50,6 +50,7 @@ import {
   Copy,
 } from "lucide-react";
 import { toast } from "sonner";
+import { parameterTypes, qcTypes } from "@/lib/constants/config";
 
 interface QCParameter {
   id: string;
@@ -76,21 +77,11 @@ interface QCTemplate {
   };
 }
 
-const PARAMETER_TYPES = [
-  { value: "VISUAL", label: "Visual Inspection" },
-  { value: "DIMENSIONAL", label: "Dimensional Check" },
-  { value: "WEIGHT", label: "Weight Verification" },
-  { value: "BARCODE", label: "Barcode Scan" },
-  { value: "FUNCTIONAL", label: "Functional Test" },
-];
-
-const QC_TYPES = [
-  { value: "INBOUND", label: "Inbound QC" },
-  { value: "RETURN", label: "Return QC" },
-  { value: "PRODUCTION", label: "Production QC" },
-  { value: "CYCLE_COUNT", label: "Cycle Count" },
-  { value: "RANDOM_AUDIT", label: "Random Audit" },
-];
+// Map qcTypes to dropdown format
+const QC_TYPES = qcTypes.map((type) => ({
+  value: type,
+  label: type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+}));
 
 export default function QCTemplateDetailPage() {
   const params = useParams();
@@ -567,7 +558,7 @@ export default function QCTemplateDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {PARAMETER_TYPES.map((type) => (
+                      {parameterTypes.map((type) => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
                         </SelectItem>
@@ -756,7 +747,7 @@ export default function QCTemplateDetailPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PARAMETER_TYPES.map((type) => (
+                  {parameterTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
                     </SelectItem>

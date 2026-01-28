@@ -52,6 +52,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { qcTypeConfig } from "@/lib/constants/config";
 
 interface QCExecution {
   id: string;
@@ -115,14 +116,6 @@ const resultConfig: Record<string, { label: string; variant: "default" | "destru
   PASS: { label: "Pass", variant: "default" },
   FAIL: { label: "Fail", variant: "destructive" },
   PARTIAL: { label: "Partial", variant: "outline" },
-};
-
-const qcTypeConfig: Record<string, { label: string; color: string }> = {
-  INBOUND: { label: "Inbound", color: "bg-blue-500" },
-  RETURN: { label: "Return", color: "bg-orange-500" },
-  PRODUCTION: { label: "Production", color: "bg-green-500" },
-  CYCLE_COUNT: { label: "Cycle Count", color: "bg-purple-500" },
-  RANDOM_AUDIT: { label: "Random Audit", color: "bg-yellow-500" },
 };
 
 const statusTabs = [
